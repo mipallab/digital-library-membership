@@ -1,0 +1,7 @@
+{
+    "name": "antigravity/digital-library-membership",
+    "description": "WordPress Digital Library Membership Plugin composer dependencies",
+    "require": {
+        "stripe/stripe-php": "^10.5"
+    }
+}

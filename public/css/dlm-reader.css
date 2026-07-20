@@ -1,0 +1,459 @@
+/* Distraction-Free Book Reader CSS Stylesheet */
+.dlm-reader-html, .dlm-reader-body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Theme Options */
+.theme-light {
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+}
+.theme-sepia {
+    background-color: #f4ecd8;
+    color: #5b4636;
+}
+.theme-dark {
+    background-color: #1c1c1e;
+    color: #f5f5f7;
+}
+
+/* Reader Toolbar */
+.dlm-reader-toolbar {
+    height: 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    z-index: 100;
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+.theme-light .dlm-reader-toolbar { background: rgba(255, 255, 255, 0.8); }
+.theme-sepia .dlm-reader-toolbar { background: rgba(244, 236, 216, 0.85); border-color: rgba(91, 70, 54, 0.15); }
+.theme-dark .dlm-reader-toolbar { background: rgba(28, 28, 30, 0.85); border-color: rgba(255, 255, 255, 0.1); }
+
+.dlm-toolbar-left, .dlm-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.dlm-book-title-lbl {
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+}
+
+.dlm-toolbar-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    color: inherit;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.dlm-toolbar-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+.theme-dark .dlm-toolbar-btn:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* Workspace Panels layout */
+.dlm-reader-workspace {
+    display: flex;
+    height: calc(100% - 100px); /* Toolbar height (50px) + Footer height (50px) */
+    position: relative;
+}
+
+/* Sidebar Pane */
+.dlm-reader-sidebar {
+    width: 260px;
+    height: 100%;
+    border-right: 1px solid rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.theme-light .dlm-reader-sidebar { background: #fff; }
+.theme-sepia .dlm-reader-sidebar { background: #efe6cf; border-color: rgba(91, 70, 54, 0.15); }
+.theme-dark .dlm-reader-sidebar { background: #2c2c2e; border-color: rgba(255,255,255,0.1); }
+
+.dlm-sidebar-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.dlm-sidebar-header h3 { margin: 0; font-size: 16px; }
+
+.dlm-sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.dlm-tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    color: inherit;
+    opacity: 0.6;
+}
+.dlm-tab-btn.active {
+    border-bottom-color: #0071e3;
+    opacity: 1;
+}
+
+.dlm-sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.dlm-nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.dlm-nav-list li {
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.dlm-nav-list li a {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+}
+.dlm-nav-list li:hover {
+    background: rgba(0,0,0,0.04);
+}
+.theme-dark .dlm-nav-list li:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* Viewport Area */
+.dlm-reader-viewport {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.dlm-book-container {
+    width: 100%;
+    max-width: 1000px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Premium 3D Book Layout */
+.dlm-flipbook {
+    display: flex;
+    width: 100%;
+    height: 90%;
+    max-height: 650px;
+    perspective: 1200px;
+    position: relative;
+}
+
+.dlm-page-sheet {
+    flex: 1;
+    height: 100%;
+    background: #fff;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    position: relative;
+    transform-origin: left center;
+    transition: transform 0.35s ease;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Book Spine shadow */
+.left-page {
+    border-radius: 12px 0 0 12px;
+    border-right: 1px solid rgba(0,0,0,0.08);
+    box-shadow: -5px 10px 20px rgba(0,0,0,0.1), inset -10px 0 20px rgba(0,0,0,0.05);
+}
+
+.right-page {
+    border-radius: 0 12px 12px 0;
+    border-left: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 5px 10px 20px rgba(0,0,0,0.1), inset 10px 0 20px rgba(0,0,0,0.05);
+}
+
+/* Canvas Wrapper with Watermark Overlay */
+.dlm-page-canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+canvas {
+    max-width: 96%;
+    max-height: 96%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    background: #fff;
+}
+
+.dlm-watermark-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* 3D Animations */
+.dlm-flipbook.flipping-next .right-page {
+    transform: rotateY(-180deg);
+}
+
+.dlm-flipbook.flipping-prev .left-page {
+    transform: rotateY(180deg);
+}
+
+/* DRM shielding layer to intercept clicks */
+.dlm-reader-shield {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 100px);
+    z-index: 8;
+    background: transparent;
+}
+
+/* Navigation bar */
+.dlm-reader-nav {
+    height: 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    z-index: 100;
+    position: relative;
+}
+
+.theme-light .dlm-reader-nav { background: rgba(255, 255, 255, 0.8); }
+.theme-sepia .dlm-reader-nav { background: rgba(244, 236, 216, 0.85); border-color: rgba(91, 70, 54, 0.15); }
+.theme-dark .dlm-reader-nav { background: rgba(28, 28, 30, 0.85); border-color: rgba(255,255,255,0.1); }
+
+.dlm-nav-progress {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    max-width: 450px;
+    justify-content: center;
+}
+
+.dlm-nav-progress input[type="range"] {
+    flex: 1;
+    cursor: pointer;
+}
+
+.dlm-page-counter {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dlm-nav-btn {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: inherit;
+    padding: 5px 15px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.dlm-nav-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+.theme-dark .dlm-nav-btn:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* Loading Overlay Animation */
+.dlm-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(15px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dlm-loader-card {
+    background: #fff;
+    padding: 30px 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    text-align: center;
+    max-width: 320px;
+}
+
+.theme-dark .dlm-loader-card {
+    background: #2c2c2e;
+    color: #fff;
+}
+
+.dlm-loader-spinner {
+    border: 4px solid rgba(0,0,0,0.1);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border-left-color: #0071e3;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px auto;
+}
+
+.dlm-loader-text {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Swipe prompt tip */
+.dlm-swipe-tip {
+    position: absolute;
+    bottom: 20px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+/* Floating side navigation buttons */
+.dlm-side-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #1d1d1f;
+    font-size: 20px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    z-index: 15;
+    outline: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dlm-side-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    transform: translateY(-50%) scale(1.08);
+}
+
+.dlm-side-nav-btn:active {
+    transform: translateY(-50%) scale(0.96);
+}
+
+.dlm-side-nav-btn.prev {
+    left: 24px;
+}
+
+.dlm-side-nav-btn.next {
+    right: 24px;
+}
+
+/* Theme overrides for side buttons */
+.theme-sepia .dlm-side-nav-btn {
+    background: rgba(239, 230, 207, 0.75);
+    border-color: rgba(91, 70, 54, 0.12);
+    color: #5b4636;
+}
+.theme-sepia .dlm-side-nav-btn:hover {
+    background: rgba(239, 230, 207, 0.95);
+}
+
+.theme-dark .dlm-side-nav-btn {
+    background: rgba(44, 44, 46, 0.75);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+}
+.theme-dark .dlm-side-nav-btn:hover {
+    background: rgba(44, 44, 46, 0.95);
+}
+
+/* Responsive CSS */
+@media (max-width: 900px) {
+    .dlm-side-nav-btn {
+        display: none !important;
+    }
+    .dlm-flipbook {
+        max-width: 480px;
+    }
+    .dlm-page-sheet {
+        border-radius: 12px;
+    }
+    .dlm-book-title-lbl {
+        max-width: 130px;
+    }
+}

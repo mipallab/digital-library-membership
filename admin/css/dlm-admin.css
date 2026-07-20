@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
+
+/* Overrides to adapt WordPress dashboard layout for the DLM panel */
+body.toplevel_page_dlm-library #wpbody-content {
+	padding-bottom: 0 !important;
+}
+body.toplevel_page_dlm-library {
+	background-color: #f9f9f9;
+}
+
+/* Basic setup and font overrides */
+.dlm-tailwind-wrap {
+	font-family: 'Inter', sans-serif;
+	background-color: #f9f9f9;
+	color: #1a1c1c;
+	-webkit-font-smoothing: antialiased;
+}
+
+.dlm-tailwind-wrap h1,
+.dlm-tailwind-wrap h2,
+.dlm-tailwind-wrap h3,
+.dlm-tailwind-wrap h4,
+.dlm-tailwind-wrap h5,
+.dlm-tailwind-wrap h6,
+.dlm-tailwind-wrap .font-title-sm,
+.dlm-tailwind-wrap .font-display-lg,
+.dlm-tailwind-wrap .font-headline-md {
+	font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.dlm-tailwind-wrap .font-editorial {
+	font-family: 'Playfair Display', serif;
+}
+
+/* Font Awesome Icons configuration */
+.dlm-tailwind-wrap .fa-solid,
+.dlm-tailwind-wrap .fa-regular,
+.dlm-tailwind-wrap .fa-brands,
+.dlm-tailwind-wrap .fa {
+	vertical-align: middle;
+	display: inline-block;
+}
+
+/* Bento card design token */
+.dlm-tailwind-wrap .bento-card {
+	transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+.dlm-tailwind-wrap .bento-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.08);
+}
+
+/* Glassmorphism navigation bar */
+.dlm-tailwind-wrap .glass-nav,
+.dlm-tailwind-wrap .glass-panel {
+	background: rgba(255, 255, 255, 0.75);
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+}
+
+/* Custom Scrollbar for high-end aesthetic */
+.dlm-tailwind-wrap ::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+.dlm-tailwind-wrap ::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.dlm-tailwind-wrap ::-webkit-scrollbar-thumb {
+	background: #d8c3ad;
+	border-radius: 10px;
+}
+
+.dlm-tailwind-wrap ::-webkit-scrollbar-thumb:hover {
+	background: #855300;
+}
+
+/* Active navigation item animations */
+.dlm-tailwind-wrap .nav-active {
+	background-color: rgba(133, 83, 0, 0.1) !important;
+	color: #855300 !important;
+	font-weight: 600;
+	transform: scale(0.98);
+}
+
+/* Safe areas layout for mobile viewports */
+.dlm-tailwind-wrap .pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Modal display transitions styling */
+.dlm-tailwind-wrap .modal-backdrop {
+	background: rgba(26, 28, 28, 0.4);
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+}
+
+/* Sidebar Collapse Transition and Styles */
+.dlm-tailwind-wrap aside {
+	transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dlm-tailwind-wrap main {
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dlm-tailwind-wrap .sidebar-text {
+	transition: opacity 0.2s ease, width 0.2s ease;
+	opacity: 1;
+	display: inline-block;
+}
+
+@media (min-width: 768px) {
+	body.sidebar-collapsed .dlm-tailwind-wrap aside {
+		width: 80px;
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
+	}
+
+	body.sidebar-collapsed .dlm-tailwind-wrap aside .sidebar-text {
+		opacity: 0;
+		width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		margin: 0;
+		display: none !important;
+	}
+
+	body.sidebar-collapsed .dlm-tailwind-wrap aside .sidebar-logo-container {
+		justify-content: center;
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	body.sidebar-collapsed .dlm-tailwind-wrap aside nav a {
+		justify-content: center;
+		padding-left: 0;
+		padding-right: 0;
+		gap: 0;
+	}
+
+	body.sidebar-collapsed .dlm-tailwind-wrap aside .sidebar-user-container {
+		justify-content: center;
+		padding-left: 0;
+		padding-right: 0;
+		gap: 0;
+	}
+
+	body.sidebar-collapsed .dlm-tailwind-wrap aside #sidebar-toggle span {
+		transform: rotate(180deg);
+	}
+}
+
+/* Toast notifications for email sending / validation */
+.dlm-tailwind-wrap .toast-notification {
+	position: fixed;
+	bottom: 2rem;
+	right: 2rem;
+	background: #1a1c1c;
+	color: #ffffff;
+	padding: 1rem 1.5rem;
+	border-radius: 1rem;
+	box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	z-index: 100;
+	transform: translateY(100px);
+	opacity: 0;
+	transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.dlm-tailwind-wrap .toast-notification.show {
+	transform: translateY(0);
+	opacity: 1;
+}
+
+/* Dashboard Revenue Growth card custom padding override */
+.dlm-tailwind-wrap #sec-dashboard .lg\:col-span-2.bento-card {
+	padding-bottom: 4rem !important;
+	height: auto !important;
+}
+
+/* Reset input borders clash with WordPress default styles inside Tailwind wrapper */
+.dlm-tailwind-wrap input[type="text"],
+.dlm-tailwind-wrap input[type="password"],
+.dlm-tailwind-wrap input[type="email"],
+.dlm-tailwind-wrap input[type="number"],
+.dlm-tailwind-wrap input[type="url"],
+.dlm-tailwind-wrap input[type="date"],
+.dlm-tailwind-wrap select,
+.dlm-tailwind-wrap textarea {
+	border: 1px solid rgba(216, 195, 173, 0.4) !important;
+	border-radius: 0.75rem !important;
+	padding: 0.75rem 1rem !important;
+	background-color: #ffffff !important;
+	font-size: 0.875rem !important;
+	color: #1a1c1c !important;
+	line-height: 1.25rem !important;
+	height: auto !important;
+	box-shadow: none !important;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.dlm-tailwind-wrap input[type="text"]:focus,
+.dlm-tailwind-wrap input[type="password"]:focus,
+.dlm-tailwind-wrap input[type="email"]:focus,
+.dlm-tailwind-wrap input[type="number"]:focus,
+.dlm-tailwind-wrap input[type="url"]:focus,
+.dlm-tailwind-wrap input[type="date"]:focus,
+.dlm-tailwind-wrap select:focus,
+.dlm-tailwind-wrap textarea:focus {
+	border-color: #855300 !important;
+	box-shadow: 0 0 0 2px rgba(133, 83, 0, 0.2) !important;
+	outline: none !important;
+}
+
+/* Custom hover scrollbar for Most Read section */
+.dlm-hover-scrollbar {
+	overflow-y: auto !important;
+	scrollbar-width: none !important; /* Firefox hide */
+	-ms-overflow-style: none !important; /* IE/Edge hide */
+	transition: scrollbar-width 0.3s ease;
+}
+.dlm-hover-scrollbar::-webkit-scrollbar {
+	width: 6px !important;
+	background: transparent !important;
+}
+.dlm-hover-scrollbar::-webkit-scrollbar-thumb {
+	background: transparent !important;
+	border-radius: 10px !important;
+	transition: background 0.3s ease !important;
+}
+.dlm-hover-scrollbar.firefox-hover,
+.dlm-hover-scrollbar:hover {
+	scrollbar-width: thin !important; /* Firefox show */
+}
+.dlm-hover-scrollbar.firefox-hover::-webkit-scrollbar-thumb,
+.dlm-hover-scrollbar:hover::-webkit-scrollbar-thumb {
+	background: rgba(133, 83, 0, 0.4) !important; /* Webkit show */
+}
+
+/* Scroll snap carousel styling */
+.dlm-trending-carousel {
+	scroll-snap-type: x mandatory !important;
+	scroll-behavior: smooth !important;
+	-webkit-overflow-scrolling: touch !important;
+}
+.dlm-trending-carousel > div {
+	scroll-snap-align: start !important;
+}
