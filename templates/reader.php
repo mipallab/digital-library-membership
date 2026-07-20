@@ -96,7 +96,7 @@ if ( ! $db->has_active_membership( $user_id ) ) {
 			<div class="error-icon">🔒</div>
 			<h1 class="error-title"><?php esc_html_e( 'Access Required', 'digital-library-membership' ); ?></h1>
 			<p class="error-msg"><?php esc_html_e( 'Active subscription required to access library books.', 'digital-library-membership' ); ?></p>
-			<a href="<?php echo esc_url( home_url( '/checkout/' ) ); ?>" class="pricing-btn">
+			<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="pricing-btn">
 				<?php esc_html_e( 'View Pricing & Plans', 'digital-library-membership' ); ?>
 			</a>
 		</div>

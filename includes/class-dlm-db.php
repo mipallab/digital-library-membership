@@ -85,18 +85,29 @@ class DLM_DB {
 	}
 
 	/**
-	 * Get subscription details for user
+	 * Get subscription details for user (prioritizes active/approved subscription records)
 	 */
 	public function get_subscription_by_user( $user_id ) {
 		global $wpdb;
 		$table = $this->get_table_name( 'subscriptions' );
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE user_id = %d ORDER BY updated_at DESC LIMIT 1", $table, $user_id ) );
+
+		// Prioritize active, approved, or completed subscriptions
+		$active_sub = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE user_id = %d AND status IN ('active', 'approved', 'completed') ORDER BY id DESC LIMIT 1", $table, $user_id ) );
+		if ( $active_sub ) {
+			return $active_sub;
+		}
+
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE user_id = %d ORDER BY id DESC LIMIT 1", $table, $user_id ) );
 	}
 
 	/**
 	 * Check if user has active membership
 	 */
 	public function has_active_membership( $user_id ) {
+		if ( ! $user_id ) {
+			return false;
+		}
+
 		// Admin override capability
 		if ( user_can( $user_id, 'manage_options' ) ) {
 			return true;
@@ -104,7 +115,12 @@ class DLM_DB {
 
 		// Check WP User Meta for manual overrides first
 		$manual_override = get_user_meta( $user_id, 'dlm_manual_override', true );
-		if ( $manual_override === 'active' ) {
+		if ( 'active' === $manual_override ) {
+			return true;
+		}
+
+		$meta_status = get_user_meta( $user_id, 'dlm_subscription_status', true );
+		if ( 'active' === $meta_status ) {
 			return true;
 		}
 
@@ -113,9 +129,25 @@ class DLM_DB {
 			return false;
 		}
 
-		// If status is active, check expiry date
-		if ( $sub->status === 'active' ) {
-			return strtotime( $sub->expires_at ) > time();
+		// If status is active, approved, or completed
+		$status = strtolower( trim( $sub->status ) );
+		if ( in_array( $status, array( 'active', 'approved', 'completed' ), true ) ) {
+			// Lifetime interval never expires
+			if ( 'lifetime' === strtolower( trim( $sub->plan_interval ) ) ) {
+				return true;
+			}
+
+			// Empty or zero-date expiry is considered non-expiring active
+			if ( empty( $sub->expires_at ) || '0000-00-00 00:00:00' === $sub->expires_at || '0000-00-00' === $sub->expires_at ) {
+				return true;
+			}
+
+			$exp_timestamp = strtotime( $sub->expires_at );
+			if ( false === $exp_timestamp ) {
+				return true; // Invalid date format fallback to active
+			}
+
+			return $exp_timestamp > time();
 		}
 
 		return false;

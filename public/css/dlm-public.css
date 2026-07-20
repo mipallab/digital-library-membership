@@ -28,6 +28,40 @@
     --dlm-shadow-lg: 0 16px 40px rgba(0,0,0,0.08);
 }
 
+/* ==========================================================================
+   Library HTML Design System Fallback & Custom Utility Classes
+   ========================================================================== */
+.bg-background { background-color: #f9f9f9 !important; }
+.text-on-surface { color: #1a1c1c !important; }
+.bg-primary { background-color: #653e00 !important; }
+.text-primary { color: #653e00 !important; }
+.bg-primary-container { background-color: #855300 !important; }
+.bg-surface-container { background-color: #eeeeee !important; }
+.hover\:bg-surface-variant:hover { background-color: #e2e2e2 !important; }
+.text-secondary { color: #5f5e60 !important; }
+.bg-surface-amber { background-color: #f59e0b !important; }
+.border-outline-muted { border-color: rgba(134, 116, 97, 0.3) !important; }
+.border-outline-variant\/30 { border-color: rgba(213, 196, 178, 0.3) !important; }
+.text-label-micro { font-size: 11px !important; line-height: 14px !important; font-weight: 600 !important; }
+.text-label-caps { font-size: 12px !important; line-height: 16px !important; letter-spacing: 0.05em !important; font-weight: 600 !important; }
+.font-title-sm { font-family: 'Plus Jakarta Sans', sans-serif !important; font-size: 18px !important; font-weight: 600 !important; }
+.serif-title { font-family: 'Playfair Display', serif !important; }
+.gap-x-gutter { column-gap: 24px !important; }
+.px-margin-mobile { padding-left: 20px !important; padding-right: 20px !important; }
+@media (min-width: 768px) {
+    .md\:px-margin-desktop { padding-left: 48px !important; padding-right: 48px !important; }
+}
+
+.book-card-shadow { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important; }
+.book-card-shadow-hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12) !important; }
+.glass-effect { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.animate-fade-in { animation: dlmFadeIn 0.35s ease-in-out; }
+@keyframes dlmFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .dlm-container {
     max-width: 1000px;
     margin: 40px auto;

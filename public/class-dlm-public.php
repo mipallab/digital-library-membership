@@ -29,119 +29,284 @@ class DLM_Public {
 		$is_logged_in = is_user_logged_in();
 		$user_id      = $is_logged_in ? get_current_user_id() : 0;
 		$is_active    = $is_logged_in ? $this->db->has_active_membership( $user_id ) : false;
+		$pricing_url  = dlm_get_page_url( 'pricing' );
 
-		$books = $this->db->get_books( 'publish' );
-		
+		$raw_books = $this->db->get_books( 'publish' );
+		$books_data = array();
+		$categories_set = array();
+
+		if ( ! empty( $raw_books ) ) {
+			foreach ( $raw_books as $b ) {
+				$progress         = ( $is_logged_in && $user_id ) ? $this->db->get_reading_progress( $user_id, $b->id ) : null;
+				$progress_percent = $progress ? intval( $progress->progress_percent ) : 0;
+				$category         = ! empty( $b->category ) ? $b->category : __( 'General', 'digital-library-membership' );
+
+				if ( ! in_array( $category, $categories_set, true ) ) {
+					$categories_set[] = $category;
+				}
+
+				$books_data[] = array(
+					'id'       => $b->id,
+					'title'    => $b->title,
+					'author'   => $b->author,
+					'category' => $category,
+					'progress' => $progress_percent,
+					'cover'    => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
+					'date'     => ! empty( $b->created_at ) ? $b->created_at : date( 'Y-m-d' ),
+					'read_url' => home_url( '/read/' . $b->id . '/' ),
+				);
+			}
+		}
+
 		ob_start();
 		?>
-		<div class="dlm-container">
-			<header class="dlm-library-header">
-				<h1><?php esc_html_e( 'Digital Library', 'digital-library-membership' ); ?></h1>
-				<div class="dlm-sub-bar">
+		<script id="tailwind-config">
+			if (typeof tailwind !== 'undefined') {
+				tailwind.config = {
+					darkMode: "class",
+					theme: {
+						extend: {
+							"colors": {
+								"tertiary-container": "#00658b",
+								"error": "#ba1a1a",
+								"secondary-fixed-dim": "#c8c6c8",
+								"on-background": "#1a1c1c",
+								"on-secondary": "#ffffff",
+								"on-tertiary": "#ffffff",
+								"on-error-container": "#93000a",
+								"surface-amber": "#f59e0b",
+								"on-tertiary-fixed-variant": "#004c6a",
+								"on-surface": "#1a1c1c",
+								"primary-fixed-dim": "#fdb965",
+								"inverse-on-surface": "#f0f1f1",
+								"error-container": "#ffdad6",
+								"secondary": "#5f5e60",
+								"tertiary": "#004c6a",
+								"on-secondary-fixed-variant": "#474648",
+								"tertiary-fixed-dim": "#88cffa",
+								"surface-container-high": "#e8e8e8",
+								"surface-tint": "#855300",
+								"primary-fixed": "#ffddb8",
+								"surface-container-highest": "#e2e2e2",
+								"background": "#f9f9f9",
+								"surface-dim": "#dadada",
+								"surface-variant": "#e2e2e2",
+								"on-surface-amber": "#613b00",
+								"surface-container-lowest": "#ffffff",
+								"primary": "#653e00",
+								"tertiary-fixed": "#c5e7ff",
+								"inverse-surface": "#2f3131",
+								"secondary-fixed": "#e5e2e4",
+								"on-surface-variant": "#514538",
+								"surface-container": "#eeeeee",
+								"secondary-container": "#e2dfe1",
+								"on-secondary-container": "#636264",
+								"primary-container": "#855300",
+								"on-primary-container": "#ffd09a",
+								"surface": "#f9f9f9",
+								"inverse-primary": "#fdb965",
+								"outline-muted": "rgba(134, 116, 97, 0.3)",
+								"on-tertiary-fixed": "#001e2d",
+								"on-tertiary-container": "#addeff",
+								"surface-bright": "#f9f9f9",
+								"outline-variant": "#d5c4b2",
+								"on-primary-fixed-variant": "#653e00",
+								"on-primary-fixed": "#2a1700",
+								"on-error": "#ffffff",
+								"on-primary": "#ffffff",
+								"outline": "#837566",
+								"surface-container-low": "#f3f3f3",
+								"surface-background": "#fafafa",
+								"on-secondary-fixed": "#1b1b1d"
+							},
+							"borderRadius": {
+								"DEFAULT": "0.25rem",
+								"lg": "0.5rem",
+								"xl": "0.75rem",
+								"full": "9999px"
+							},
+							"spacing": {
+								"container-max": "1440px",
+								"sidebar-width": "280px",
+								"margin-mobile": "20px",
+								"margin-desktop": "48px",
+								"unit": "8px",
+								"gutter": "24px"
+							},
+							"fontFamily": {
+								"body-md": ["Inter"],
+								"title-sm": ["Plus Jakarta Sans"],
+								"label-caps": ["Inter"],
+								"display-lg-mobile": ["Plus Jakarta Sans"],
+								"headline-md": ["Plus Jakarta Sans"],
+								"body-lg": ["Inter"],
+								"label-micro": ["Inter"],
+								"display-lg": ["Plus Jakarta Sans"],
+								"serif": ["Playfair Display", "serif"]
+							}
+						}
+					}
+				};
+			}
+		</script>
+		<div class="dlm-container max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop py-4">
+			<!-- Header / Status Bar -->
+			<header class="dlm-library-header flex justify-between items-center mb-8 pb-4 border-b border-outline-muted">
+				<div>
+					<h1 class="font-display-lg text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface serif-title m-0"><?php esc_html_e( 'Digital Library Catalog', 'digital-library-membership' ); ?></h1>
+					<p class="text-xs md:text-sm text-secondary mt-1"><?php esc_html_e( 'Explore our collection of digital manuscripts and books.', 'digital-library-membership' ); ?></p>
+				</div>
+				<div class="flex items-center gap-3">
 					<?php if ( $is_active ) : ?>
 						<span class="dlm-status-badge active"><?php esc_html_e( 'Active Member', 'digital-library-membership' ); ?></span>
 					<?php elseif ( $is_logged_in ) : ?>
-						<span class="dlm-status-badge inactive"><?php esc_html_e( 'No Active Membership', 'digital-library-membership' ); ?></span>
-						<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="dlm-btn dlm-btn-primary dlm-btn-sm"><?php esc_html_e( 'Join Membership', 'digital-library-membership' ); ?></a>
+						<span class="dlm-status-badge inactive"><?php esc_html_e( 'No Subscription', 'digital-library-membership' ); ?></span>
+						<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-btn dlm-btn-primary dlm-btn-sm"><?php esc_html_e( 'Join Membership', 'digital-library-membership' ); ?></a>
 					<?php else : ?>
-						<span class="dlm-status-badge guest" style="background:#e8eaed; color:#3c4043; padding:4px 10px; border-radius:6px; font-weight:600; font-size:12px; margin-right:10px;"><?php esc_html_e( 'Guest Preview', 'digital-library-membership' ); ?></span>
-						<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="dlm-btn dlm-btn-primary dlm-btn-sm"><?php esc_html_e( 'View Membership Plans', 'digital-library-membership' ); ?></a>
+						<span class="dlm-status-badge guest"><?php esc_html_e( 'Guest Preview', 'digital-library-membership' ); ?></span>
+						<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-btn dlm-btn-primary dlm-btn-sm"><?php esc_html_e( 'View Plans', 'digital-library-membership' ); ?></a>
 					<?php endif; ?>
 				</div>
 			</header>
 
 			<?php if ( ! $is_logged_in ) : ?>
-				<div class="dlm-msg-box info" style="background:#f0f7ff; border:1px solid #cce5ff; color:#004085; padding:15px 20px; border-radius:12px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+				<div class="dlm-msg-box info flex justify-between items-center flex-wrap gap-4 mb-8">
 					<div>
-						<strong><?php esc_html_e( 'Welcome to our Digital Library!', 'digital-library-membership' ); ?></strong>
-						<p style="margin:4px 0 0 0; font-size:13px; color:#555;"><?php esc_html_e( 'Browse our catalog below. Log in or create an account to unlock full reading access.', 'digital-library-membership' ); ?></p>
+						<strong class="font-bold text-on-surface"><?php esc_html_e( 'Welcome to our Digital Library!', 'digital-library-membership' ); ?></strong>
+						<p class="text-xs text-secondary mt-0.5"><?php esc_html_e( 'Browse our catalog below. Sign up or log in to unlock full reading access.', 'digital-library-membership' ); ?></p>
 					</div>
-					<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="dlm-btn dlm-btn-accent dlm-btn-sm"><?php esc_html_e( 'Get Access Now', 'digital-library-membership' ); ?></a>
+					<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-btn dlm-btn-accent dlm-btn-sm"><?php esc_html_e( 'Get Membership Access', 'digital-library-membership' ); ?></a>
 				</div>
 			<?php endif; ?>
 
-			<!-- Search & Filter -->
-			<div class="dlm-filter-bar">
-				<input type="text" id="dlm-search" placeholder="<?php esc_attr_e( 'Search by title or author...', 'digital-library-membership' ); ?>">
+			<!-- Filters & Controls Bar -->
+			<div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
+				<!-- Category Filter Pills -->
+				<div id="category-filters" class="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-2 md:pb-0">
+					<button data-category="All" class="filter-btn active px-6 py-2 bg-primary text-white font-bold rounded-full whitespace-nowrap transition-all shadow-sm"><?php esc_html_e( 'All Books', 'digital-library-membership' ); ?></button>
+					<?php foreach ( $categories_set as $cat ) : ?>
+						<button data-category="<?php echo esc_attr( $cat ); ?>" class="filter-btn px-6 py-2 bg-surface-container text-secondary font-bold rounded-full hover:bg-surface-variant transition-all whitespace-nowrap"><?php echo esc_html( $cat ); ?></button>
+					<?php endforeach; ?>
+				</div>
+
+				<!-- Search Input & Sort Dropdown -->
+				<div class="relative flex items-center gap-4 text-secondary flex-wrap">
+					<!-- Search Input -->
+					<div class="relative min-w-[240px]">
+						<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[20px]">search</span>
+						<input id="search-input" class="w-full pl-10 pr-4 py-2 bg-surface-container rounded-full border-none focus:ring-2 focus:ring-primary text-body-md placeholder:text-secondary transition-all duration-300" placeholder="<?php esc_attr_e( 'Search title or author...', 'digital-library-membership' ); ?>" type="text">
+					</div>
+
+					<!-- Sort Selector -->
+					<div class="relative flex items-center gap-2 cursor-pointer select-none" id="sort-trigger">
+						<span class="text-label-caps uppercase select-none"><?php esc_html_e( 'Sorted by:', 'digital-library-membership' ); ?> <span id="current-sort-label" class="text-on-surface font-bold"><?php esc_html_e( 'Recent', 'digital-library-membership' ); ?></span></span>
+						<button class="p-2 hover:bg-surface-variant rounded-lg transition-colors" type="button">
+							<span class="material-symbols-outlined">filter_list</span>
+						</button>
+
+						<!-- Dropdown Menu -->
+						<div id="sort-dropdown" class="hidden absolute right-0 top-12 w-48 bg-white border border-outline-variant/30 rounded-2xl shadow-xl z-50 py-2 animate-fade-in">
+							<button data-sort="recent" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container flex items-center justify-between" type="button">
+								<?php esc_html_e( 'Recent', 'digital-library-membership' ); ?> <span>✓</span>
+							</button>
+							<button data-sort="title-asc" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-medium text-secondary hover:bg-surface-container flex items-center justify-between" type="button">
+								<?php esc_html_e( 'Title (A - Z)', 'digital-library-membership' ); ?>
+							</button>
+							<button data-sort="progress-desc" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-medium text-secondary hover:bg-surface-container flex items-center justify-between" type="button">
+								<?php esc_html_e( 'Progress (Highest)', 'digital-library-membership' ); ?>
+							</button>
+							<button data-sort="category" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-medium text-secondary hover:bg-surface-container flex items-center justify-between" type="button">
+								<?php esc_html_e( 'Category', 'digital-library-membership' ); ?>
+							</button>
+						</div>
+					</div>
+				</div>
 			</div>
 
-			<div class="dlm-books-grid" id="dlm-books-grid">
-				<?php if ( empty( $books ) ) : ?>
-					<div class="dlm-empty-state">
-						<p><?php esc_html_e( 'No books are currently available in the library.', 'digital-library-membership' ); ?></p>
-					</div>
-				<?php else : ?>
-					<?php foreach ( $books as $book ) : ?>
-						<?php
-						$progress         = ( $is_logged_in && $user_id ) ? $this->db->get_reading_progress( $user_id, $book->id ) : null;
-						$last_page        = $progress ? intval( $progress->last_page ) : 1;
-						$progress_percent = $progress ? intval( $progress->progress_percent ) : 0;
-						?>
-						<div class="dlm-book-card" data-title="<?php echo esc_attr( strtolower( $book->title ) ); ?>" data-author="<?php echo esc_attr( strtolower( $book->author ) ); ?>">
-							<div class="dlm-book-cover-wrapper">
-								<?php if ( $book->cover_image_url ) : ?>
-									<img src="<?php echo esc_url( $book->cover_image_url ); ?>" alt="<?php echo esc_attr( $book->title ); ?>" class="dlm-book-cover" loading="lazy">
-								<?php else : ?>
-									<div class="dlm-book-cover-placeholder">
-										<span><?php echo esc_html( $book->title ); ?></span>
-									</div>
-								<?php endif; ?>
-								
-								<div class="dlm-book-overlay">
-									<?php if ( $is_active ) : ?>
-										<a href="<?php echo esc_url( home_url( '/read/' . $book->id . '/' ) ); ?>" class="dlm-btn dlm-btn-read">
-											<?php echo ( $progress_percent > 0 ) ? esc_html__( 'Continue Reading', 'digital-library-membership' ) : esc_html__( 'Read Book', 'digital-library-membership' ); ?>
-										</a>
-									<?php elseif ( $is_logged_in ) : ?>
-										<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="dlm-btn dlm-btn-subscribe">
-											<?php esc_html_e( 'Unlock Access', 'digital-library-membership' ); ?>
-										</a>
-									<?php else : ?>
-										<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="dlm-btn dlm-btn-subscribe">
-											<?php esc_html_e( 'Sign Up to Read', 'digital-library-membership' ); ?>
-										</a>
-									<?php endif; ?>
-								</div>
-							</div>
-							<div class="dlm-book-details">
-								<h3 class="dlm-book-title"><?php echo esc_html( $book->title ); ?></h3>
-								<p class="dlm-book-author"><?php echo esc_html( $book->author ); ?></p>
-								
-								<?php if ( $progress_percent > 0 ) : ?>
-									<div class="dlm-progress-container">
-										<div class="dlm-progress-bar" style="width: <?php echo intval( $progress_percent ); ?>%;"></div>
-										<span class="dlm-progress-text"><?php 
-											/* translators: %d: Progress percentage */
-											echo esc_html( sprintf( __( '%d%% Read', 'digital-library-membership' ), $progress_percent ) ); 
-										?></span>
-									</div>
-								<?php endif; ?>
-							</div>
-						</div>
-					<?php endforeach; ?>
-				<?php endif; ?>
+			<!-- Result Count Banner -->
+			<div id="result-stats" class="mb-6 text-sm text-secondary font-medium hidden">
+				<?php esc_html_e( 'Showing', 'digital-library-membership' ); ?> <span id="visible-count-num" class="font-bold text-on-surface">0</span> <?php esc_html_e( 'of', 'digital-library-membership' ); ?> <span id="total-count-num" class="font-bold text-on-surface">0</span> <?php esc_html_e( 'items', 'digital-library-membership' ); ?>
+			</div>
+
+			<!-- Books Grid -->
+			<div id="books-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-gutter gap-y-12 min-h-[400px]">
+				<!-- Rendered via dlm-public.js -->
+			</div>
+
+			<!-- Empty State Container -->
+			<div id="empty-state" class="hidden text-center py-16">
+				<span class="material-symbols-outlined text-[64px] text-outline-variant mb-4">search_off</span>
+				<h3 class="text-xl font-bold text-on-surface mb-2"><?php esc_html_e( 'No matching books found', 'digital-library-membership' ); ?></h3>
+				<p class="text-secondary text-sm max-w-sm mx-auto mb-6"><?php esc_html_e( 'Try adjusting your search terms or category filters to find what you\'re looking for.', 'digital-library-membership' ); ?></p>
+				<button id="reset-filters-btn" class="px-6 py-2.5 bg-primary text-white font-bold rounded-full hover:bg-primary-container transition-all" type="button"><?php esc_html_e( 'Reset All Filters', 'digital-library-membership' ); ?></button>
+			</div>
+
+			<!-- Pagination / Load More -->
+			<div class="mt-16 flex justify-center">
+				<button id="load-more-btn" class="flex items-center gap-2 px-10 py-4 bg-surface-container hover:bg-surface-variant text-on-surface font-bold rounded-full transition-all group shadow-sm" type="button">
+					<span id="load-more-text"><?php esc_html_e( 'Load More Manuscripts', 'digital-library-membership' ); ?></span>
+					<span class="material-symbols-outlined group-hover:translate-y-1 transition-transform">keyboard_arrow_down</span>
+				</button>
 			</div>
 		</div>
 
-		<?php
-		$search_js = "
-			jQuery(document).ready(function($) {
-				$('#dlm-search').on('input', function() {
-					var query = $(this).val().toLowerCase();
-					$('.dlm-book-card').each(function() {
-						var title = $(this).data('title');
-						var author = $(this).data('author');
-						if (title.indexOf(query) !== -1 || author.indexOf(query) !== -1) {
-							$(this).show();
-						} else {
-							$(this).hide();
-						}
-					});
-				});
-			});
-		";
-		wp_add_inline_script( 'jquery', $search_js );
-		?>
+		<!-- Reading Modal -->
+		<div id="reader-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+			<div class="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl relative animate-fade-in border border-outline-variant/30">
+				<button id="close-modal-btn" class="absolute top-6 right-6 w-10 h-10 rounded-full hover:bg-surface-container flex items-center justify-center text-secondary transition-colors" type="button">
+					<span class="material-symbols-outlined">close</span>
+				</button>
+
+				<div class="flex gap-6 mb-6">
+					<img id="modal-cover" class="w-24 h-36 object-cover rounded-xl shadow-md border border-outline-variant/30" src="" alt="Book cover">
+					<div class="flex-1 space-y-2 pt-2">
+						<span id="modal-category" class="text-label-micro text-primary font-bold uppercase tracking-wider"></span>
+						<h3 id="modal-title" class="font-title-sm text-on-surface serif-title text-xl font-bold"></h3>
+						<p id="modal-author" class="text-sm text-secondary"></p>
+
+						<div class="pt-3">
+							<div class="flex justify-between text-xs font-semibold mb-1">
+								<span class="text-secondary"><?php esc_html_e( 'Current Progress', 'digital-library-membership' ); ?></span>
+								<span id="modal-progress-text" class="text-primary font-bold">0%</span>
+							</div>
+							<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
+								<div id="modal-progress-bar" class="h-full bg-surface-amber transition-all duration-500" style="width: 0%;"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="space-y-4 pt-2 border-t border-outline-muted">
+					<p class="text-xs text-secondary leading-relaxed">
+						<?php esc_html_e( 'You are opening this digital manuscript. Continue your reading session or update your progress below.', 'digital-library-membership' ); ?>
+					</p>
+
+					<div class="flex gap-3">
+						<button id="modal-read-now-btn" class="flex-1 py-3.5 bg-primary text-white font-bold rounded-full hover:opacity-90 transition-all shadow-md" type="button">
+							<?php esc_html_e( 'Start Reading', 'digital-library-membership' ); ?>
+						</button>
+						<button id="modal-mark-complete-btn" class="px-6 py-3.5 bg-surface-container text-on-surface font-bold rounded-full hover:bg-surface-variant transition-all" type="button">
+							<?php esc_html_e( '+15% Progress', 'digital-library-membership' ); ?>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Notification Toast -->
+		<div id="toast-notif" class="fixed bottom-6 right-6 z-50 bg-inverse-surface text-inverse-on-surface px-6 py-3.5 rounded-2xl shadow-xl text-sm font-semibold flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300">
+			<span class="material-symbols-outlined text-primary-fixed">auto_stories</span>
+			<span id="toast-message"><?php esc_html_e( 'Reading session launched!', 'digital-library-membership' ); ?></span>
+		</div>
+
+		<script>
+			window.dlmLibraryData = {
+				isLoggedIn: <?php echo json_encode( $is_logged_in ); ?>,
+				isActive: <?php echo json_encode( $is_active ); ?>,
+				pricingUrl: <?php echo json_encode( $pricing_url ); ?>,
+				books: <?php echo json_encode( $books_data ); ?>
+			};
+		</script>
 		<?php
 		return ob_get_clean();
 	}

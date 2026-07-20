@@ -218,7 +218,8 @@ class DLM {
 
 		// Enqueue public core stylesheet
 		wp_enqueue_style( 'dlm-public-css', DLM_URL . 'public/css/dlm-public.css', array(), DLM_VERSION );
-		wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-material-symbols', 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap', array(), DLM_VERSION );
 		wp_enqueue_style( 'dlm-font-awesome', DLM_URL . 'admin/css/font-awesome.min.css', array(), '6.4.0' );
 
 		wp_enqueue_script( 'dlm-tailwind', DLM_URL . 'admin/js/tailwindcss.js', array(), DLM_VERSION, false );
@@ -329,14 +330,15 @@ class DLM {
 			<?php
 		}
 
-		// Warning notice if WooCommerce is required but not installed/active on the Settings page
+		// Notice if WooCommerce is explicitly set as primary gateway but WooCommerce plugin is missing
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! class_exists( 'WooCommerce' ) && isset( $_GET['page'] ) && $_GET['page'] === 'dlm-library' && isset( $_GET['tab'] ) && $_GET['tab'] === 'settings' ) {
+		$enable_wc = get_option( 'dlm_enable_woocommerce', '0' );
+		if ( '1' === $enable_wc && ! class_exists( 'WooCommerce' ) && isset( $_GET['page'] ) && 'dlm-library' === $_GET['page'] ) {
 			?>
-			<div class="notice notice-error is-dismissible">
+			<div class="notice notice-warning is-dismissible">
 				<p>
-					<strong><?php esc_html_e( 'WooCommerce Required:', 'digital-library-membership' ); ?></strong>
-					<?php esc_html_e( 'WooCommerce must be installed and active to configure the WooCommerce Payment Gateway integration.', 'digital-library-membership' ); ?>
+					<strong><?php esc_html_e( 'WooCommerce Gateway Notice:', 'digital-library-membership' ); ?></strong>
+					<?php esc_html_e( 'WooCommerce integration is enabled in settings, but WooCommerce is not active. Install WooCommerce or disable WooCommerce Gateway in settings.', 'digital-library-membership' ); ?>
 				</p>
 			</div>
 			<?php

@@ -300,4 +300,265 @@ jQuery(document).ready(function($) {
             $btn.prop('disabled', false).text('Register & Auto-Login');
         });
     });
+
+    // ------------------------------------------------------------------------
+    // DYNAMIC LIBRARY GRID (Real-time Filtering, Searching, Sorting & Load More)
+    // ------------------------------------------------------------------------
+    if (window.dlmLibraryData && window.dlmLibraryData.books) {
+        var libState = {
+            category: 'All',
+            sort: 'recent',
+            search: '',
+            visibleCount: 12,
+            pageSize: 6
+        };
+
+        var allBooks = window.dlmLibraryData.books;
+        var isLoggedIn = window.dlmLibraryData.isLoggedIn;
+        var isActive = window.dlmLibraryData.isActive;
+        var pricingUrl = window.dlmLibraryData.pricingUrl;
+
+        function getFilteredAndSortedBooks() {
+            var filtered = allBooks.filter(function(book) {
+                var matchCategory = (libState.category === 'All') || (book.category === libState.category);
+                var q = libState.search.toLowerCase().trim();
+                var matchSearch = !q || book.title.toLowerCase().indexOf(q) !== -1 || book.author.toLowerCase().indexOf(q) || book.category.toLowerCase().indexOf(q);
+                return matchCategory && matchSearch;
+            });
+
+            if (libState.sort === 'recent') {
+                filtered.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+            } else if (libState.sort === 'title-asc') {
+                filtered.sort(function(a, b) { return a.title.localeCompare(b.title); });
+            } else if (libState.sort === 'progress-desc') {
+                filtered.sort(function(a, b) { return b.progress - a.progress; });
+            } else if (libState.sort === 'category') {
+                filtered.sort(function(a, b) { return a.category.localeCompare(b.category); });
+            }
+
+            return filtered;
+        }
+
+        function renderLibraryGrid() {
+            var $grid = $('#dlm-library-grid, #books-grid');
+            var $empty = $('#dlm-library-empty, #empty-state');
+            var $loadMore = $('#dlm-load-more-btn, #load-more-btn');
+            var $loadMoreText = $('#dlm-load-more-text, #load-more-text');
+            var $stats = $('#dlm-result-stats, #result-stats');
+            var $visibleNum = $('#dlm-visible-count, #visible-count-num');
+            var $totalNum = $('#dlm-total-count, #total-count-num');
+
+            if (!$grid.length) return;
+
+            var filtered = getFilteredAndSortedBooks();
+            var total = filtered.length;
+            var displayed = filtered.slice(0, libState.visibleCount);
+
+            $visibleNum.text(displayed.length);
+            $totalNum.text(total);
+            $stats.removeClass('hidden');
+
+            if (total === 0) {
+                $grid.empty();
+                $empty.removeClass('hidden');
+                $loadMore.addClass('hidden');
+                return;
+            }
+
+            $empty.addClass('hidden');
+
+            var html = displayed.map(function(book) {
+                var coverMarkup = book.cover 
+                    ? '<img class="w-full h-full object-cover" src="' + book.cover + '" alt="' + book.title + '" loading="lazy">' 
+                    : '<div class="dlm-book-cover-placeholder"><span>' + book.title + '</span></div>';
+
+                var actionButton = '';
+                if (isActive) {
+                    var btnText = book.progress > 0 ? 'Continue Reading' : 'Read Book';
+                    actionButton = '<a href="' + book.read_url + '" class="px-6 py-2 bg-primary text-white font-bold rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-md">' + btnText + '</a>';
+                } else if (isLoggedIn) {
+                    actionButton = '<a href="' + pricingUrl + '" class="px-6 py-2 bg-primary text-white font-bold rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-md">Unlock Access</a>';
+                } else {
+                    actionButton = '<a href="' + pricingUrl + '" class="px-6 py-2 bg-primary text-white font-bold rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-md">Sign Up to Read</a>';
+                }
+
+                var progressBarHtml = book.progress > 0 
+                    ? '<div class="absolute bottom-0 left-0 w-full h-1.5 bg-black/20"><div class="h-full bg-surface-amber transition-all duration-300" style="width: ' + book.progress + '%;"></div></div>' 
+                    : '';
+
+                var progressTextHtml = book.progress > 0 
+                    ? '<span class="text-label-micro text-secondary font-semibold">' + book.progress + '% Read</span>' 
+                    : '';
+
+                return '<div class="group cursor-pointer animate-fade-in dlm-book-card-item" data-book-id="' + book.id + '">' +
+                    '<div class="relative aspect-[3/4] mb-4 rounded-xl overflow-hidden book-card-shadow transition-all duration-300 group-hover:-translate-y-2 group-hover:book-card-shadow-hover border border-outline-variant/30">' +
+                        coverMarkup +
+                        '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">' +
+                            actionButton +
+                        '</div>' +
+                        progressBarHtml +
+                    '</div>' +
+                    '<div class="space-y-1">' +
+                        '<div class="flex items-center justify-between">' +
+                            '<span class="text-label-micro text-primary font-bold uppercase tracking-wider">' + book.category + '</span>' +
+                            progressTextHtml +
+                        '</div>' +
+                        '<h3 class="font-title-sm text-on-surface serif-title truncate m-0">' + book.title + '</h3>' +
+                        '<p class="text-[13px] text-secondary m-0">' + book.author + '</p>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            $grid.html(html);
+
+            if (libState.visibleCount >= total) {
+                $loadMore.addClass('hidden');
+            } else {
+                $loadMore.removeClass('hidden');
+                var remaining = total - libState.visibleCount;
+                $loadMoreText.text('Load More Manuscripts (' + remaining + ' remaining)');
+            }
+        }
+
+        // Category Filter Buttons
+        $('body').on('click', '.dlm-cat-btn, .filter-btn', function() {
+            $('.dlm-cat-btn, .filter-btn').removeClass('bg-primary text-white shadow-sm active').addClass('bg-surface-container text-secondary');
+            $(this).removeClass('bg-surface-container text-secondary').addClass('bg-primary text-white shadow-sm active');
+
+            libState.category = $(this).data('category');
+            libState.visibleCount = 12;
+            renderLibraryGrid();
+        });
+
+        // Search Input Handler
+        $('body').on('input', '#dlm-library-search, #search-input', function() {
+            libState.search = $(this).val();
+            libState.visibleCount = 12;
+            renderLibraryGrid();
+        });
+
+        // Sort Dropdown Trigger
+        $('body').on('click', '#dlm-sort-trigger, #sort-trigger', function(e) {
+            e.stopPropagation();
+            $('#dlm-sort-dropdown, #sort-dropdown').toggleClass('hidden');
+        });
+
+        $(document).click(function() {
+            $('#dlm-sort-dropdown, #sort-dropdown').addClass('hidden');
+        });
+
+        // Sort Option Selection
+        $('body').on('click', '.dlm-sort-opt, .sort-opt', function(e) {
+            e.stopPropagation();
+            libState.sort = $(this).data('sort');
+
+            $('.dlm-sort-opt, .sort-opt').removeClass('font-bold text-on-surface').addClass('font-medium text-secondary').find('span').remove();
+            $(this).removeClass('font-medium text-secondary').addClass('font-bold text-on-surface').append(' <span>✓</span>');
+
+            var sortNames = {
+                'recent': 'Recent',
+                'title-asc': 'Title (A - Z)',
+                'progress-desc': 'Progress (Highest)',
+                'category': 'Category'
+            };
+            $('#dlm-sort-label, #current-sort-label').text(sortNames[libState.sort] || 'Recent');
+            $('#dlm-sort-dropdown, #sort-dropdown').addClass('hidden');
+
+            renderLibraryGrid();
+        });
+
+        // Load More Handler
+        $('body').on('click', '#dlm-load-more-btn, #load-more-btn', function() {
+            libState.visibleCount += libState.pageSize;
+            renderLibraryGrid();
+        });
+
+        // Reset Filters Button
+        $('body').on('click', '#dlm-reset-filters-btn, #reset-filters-btn', function() {
+            libState.category = 'All';
+            libState.sort = 'recent';
+            libState.search = '';
+            $('#dlm-library-search, #search-input').val('');
+
+            $('.dlm-cat-btn, .filter-btn').removeClass('bg-primary text-white shadow-sm active').addClass('bg-surface-container text-secondary');
+            $('.dlm-cat-btn[data-category="All"], .filter-btn[data-category="All"]').removeClass('bg-surface-container text-secondary').addClass('bg-primary text-white shadow-sm active');
+
+            libState.visibleCount = 12;
+            renderLibraryGrid();
+        });
+
+        // Card Click / Reader Modal Interactivity
+        var selectedBookForModal = null;
+
+        $('body').on('click', '.dlm-book-card-item', function(e) {
+            if ($(e.target).closest('a').length) return; // Allow direct link clicks on overlay buttons
+
+            var bookId = $(this).data('book-id');
+            var book = allBooks.find(function(b) { return b.id == bookId; });
+            if (!book) return;
+
+            selectedBookForModal = book;
+
+            $('#modal-cover').attr('src', book.cover || '').attr('alt', book.title);
+            $('#modal-category').text(book.category);
+            $('#modal-title').text(book.title);
+            $('#modal-author').text(book.author);
+            $('#modal-progress-text').text(book.progress + '%');
+            $('#modal-progress-bar').css('width', book.progress + '%');
+
+            if (isActive) {
+                $('#modal-read-now-btn').text('Start Reading').off('click').on('click', function() {
+                    window.location.href = book.read_url;
+                });
+            } else if (isLoggedIn) {
+                $('#modal-read-now-btn').text('Unlock Access').off('click').on('click', function() {
+                    window.location.href = pricingUrl;
+                });
+            } else {
+                $('#modal-read-now-btn').text('Sign Up to Read').off('click').on('click', function() {
+                    window.location.href = pricingUrl;
+                });
+            }
+
+            $('#reader-modal').removeClass('hidden').addClass('flex');
+        });
+
+        // Close Modal
+        $('body').on('click', '#close-modal-btn', function() {
+            $('#reader-modal').addClass('hidden').removeClass('flex');
+        });
+
+        $('#reader-modal').on('click', function(e) {
+            if (e.target === this) {
+                $('#reader-modal').addClass('hidden').removeClass('flex');
+            }
+        });
+
+        // Progress simulator button
+        $('body').on('click', '#modal-mark-complete-btn', function() {
+            if (selectedBookForModal) {
+                selectedBookForModal.progress = Math.min(100, selectedBookForModal.progress + 15);
+                $('#modal-progress-text').text(selectedBookForModal.progress + '%');
+                $('#modal-progress-bar').css('width', selectedBookForModal.progress + '%');
+                renderLibraryGrid();
+                showToast('Updated progress to ' + selectedBookForModal.progress + '% for "' + selectedBookForModal.title + '"');
+            }
+        });
+
+        function showToast(msg) {
+            var $toast = $('#toast-notif');
+            var $msg = $('#toast-message');
+            if (!$toast.length) return;
+
+            $msg.text(msg);
+            $toast.removeClass('translate-y-20 opacity-0').addClass('translate-y-0 opacity-100');
+
+            setTimeout(function() {
+                $toast.removeClass('translate-y-0 opacity-100').addClass('translate-y-20 opacity-0');
+            }, 3000);
+        }
+
+        // Initial Grid Render
+        renderLibraryGrid();
+    }
 });
