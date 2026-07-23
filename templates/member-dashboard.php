@@ -499,7 +499,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	<div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
 		<main class="relative z-10 w-full max-w-[480px] py-8">
 			<?php
-			$dlm_public = new DLM_Public( $db, new DLM_Checkout() );
+			$dlm_public = new DLM_Public( $dlm_db, new DLM_Checkout() );
 			echo $dlm_public->get_login_prompt_html();
 			?>
 		</main>
