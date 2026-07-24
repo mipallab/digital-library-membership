@@ -8,7 +8,7 @@
  * that starts the plugin.
  *
  * @link              https://profiles.wordpress.org/mipallab123
- * @since             1.5.2
+ * @since             1.6.1
  * @package           DLM
  *
  * @wordpress-plugin

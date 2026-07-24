@@ -84,6 +84,11 @@ class DLM {
 			add_action( 'admin_menu', array( $this->admin, 'add_admin_menu' ) );
 			add_action( 'admin_init', array( $this->admin, 'register_settings' ) );
 			add_action( 'admin_init', array( $this, 'handle_activation_redirect' ) );
+
+			// Clear connection cache on key changes
+			add_action( 'update_option_dlm_stripe_secret_key', 'dlm_clear_stripe_conn_transient' );
+			add_action( 'update_option_dlm_paypal_client_id', 'dlm_clear_paypal_conn_transient' );
+			add_action( 'update_option_dlm_paypal_secret_key', 'dlm_clear_paypal_conn_transient' );
 			add_action( 'admin_post_dlm_save_book', array( $this->admin, 'handle_save_book' ) );
 			add_action( 'admin_post_dlm_edit_book', array( $this->admin, 'handle_edit_book' ) );
 			add_action( 'admin_post_dlm_delete_book', array( $this->admin, 'handle_delete_book' ) );
@@ -622,6 +627,111 @@ function dlm_verify_recaptcha( $token ) {
 	$result = json_decode( $body, true );
 
 	return ! empty( $result['success'] ) && $result['success'];
+}
+
+/**
+ * Clear Stripe connection cache
+ */
+function dlm_clear_stripe_conn_transient() {
+	delete_transient( 'dlm_stripe_conn_status' );
+}
+
+/**
+ * Clear PayPal connection cache
+ */
+function dlm_clear_paypal_conn_transient() {
+	delete_transient( 'dlm_paypal_conn_status' );
+}
+
+/**
+ * Live check Stripe connection status
+ */
+function dlm_get_stripe_connection_status() {
+	$status = get_transient( 'dlm_stripe_conn_status' );
+	if ( false === $status ) {
+		$secret_key = get_option( 'dlm_stripe_secret_key' );
+		if ( empty( $secret_key ) ) {
+			$status = array( 'status' => 'not_set' );
+		} else {
+			$response = wp_remote_get( 'https://api.stripe.com/v1/account', array(
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $secret_key,
+				),
+				'timeout' => 10,
+			) );
+
+			if ( is_wp_error( $response ) ) {
+				$status = array( 
+					'status'  => 'failed', 
+					'message' => $response->get_error_message() 
+				);
+			} else {
+				$body = json_decode( wp_remote_retrieve_body( $response ) );
+				if ( ! empty( $body->id ) ) {
+					$status = array( 
+						'status' => 'connected', 
+						'email'  => ! empty( $body->email ) ? $body->email : '',
+					);
+				} else {
+					$error_msg = ! empty( $body->error->message ) ? $body->error->message : __( 'Invalid Secret Key.', 'digital-library-membership' );
+					$status = array( 
+						'status'  => 'failed', 
+						'message' => $error_msg 
+					);
+				}
+			}
+		}
+		set_transient( 'dlm_stripe_conn_status', $status, HOUR_IN_SECONDS );
+	}
+	return $status;
+}
+
+/**
+ * Live check PayPal connection status
+ */
+function dlm_get_paypal_connection_status() {
+	$status = get_transient( 'dlm_paypal_conn_status' );
+	if ( false === $status ) {
+		$client_id = get_option( 'dlm_paypal_client_id' );
+		$secret    = get_option( 'dlm_paypal_secret_key' );
+
+		if ( empty( $client_id ) || empty( $secret ) ) {
+			$status = array( 'status' => 'not_set' );
+		} else {
+			$auth_url = 'https://api-m.sandbox.paypal.com/v1/oauth2/token'; // Fallback sandbox
+			$response = wp_remote_post( $auth_url, array(
+				'headers' => array(
+					'Accept' => 'application/json',
+					'Accept-Language' => 'en_US',
+					'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ),
+				),
+				'body' => array(
+					'grant_type' => 'client_credentials',
+				),
+				'timeout' => 10,
+			) );
+
+			if ( is_wp_error( $response ) ) {
+				$status = array( 
+					'status'  => 'failed', 
+					'message' => $response->get_error_message() 
+				);
+			} else {
+				$body = json_decode( wp_remote_retrieve_body( $response ) );
+				if ( ! empty( $body->access_token ) ) {
+					$status = array( 'status' => 'connected' );
+				} else {
+					$error_msg = ! empty( $body->error_description ) ? $body->error_description : ( ! empty( $body->error ) ? $body->error : __( 'Invalid credentials.', 'digital-library-membership' ) );
+					$status = array( 
+						'status'  => 'failed', 
+						'message' => $error_msg 
+					);
+				}
+			}
+		}
+		set_transient( 'dlm_paypal_conn_status', $status, HOUR_IN_SECONDS );
+	}
+	return $status;
 }
 
 

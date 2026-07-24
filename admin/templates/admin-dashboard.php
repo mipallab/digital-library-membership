@@ -913,7 +913,35 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 
 						<!-- Stripe Configuration Panel -->
 						<div id="panel-settings-stripe" class="space-y-6 hidden">
-							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Stripe Setup</h3>
+							<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-outline-variant/10 pb-3 gap-2">
+								<h3 class="text-lg font-bold text-on-surface">Stripe Setup</h3>
+								<?php 
+								$stripe_conn = dlm_get_stripe_connection_status();
+								if ( $stripe_conn['status'] === 'connected' ) : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-full text-[11px] font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+										<?php esc_html_e( 'CONNECTED', 'digital-library-membership' ); ?>
+										<?php if ( ! empty( $stripe_conn['email'] ) ) echo ' (' . esc_html( $stripe_conn['email'] ) . ')'; ?>
+									</span>
+								<?php elseif ( $stripe_conn['status'] === 'failed' ) : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 border border-red-200 text-red-700 rounded-full text-[11px] font-bold" title="<?php echo esc_attr( $stripe_conn['message'] ); ?>">
+										<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+										<?php esc_html_e( 'NOT CONNECTED', 'digital-library-membership' ); ?>
+									</span>
+								<?php else : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container border border-outline-variant/20 text-secondary rounded-full text-[11px] font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+										<?php esc_html_e( 'NOT SET', 'digital-library-membership' ); ?>
+									</span>
+								<?php endif; ?>
+							</div>
+							
+							<?php if ( $stripe_conn['status'] === 'failed' ) : ?>
+								<div class="p-3.5 bg-red-50/50 border border-red-100 rounded-xl text-xs text-red-800 leading-relaxed">
+									<strong><?php esc_html_e( 'Connection Failed Cause:', 'digital-library-membership' ); ?></strong> <?php echo esc_html( $stripe_conn['message'] ); ?>
+								</div>
+							<?php endif; ?>
+
 							<div class="space-y-4">
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Publishable Key</label>
@@ -940,7 +968,34 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 
 						<!-- PayPal Configuration Panel -->
 						<div id="panel-settings-paypal" class="space-y-6 hidden">
-							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">PayPal Setup</h3>
+							<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-outline-variant/10 pb-3 gap-2">
+								<h3 class="text-lg font-bold text-on-surface">PayPal Setup</h3>
+								<?php 
+								$paypal_conn = dlm_get_paypal_connection_status();
+								if ( $paypal_conn['status'] === 'connected' ) : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-full text-[11px] font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+										<?php esc_html_e( 'CONNECTED', 'digital-library-membership' ); ?>
+									</span>
+								<?php elseif ( $paypal_conn['status'] === 'failed' ) : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 border border-red-200 text-red-700 rounded-full text-[11px] font-bold" title="<?php echo esc_attr( $paypal_conn['message'] ); ?>">
+										<span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+										<?php esc_html_e( 'NOT CONNECTED', 'digital-library-membership' ); ?>
+									</span>
+								<?php else : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container border border-outline-variant/20 text-secondary rounded-full text-[11px] font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+										<?php esc_html_e( 'NOT SET', 'digital-library-membership' ); ?>
+									</span>
+								<?php endif; ?>
+							</div>
+
+							<?php if ( $paypal_conn['status'] === 'failed' ) : ?>
+								<div class="p-3.5 bg-red-50/50 border border-red-100 rounded-xl text-xs text-red-800 leading-relaxed">
+									<strong><?php esc_html_e( 'Connection Failed Cause:', 'digital-library-membership' ); ?></strong> <?php echo esc_html( $paypal_conn['message'] ); ?>
+								</div>
+							<?php endif; ?>
+
 							<div class="space-y-4">
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">PayPal Client ID</label>
