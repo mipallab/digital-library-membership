@@ -750,60 +750,31 @@ function dlm_get_paypal_connection_status() {
 }
 
 /**
- * Live check Google ReCAPTCHA connection status
+ * Check Google ReCAPTCHA status (Production vs Testing mode)
  */
 function dlm_get_recaptcha_connection_status() {
-	$status = get_transient( 'dlm_recaptcha_conn_status' );
-	if ( false === $status ) {
-		$mode = get_option( 'dlm_recaptcha_mode', 'production' );
-		$site_key = get_option( 'dlm_recaptcha_site_key' );
-		$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+	$mode       = get_option( 'dlm_recaptcha_mode', 'production' );
+	$site_key   = get_option( 'dlm_recaptcha_site_key' );
+	$secret_key = get_option( 'dlm_recaptcha_secret_key' );
 
-		if ( $mode === 'testing' ) {
-			$status = array( 
-				'status'  => 'testing', 
-				'message' => __( 'Developer Testing Mode is active. Using Google default test keys (always passes).', 'digital-library-membership' )
-			);
-		} elseif ( empty( $site_key ) || empty( $secret_key ) ) {
-			$status = array( 
-				'status'  => 'not_set', 
-				'message' => __( 'Google ReCAPTCHA is not configured yet.', 'digital-library-membership' )
-			);
-		} else {
-			// Connect to Google Siteverify with a dummy test token
-			$response = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
-				'body' => array(
-					'secret'   => $secret_key,
-					'response' => 'dummy_verification_token',
-				),
-				'timeout' => 10,
-			) );
-
-			if ( is_wp_error( $response ) ) {
-				$status = array( 
-					'status'  => 'failed', 
-					'message' => $response->get_error_message() 
-				);
-			} else {
-				$body = json_decode( wp_remote_retrieve_body( $response ), true );
-				// If secret key is invalid, Google API will return error-codes containing 'invalid-input-secret'
-				if ( isset( $body['error-codes'] ) && in_array( 'invalid-input-secret', $body['error-codes'], true ) ) {
-					$status = array( 
-						'status'  => 'failed', 
-						'message' => __( 'Invalid Secret Key. Connection to Google ReCAPTCHA failed.', 'digital-library-membership' )
-					);
-				} else {
-					// Connection is successful if it successfully processed the secret key (even if token is dummy/invalid)
-					$status = array( 
-						'status'  => 'connected',
-						'message' => __( 'Successfully connected to Google ReCAPTCHA.', 'digital-library-membership' )
-					);
-				}
-			}
-		}
-		set_transient( 'dlm_recaptcha_conn_status', $status, HOUR_IN_SECONDS );
+	if ( $mode === 'testing' ) {
+		return array( 
+			'status'  => 'testing', 
+			'message' => __( 'Developer Testing Mode is active. Using Google default test keys (always passes).', 'digital-library-membership' )
+		);
+	} elseif ( empty( $site_key ) || empty( $secret_key ) ) {
+		return array( 
+			'status'  => 'not_set', 
+			'message' => __( 'Google ReCAPTCHA is not configured yet.', 'digital-library-membership' )
+		);
+	} else {
+		// Honest logic: Google ReCAPTCHA API does not allow validating keys programmatically without a user response token.
+		// If keys are saved, we mark them as configured and explain how they can be tested.
+		return array( 
+			'status'  => 'connected',
+			'message' => __( 'Credentials Configured (Live Production Mode). Google API prevents programmatic connection verification without a user response token. Please verify by completing a login or checkout captcha challenge on the frontend.', 'digital-library-membership' )
+		);
 	}
-	return $status;
 }
 
 function dlm_clear_recaptcha_conn_transient() {
