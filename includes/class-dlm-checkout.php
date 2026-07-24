@@ -21,7 +21,7 @@ class DLM_Checkout {
 
 		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
 		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
 		}
 
 		if ( ! is_user_logged_in() ) {
@@ -84,7 +84,7 @@ class DLM_Checkout {
 
 		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
 		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
 		}
 
 		if ( ! is_user_logged_in() ) {
@@ -448,7 +448,7 @@ class DLM_Checkout {
 
 		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
 		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
 		}
 
 		if ( ! is_user_logged_in() ) {

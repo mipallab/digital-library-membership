@@ -95,6 +95,7 @@ if ( $is_logged_in ) {
 	$categories_terms = get_terms( array(
 		'taxonomy'   => 'dlm_book_category',
 		'hide_empty' => false,
+		'parent'     => 0,
 	) );
 }
 
@@ -718,9 +719,23 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						$progress = $dlm_db->get_reading_progress( $user_id, $book->id );
 						$pct = $progress ? intval( $progress->progress_percent ) : 0;
 						
-						// Get categories for filtering
-						$cats = wp_get_post_terms( $book->id, 'dlm_book_category', array( 'fields' => 'slugs' ) );
-						$cat_slugs_str = implode( ' ', $cats );
+						// Get categories for filtering (rolling up child terms to parent category slugs)
+						$cats_raw = wp_get_post_terms( $book->id, 'dlm_book_category' );
+						$slugs = array();
+						if ( ! empty( $cats_raw ) && ! is_wp_error( $cats_raw ) ) {
+							foreach ( $cats_raw as $t ) {
+								if ( $t->parent == 0 ) {
+									$slugs[] = $t->slug;
+								} else {
+									$slugs[] = $t->slug;
+									$parent_term = get_term( $t->parent, 'dlm_book_category' );
+									if ( $parent_term && ! is_wp_error( $parent_term ) ) {
+										$slugs[] = $parent_term->slug;
+									}
+								}
+							}
+						}
+						$cat_slugs_str = implode( ' ', array_unique( $slugs ) );
 						
 						// Is favorited
 						$is_fav = in_array( $book->id, $fav_books );
@@ -1373,7 +1388,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 <?php if ( $is_logged_in ) : ?>
 	<script>
 		// Expose synced states on load
-		window.dlmParams = {
+		window.dlmDashboardParams = {
 			ajaxUrl: '<?php echo esc_js( $ajax_url ); ?>',
 			nonce: '<?php echo esc_js( $dlm_public_nonce ); ?>',
 			stripeKey: '<?php echo esc_js( $stripe_publishable_key ); ?>',
@@ -1387,7 +1402,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	</script>
 <?php else : ?>
 	<script>
-		window.dlmParams = {
+		window.dlmDashboardParams = {
 			ajaxUrl: '<?php echo esc_js( $ajax_url ); ?>',
 			nonce: '<?php echo esc_js( $dlm_public_nonce ); ?>'
 		};
@@ -1587,25 +1602,27 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		function filterCategory(cat, btnEl) {
 			showTab('library');
 			if (btnEl) {
-				jQuery('#category-chips button').removeClass('bg-primary text-white active-chip').addClass('bg-surface-container-high/50 text-secondary');
-				jQuery(btnEl).addClass('bg-primary text-white active-chip').removeClass('bg-surface-container-high/50 text-secondary');
+				jQuery('#category-chips button').removeClass('active-chip active');
+				jQuery(btnEl).addClass('active-chip active');
 			}
 
 			jQuery('.book-card-el').each(function() {
-				const cardCat = jQuery(this).data('categories').toString().split(' ');
+				const rawCats = jQuery(this).data('categories') || '';
+				const cardCat = rawCats.toString().toLowerCase().split(' ');
 				const isFav = dlmParams.favoriteBooks.includes(jQuery(this).data('book-id'));
-				const readPct = parseInt(jQuery(this).data('pct'), 10);
+				const readPct = parseInt(jQuery(this).data('pct'), 10) || 0;
+				const targetCat = cat.toString().toLowerCase();
 
-				if (cat === 'all') {
+				if (targetCat === 'all') {
 					jQuery(this).show();
-				} else if (cat === 'favorites') {
+				} else if (targetCat === 'favorites') {
 					if (isFav) jQuery(this).show();
 					else jQuery(this).hide();
-				} else if (cat === 'continue') {
+				} else if (targetCat === 'continue') {
 					if (readPct > 0 && readPct < 100) jQuery(this).show();
 					else jQuery(this).hide();
 				} else {
-					if (cardCat.includes(cat)) jQuery(this).show();
+					if (cardCat.includes(targetCat)) jQuery(this).show();
 					else jQuery(this).hide();
 				}
 			});
@@ -2391,5 +2408,16 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 <?php endif; ?>
 
 <?php wp_footer(); ?>
+<script>
+	// Merge dashboard parameters into localized dlmParams after wp_footer runs
+	window.dlmParams = window.dlmParams || {};
+	if (window.dlmDashboardParams) {
+		for (var key in window.dlmDashboardParams) {
+			if (window.dlmDashboardParams.hasOwnProperty(key)) {
+				window.dlmParams[key] = window.dlmDashboardParams[key];
+			}
+		}
+	}
+</script>
 </body>
 </html>

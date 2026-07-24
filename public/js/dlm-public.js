@@ -389,7 +389,10 @@ jQuery(document).ready(function($) {
             var filtered = allBooks.filter(function(book) {
                 var matchCategory = (libState.category === 'All') || (book.category === libState.category);
                 var q = libState.search.toLowerCase().trim();
-                var matchSearch = !q || book.title.toLowerCase().indexOf(q) !== -1 || book.author.toLowerCase().indexOf(q) || book.category.toLowerCase().indexOf(q);
+                var matchSearch = !q || 
+                                  (book.title && book.title.toLowerCase().indexOf(q) !== -1) || 
+                                  (book.author && book.author.toLowerCase().indexOf(q) !== -1) || 
+                                  (book.category && book.category.toLowerCase().indexOf(q) !== -1);
                 return matchCategory && matchSearch;
             });
 
@@ -436,17 +439,17 @@ jQuery(document).ready(function($) {
 
             var html = displayed.map(function(book) {
                 var coverMarkup = book.cover 
-                    ? '<img class="w-full h-full object-cover" src="' + book.cover + '" alt="' + book.title + '" loading="lazy">' 
-                    : '<div class="dlm-book-cover-placeholder"><span>' + book.title + '</span></div>';
+                    ? '<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="' + book.cover + '" alt="' + book.title + '" loading="lazy">' 
+                    : '<div class="w-full h-full bg-surface-container flex items-center justify-center text-center p-4"><span class="font-bold text-xs">' + book.title + '</span></div>';
 
                 var actionButton = '';
                 if (isActive) {
-                    var btnText = book.progress > 0 ? 'Continue Reading' : 'Read Book';
-                    actionButton = '<a href="' + book.read_url + '" class="px-6 py-2 bg-primary text-white font-bold rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-md">' + btnText + '</a>';
+                    var btnText = book.progress > 0 ? 'Continue Reading' : 'Read Now';
+                    actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">' + btnText + '</span>';
                 } else if (isLoggedIn) {
-                    actionButton = '<a href="' + pricingUrl + '" class="px-6 py-2 bg-primary text-white font-bold rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-md">Unlock Access</a>';
+                    actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Subscribe to Read</span>';
                 } else {
-                    actionButton = '<a href="' + pricingUrl + '" class="px-6 py-2 bg-primary text-white font-bold rounded-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 shadow-md">Sign Up to Read</a>';
+                    actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Sign In to Read</span>';
                 }
 
                 var progressBarHtml = book.progress > 0 
@@ -458,9 +461,9 @@ jQuery(document).ready(function($) {
                     : '';
 
                 return '<div class="group cursor-pointer animate-fade-in dlm-book-card-item" data-book-id="' + book.id + '">' +
-                    '<div class="relative aspect-[3/4] mb-4 rounded-xl overflow-hidden book-card-shadow transition-all duration-300 group-hover:-translate-y-2 group-hover:book-card-shadow-hover border border-outline-variant/30">' +
+                    '<div class="relative aspect-[3/4] mb-4 rounded-2xl overflow-hidden book-card-shadow border border-outline-variant/10">' +
                         coverMarkup +
-                        '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">' +
+                        '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">' +
                             actionButton +
                         '</div>' +
                         progressBarHtml +
@@ -470,8 +473,8 @@ jQuery(document).ready(function($) {
                             '<span class="text-label-micro text-primary font-bold uppercase tracking-wider">' + book.category + '</span>' +
                             progressTextHtml +
                         '</div>' +
-                        '<h3 class="font-title-sm text-on-surface serif-title truncate m-0">' + book.title + '</h3>' +
-                        '<p class="text-[13px] text-secondary m-0">' + book.author + '</p>' +
+                        '<h5 class="font-bold text-on-surface leading-snug mb-1 group-hover:text-primary transition-colors line-clamp-1">' + book.title + '</h5>' +
+                        '<p class="text-xs text-secondary line-clamp-1">' + book.author + '</p>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -489,8 +492,8 @@ jQuery(document).ready(function($) {
 
         // Category Filter Buttons
         $('body').on('click', '.dlm-cat-btn, .filter-btn', function() {
-            $('.dlm-cat-btn, .filter-btn').removeClass('bg-primary text-white shadow-sm active').addClass('bg-surface-container text-secondary');
-            $(this).removeClass('bg-surface-container text-secondary').addClass('bg-primary text-white shadow-sm active');
+            $('.dlm-cat-btn, .filter-btn').removeClass('active');
+            $(this).addClass('active');
 
             libState.category = $(this).data('category');
             libState.visibleCount = 12;
@@ -570,21 +573,22 @@ jQuery(document).ready(function($) {
             $('#modal-category').text(book.category);
             $('#modal-title').text(book.title);
             $('#modal-author').text(book.author);
-            $('#modal-progress-text').text(book.progress + '%');
-            $('#modal-progress-bar').css('width', book.progress + '%');
-
-            if (isActive) {
-                $('#modal-read-now-btn').text('Start Reading').off('click').on('click', function() {
-                    window.location.href = book.read_url;
-                });
-            } else if (isLoggedIn) {
-                $('#modal-read-now-btn').text('Unlock Access').off('click').on('click', function() {
-                    window.location.href = pricingUrl;
-                });
+            
+            if (book.date) {
+                $('#modal-published').text('Published: ' + book.date).show();
             } else {
-                $('#modal-read-now-btn').text('Sign Up to Read').off('click').on('click', function() {
-                    window.location.href = pricingUrl;
-                });
+                $('#modal-published').hide();
+            }
+
+            $('#modal-description').text(book.description || 'No synopsis available for this book.');
+
+            var $actionBtn = $('#modal-action-btn');
+            if (isActive) {
+                $actionBtn.text('Start Reading').attr('href', book.read_url);
+            } else if (isLoggedIn) {
+                $actionBtn.text('Unlock Access').attr('href', pricingUrl);
+            } else {
+                $actionBtn.text('Sign Up to Read').attr('href', pricingUrl);
             }
 
             $('#reader-modal').removeClass('hidden').addClass('flex');
@@ -598,17 +602,6 @@ jQuery(document).ready(function($) {
         $('#reader-modal').on('click', function(e) {
             if (e.target === this) {
                 $('#reader-modal').addClass('hidden').removeClass('flex');
-            }
-        });
-
-        // Progress simulator button
-        $('body').on('click', '#modal-mark-complete-btn', function() {
-            if (selectedBookForModal) {
-                selectedBookForModal.progress = Math.min(100, selectedBookForModal.progress + 15);
-                $('#modal-progress-text').text(selectedBookForModal.progress + '%');
-                $('#modal-progress-bar').css('width', selectedBookForModal.progress + '%');
-                renderLibraryGrid();
-                showToast('Updated progress to ' + selectedBookForModal.progress + '% for "' + selectedBookForModal.title + '"');
             }
         });
 

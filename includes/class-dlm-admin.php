@@ -130,6 +130,7 @@ class DLM_Admin {
 			'dlm_recaptcha_version',
 			'dlm_recaptcha_site_key',
 			'dlm_recaptcha_secret_key',
+			'dlm_recaptcha_mode',
 			'dlm_setup_completed',
 		);
 

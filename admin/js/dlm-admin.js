@@ -235,6 +235,12 @@ function initModalSystem() {
         const dbId = tr.attr('data-db-id');
         const userId = tr.attr('data-user-id');
         const name = tr.attr('data-name');
+        const status = tr.attr('data-status');
+
+        if (status === 'active') {
+            window.showAlertModal('Deletion Blocked', 'This subscriber profile is currently active. Please edit this member and set their status to inactive first before deleting.', 'error');
+            return;
+        }
 
         jQuery('#delete-member-db-id').val(dbId);
         jQuery('#delete-member-user-id').val(userId);
@@ -701,7 +707,7 @@ window.closeAlertModal = function() {
 // Auto detect success/error parameters and display alert modal
 jQuery(document).ready(function() {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('success') || urlParams.has('deleted') || urlParams.has('error')) {
+    if (urlParams.has('success') || urlParams.has('deleted') || urlParams.has('error') || urlParams.has('email_sent') || urlParams.has('email_error') || urlParams.has('settings-updated')) {
         let title = 'Notification';
         let msg = '';
         let type = 'success';
@@ -710,7 +716,17 @@ jQuery(document).ready(function() {
         const deletedVal = urlParams.get('deleted');
         const errorVal = urlParams.get('error');
 
-        if (successVal === 'add_book') {
+        if (urlParams.has('settings-updated')) {
+            title = 'Settings Saved';
+            msg = 'Plugin settings saved successfully!';
+        } else if (urlParams.has('email_sent')) {
+            title = 'Email Sent';
+            msg = 'Email notification sent successfully!';
+        } else if (urlParams.has('email_error')) {
+            title = 'Email Error';
+            msg = 'Failed to send email notification.';
+            type = 'error';
+        } else if (successVal === 'add_book') {
             title = 'Book Added';
             msg = 'Book added successfully!';
         } else if (successVal === 'edit_book') {
@@ -731,9 +747,11 @@ jQuery(document).ready(function() {
         } else if (successVal === 'approve_member') {
             title = 'Subscription Approved';
             msg = 'Member subscription approved successfully.';
+            type = 'success';
         } else if (successVal === 'reject_member') {
             title = 'Subscription Rejected';
-            msg = 'Member subscription rejected.';
+            msg = 'Member subscription has been rejected.';
+            type = 'info';
         } else if (successVal === 'tx_added') {
             title = 'Transaction Added';
             msg = 'New transaction added successfully!';
@@ -743,6 +761,9 @@ jQuery(document).ready(function() {
         } else if (successVal === 'tx_deleted') {
             title = 'Transaction Deleted';
             msg = 'Transaction deleted successfully.';
+        } else if (successVal === 'pages_recreated') {
+            title = 'Pages Recreated';
+            msg = 'Missing plugin pages recreated successfully!';
         } else if (errorVal === 'file_too_large') {
             title = 'Upload Error';
             const maxSize = urlParams.get('max_size') || '50';
@@ -754,8 +775,8 @@ jQuery(document).ready(function() {
             msg = 'Only PDF format is allowed for book uploads.';
             type = 'error';
         } else if (successVal === '1') {
-            title = 'Success';
-            msg = 'Action completed successfully.';
+            title = 'Access Updated';
+            msg = 'Member access override settings updated successfully!';
         }
 
         if (msg) {
@@ -765,10 +786,13 @@ jQuery(document).ready(function() {
             urlParams.delete('success');
             urlParams.delete('deleted');
             urlParams.delete('error');
+            urlParams.delete('email_sent');
+            urlParams.delete('email_error');
+            urlParams.delete('settings-updated');
             urlParams.delete('max_size');
             urlParams.delete('uploaded_size');
             const cleanUrl = window.location.pathname + '?' + urlParams.toString();
-            window.history.replaceState({}, '', cleanUrl);
+            window.history.replaceState({}, document.title, cleanUrl);
         }
     }
 });

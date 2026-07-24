@@ -89,6 +89,9 @@ class DLM {
 			add_action( 'update_option_dlm_stripe_secret_key', 'dlm_clear_stripe_conn_transient' );
 			add_action( 'update_option_dlm_paypal_client_id', 'dlm_clear_paypal_conn_transient' );
 			add_action( 'update_option_dlm_paypal_secret_key', 'dlm_clear_paypal_conn_transient' );
+			add_action( 'update_option_dlm_recaptcha_site_key', 'dlm_clear_recaptcha_conn_transient' );
+			add_action( 'update_option_dlm_recaptcha_secret_key', 'dlm_clear_recaptcha_conn_transient' );
+			add_action( 'update_option_dlm_recaptcha_mode', 'dlm_clear_recaptcha_conn_transient' );
 			add_action( 'admin_post_dlm_save_book', array( $this->admin, 'handle_save_book' ) );
 			add_action( 'admin_post_dlm_edit_book', array( $this->admin, 'handle_edit_book' ) );
 			add_action( 'admin_post_dlm_delete_book', array( $this->admin, 'handle_delete_book' ) );
@@ -246,6 +249,12 @@ class DLM {
 		// Google ReCAPTCHA Integration
 		$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
 		$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
+		$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
+
+		if ( $recaptcha_mode === 'testing' ) {
+			$recaptcha_site_key = '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC';
+		}
+
 		if ( $recaptcha_site_key ) {
 			if ( $recaptcha_version === 'v3' ) {
 				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js?render=' . esc_attr( $recaptcha_site_key ), array(), null, true );
@@ -280,7 +289,7 @@ class DLM {
 			'paypalLifetimePlanId' => get_option( 'dlm_paypal_lifetime_plan_id' ),
 			'nonce'             => wp_create_nonce( 'dlm_public_nonce' ),
 			'useWooCommerce'    => class_exists( 'WooCommerce' ) && ( get_option( 'dlm_wc_monthly_product' ) || get_option( 'dlm_wc_yearly_product' ) || get_option( 'dlm_wc_lifetime_product' ) ),
-			'recaptchaSiteKey'  => get_option( 'dlm_recaptcha_site_key' ),
+			'recaptchaSiteKey'  => get_option( 'dlm_recaptcha_mode', 'production' ) === 'testing' ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' ),
 			'recaptchaVersion'  => get_option( 'dlm_recaptcha_version', 'v2' ),
 		) );
 	}
@@ -602,7 +611,13 @@ function dlm_user_has_active_subscription( $user_id = 0 ) {
  * Global helper function to verify Google ReCAPTCHA token (v2 or v3)
  */
 function dlm_verify_recaptcha( $token ) {
-	$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+	$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
+	if ( $recaptcha_mode === 'testing' ) {
+		$secret_key = '6LeIxAcTAAAAAGG-vFI1TnFTxW2mYgPGW7N5a3BJ';
+	} else {
+		$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+	}
+
 	if ( empty( $secret_key ) ) {
 		return true; // Skip verification if not configured
 	}
@@ -732,6 +747,67 @@ function dlm_get_paypal_connection_status() {
 		set_transient( 'dlm_paypal_conn_status', $status, HOUR_IN_SECONDS );
 	}
 	return $status;
+}
+
+/**
+ * Live check Google ReCAPTCHA connection status
+ */
+function dlm_get_recaptcha_connection_status() {
+	$status = get_transient( 'dlm_recaptcha_conn_status' );
+	if ( false === $status ) {
+		$mode = get_option( 'dlm_recaptcha_mode', 'production' );
+		$site_key = get_option( 'dlm_recaptcha_site_key' );
+		$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+
+		if ( $mode === 'testing' ) {
+			$status = array( 
+				'status'  => 'testing', 
+				'message' => __( 'Developer Testing Mode is active. Using Google default test keys (always passes).', 'digital-library-membership' )
+			);
+		} elseif ( empty( $site_key ) || empty( $secret_key ) ) {
+			$status = array( 
+				'status'  => 'not_set', 
+				'message' => __( 'Google ReCAPTCHA is not configured yet.', 'digital-library-membership' )
+			);
+		} else {
+			// Connect to Google Siteverify with a dummy test token
+			$response = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
+				'body' => array(
+					'secret'   => $secret_key,
+					'response' => 'dummy_verification_token',
+				),
+				'timeout' => 10,
+			) );
+
+			if ( is_wp_error( $response ) ) {
+				$status = array( 
+					'status'  => 'failed', 
+					'message' => $response->get_error_message() 
+				);
+			} else {
+				$body = json_decode( wp_remote_retrieve_body( $response ), true );
+				// If secret key is invalid, Google API will return error-codes containing 'invalid-input-secret'
+				if ( isset( $body['error-codes'] ) && in_array( 'invalid-input-secret', $body['error-codes'], true ) ) {
+					$status = array( 
+						'status'  => 'failed', 
+						'message' => __( 'Invalid Secret Key. Connection to Google ReCAPTCHA failed.', 'digital-library-membership' )
+					);
+				} else {
+					// Connection is successful if it successfully processed the secret key (even if token is dummy/invalid)
+					$status = array( 
+						'status'  => 'connected',
+						'message' => __( 'Successfully connected to Google ReCAPTCHA.', 'digital-library-membership' )
+					);
+				}
+			}
+		}
+		set_transient( 'dlm_recaptcha_conn_status', $status, HOUR_IN_SECONDS );
+	}
+	return $status;
+}
+
+function dlm_clear_recaptcha_conn_transient() {
+	delete_transient( 'dlm_recaptcha_conn_status' );
 }
 
 

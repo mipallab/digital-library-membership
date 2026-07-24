@@ -132,7 +132,7 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 			<!-- Step 3: Google ReCAPTCHA Setup -->
 			<div class="setup-step-pane" id="pane-step-3">
 				<h2>Spam & Bot Protection</h2>
-				<p class="pane-description">Enable Google ReCAPTCHA to protect login, registration, and checkout forms from bot attacks. You can skip this and configure it later.</p>
+				<p class="pane-description">Enable Google ReCAPTCHA to protect login, registration, and checkout forms from bot attacks. Get your keys from the <a href="https://www.google.com/recaptcha/admin/create" target="_blank" style="color: var(--primary-color); font-weight: bold; text-decoration: underline;">Google ReCAPTCHA Admin Console</a>. You can skip this and configure it later.</p>
 
 				<div class="setup-form-group">
 					<label for="setup-recaptcha-version">ReCAPTCHA Version</label>

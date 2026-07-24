@@ -982,5 +982,39 @@
     color: #855300 !important;
 }
 
+/* Unified Category Filter Chips (Normal, Hover, Active) */
+#category-chips button,
+#category-filters .filter-btn {
+    background-color: #f2f2f3 !important;
+    color: #4a5568 !important;
+    font-weight: 500 !important;
+    border-radius: 9999px !important;
+    padding: 10px 24px !important;
+    font-size: 14px !important;
+    transition: all 0.2s ease-in-out !important;
+    border: none !important;
+    outline: none !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+}
+
+#category-chips button:hover,
+#category-filters .filter-btn:hover {
+    background-color: #f2a115 !important;
+    color: #3a2200 !important;
+    font-weight: 500 !important;
+    padding: 10px 24px !important;
+}
+
+#category-chips button.active-chip,
+#category-chips button.active,
+#category-filters .filter-btn.active {
+    background-color: #855300 !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    padding: 10px 24px !important;
+    box-shadow: 0 4px 12px rgba(133, 83, 0, 0.15) !important;
+}
+
 
 

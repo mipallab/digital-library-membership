@@ -39,21 +39,37 @@ class DLM_Public {
 			foreach ( $raw_books as $b ) {
 				$progress         = ( $is_logged_in && $user_id ) ? $this->db->get_reading_progress( $user_id, $b->id ) : null;
 				$progress_percent = $progress ? intval( $progress->progress_percent ) : 0;
-				$category         = ! empty( $b->category ) ? $b->category : __( 'General', 'digital-library-membership' );
+				$cats = wp_get_post_terms( $b->id, 'dlm_book_category' );
+				$category = __( 'General', 'digital-library-membership' );
+				if ( ! empty( $cats ) && ! is_wp_error( $cats ) ) {
+					foreach ( $cats as $t ) {
+						if ( $t->parent == 0 ) {
+							$category = $t->name;
+							break;
+						} else {
+							$parent_term = get_term( $t->parent, 'dlm_book_category' );
+							if ( $parent_term && ! is_wp_error( $parent_term ) ) {
+								$category = $parent_term->name;
+								break;
+							}
+						}
+					}
+				}
 
 				if ( ! in_array( $category, $categories_set, true ) ) {
 					$categories_set[] = $category;
 				}
 
 				$books_data[] = array(
-					'id'       => $b->id,
-					'title'    => $b->title,
-					'author'   => $b->author,
-					'category' => $category,
-					'progress' => $progress_percent,
-					'cover'    => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
-					'date'     => ! empty( $b->created_at ) ? $b->created_at : date( 'Y-m-d' ),
-					'read_url' => home_url( '/read/' . $b->id . '/' ),
+					'id'          => $b->id,
+					'title'       => $b->title,
+					'author'      => $b->author,
+					'description' => ! empty( $b->description ) ? wp_strip_all_tags( $b->description ) : '',
+					'category'    => $category,
+					'progress'    => $progress_percent,
+					'cover'       => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
+					'date'        => ! empty( $b->created_at ) ? date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) : '',
+					'read_url'    => home_url( '/read/' . $b->id . '/' ),
 				);
 			}
 		}
@@ -149,11 +165,62 @@ class DLM_Public {
 				};
 			}
 		</script>
-		<div class="dlm-container max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop py-4">
+		<style>
+		.dlm-library-container-wrapper .filter-btn {
+			background-color: #f2f2f3 !important;
+			color: #4a5568 !important;
+			font-weight: 500 !important;
+			border-radius: 9999px !important;
+			padding: 10px 24px !important;
+			font-size: 14px !important;
+			transition: all 0.2s ease-in-out !important;
+			border: none !important;
+			outline: none !important;
+			cursor: pointer !important;
+			box-shadow: none !important;
+		}
+		.dlm-library-container-wrapper .filter-btn:hover {
+			background-color: #f2a115 !important;
+			color: #3a2200 !important;
+			font-weight: 500 !important;
+			padding: 10px 24px !important;
+		}
+		.dlm-library-container-wrapper .filter-btn.active {
+			background-color: #855300 !important;
+			color: #ffffff !important;
+			font-weight: 500 !important;
+			padding: 10px 24px !important;
+			box-shadow: 0 4px 12px rgba(133, 83, 0, 0.15) !important;
+		}
+		#reader-modal #close-modal-btn {
+			border: 1px solid #e5e7eb !important;
+			outline: none !important;
+			background-color: transparent !important;
+			color: #4a5568 !important;
+			box-shadow: none !important;
+		}
+		#reader-modal #close-modal-btn:hover {
+			background-color: #f5f5f7 !important;
+		}
+		#modal-action-btn {
+			background-color: #855300 !important;
+			color: #ffffff !important;
+			border: none !important;
+			outline: none !important;
+			font-weight: 700 !important;
+			box-shadow: 0 4px 12px rgba(133, 83, 0, 0.15) !important;
+			transition: all 0.2s ease !important;
+		}
+		#modal-action-btn:hover {
+			background-color: #613b00 !important;
+			color: #ffffff !important;
+		}
+		</style>
+		<div class="dlm-container dlm-library-container-wrapper max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop py-4">
 			<!-- Header / Status Bar -->
 			<header class="dlm-library-header flex justify-between items-center mb-8 pb-4 border-b border-outline-muted">
 				<div>
-					<h1 class="font-display-lg text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface serif-title m-0"><?php esc_html_e( 'Digital Library Catalog', 'digital-library-membership' ); ?></h1>
+					<h1 class="font-display-lg text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface m-0"><?php esc_html_e( 'Digital Library Catalog', 'digital-library-membership' ); ?></h1>
 					<p class="text-xs md:text-sm text-secondary mt-1"><?php esc_html_e( 'Explore our collection of digital manuscripts and books.', 'digital-library-membership' ); ?></p>
 				</div>
 				<div class="flex items-center gap-3">
@@ -161,21 +228,21 @@ class DLM_Public {
 						<span class="dlm-status-badge active"><?php esc_html_e( 'Active Member', 'digital-library-membership' ); ?></span>
 					<?php elseif ( $is_logged_in ) : ?>
 						<span class="dlm-status-badge inactive"><?php esc_html_e( 'No Subscription', 'digital-library-membership' ); ?></span>
-						<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-btn dlm-btn-primary dlm-btn-sm"><?php esc_html_e( 'Join Membership', 'digital-library-membership' ); ?></a>
+						<a href="<?php echo esc_url( $pricing_url ); ?>" class="px-5 py-2.5 bg-primary hover:bg-[#613b00] text-white font-bold rounded-full text-xs transition-all shadow-sm block text-center" style="text-decoration:none;"><?php esc_html_e( 'Join Membership', 'digital-library-membership' ); ?></a>
 					<?php else : ?>
-						<span class="dlm-status-badge guest"><?php esc_html_e( 'Guest Preview', 'digital-library-membership' ); ?></span>
-						<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-btn dlm-btn-primary dlm-btn-sm"><?php esc_html_e( 'View Plans', 'digital-library-membership' ); ?></a>
+						<span class="dlm-status-badge guest bg-[#f5f5f7] text-secondary border border-outline-variant/30 rounded-full text-xs font-semibold px-4 py-2"><?php esc_html_e( 'Guest Preview', 'digital-library-membership' ); ?></span>
+						<a href="<?php echo esc_url( $pricing_url ); ?>" class="px-5 py-2.5 bg-[#0071e3] hover:bg-[#005bb5] text-white font-bold rounded-full text-xs transition-all shadow-sm block text-center" style="text-decoration:none;"><?php esc_html_e( 'View Plans', 'digital-library-membership' ); ?></a>
 					<?php endif; ?>
 				</div>
 			</header>
 
 			<?php if ( ! $is_logged_in ) : ?>
-				<div class="dlm-msg-box info flex justify-between items-center flex-wrap gap-4 mb-8">
+				<div class="dlm-msg-box info flex justify-between items-center flex-wrap gap-4 mb-8 bg-[#f0f7ff] border border-[#cce5ff] text-[#004085] p-5 rounded-2xl">
 					<div>
 						<strong class="font-bold text-on-surface"><?php esc_html_e( 'Welcome to our Digital Library!', 'digital-library-membership' ); ?></strong>
 						<p class="text-xs text-secondary mt-0.5"><?php esc_html_e( 'Browse our catalog below. Sign up or log in to unlock full reading access.', 'digital-library-membership' ); ?></p>
 					</div>
-					<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-btn dlm-btn-accent dlm-btn-sm"><?php esc_html_e( 'Get Membership Access', 'digital-library-membership' ); ?></a>
+					<a href="<?php echo esc_url( $pricing_url ); ?>" class="px-5 py-2.5 bg-[#34c759] hover:bg-[#28a745] text-white font-bold rounded-full text-xs transition-all shadow-sm text-center" style="text-decoration:none;"><?php esc_html_e( 'Get Membership Access', 'digital-library-membership' ); ?></a>
 				</div>
 			<?php endif; ?>
 
@@ -183,9 +250,9 @@ class DLM_Public {
 			<div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
 				<!-- Category Filter Pills -->
 				<div id="category-filters" class="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-2 md:pb-0">
-					<button data-category="All" class="filter-btn active px-6 py-2 bg-primary text-white font-bold rounded-full whitespace-nowrap transition-all shadow-sm"><?php esc_html_e( 'All Books', 'digital-library-membership' ); ?></button>
+					<button data-category="All" class="filter-btn active whitespace-nowrap"><?php esc_html_e( 'All Library', 'digital-library-membership' ); ?></button>
 					<?php foreach ( $categories_set as $cat ) : ?>
-						<button data-category="<?php echo esc_attr( $cat ); ?>" class="filter-btn px-6 py-2 bg-surface-container text-secondary font-bold rounded-full hover:bg-surface-variant transition-all whitespace-nowrap"><?php echo esc_html( $cat ); ?></button>
+						<button data-category="<?php echo esc_attr( $cat ); ?>" class="filter-btn whitespace-nowrap"><?php echo esc_html( $cat ); ?></button>
 					<?php endforeach; ?>
 				</div>
 
@@ -193,16 +260,14 @@ class DLM_Public {
 				<div class="relative flex items-center gap-4 text-secondary flex-wrap">
 					<!-- Search Input -->
 					<div class="relative min-w-[240px]">
-						<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[20px]">search</span>
-						<input id="search-input" class="w-full pl-10 pr-4 py-2 bg-surface-container rounded-full border-none focus:ring-2 focus:ring-primary text-body-md placeholder:text-secondary transition-all duration-300" placeholder="<?php esc_attr_e( 'Search title or author...', 'digital-library-membership' ); ?>" type="text">
+						<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary text-[18px]">search</span>
+						<input id="search-input" class="pl-11 pr-4 py-2.5 bg-white border border-outline-variant/30 rounded-xl w-64 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all text-body-md text-on-surface" placeholder="<?php esc_attr_e( 'Search titles, authors...', 'digital-library-membership' ); ?>" type="text">
 					</div>
 
 					<!-- Sort Selector -->
-					<div class="relative flex items-center gap-2 cursor-pointer select-none" id="sort-trigger">
-						<span class="text-label-caps uppercase select-none"><?php esc_html_e( 'Sorted by:', 'digital-library-membership' ); ?> <span id="current-sort-label" class="text-on-surface font-bold"><?php esc_html_e( 'Recent', 'digital-library-membership' ); ?></span></span>
-						<button class="p-2 hover:bg-surface-variant rounded-lg transition-colors" type="button">
-							<span class="material-symbols-outlined">filter_list</span>
-						</button>
+					<div class="relative flex items-center gap-2 cursor-pointer select-none border border-outline-variant/30 rounded-xl px-4 py-2.5 bg-white hover:bg-[#f5f5f7] transition-all text-sm" id="sort-trigger">
+						<span class="text-xs uppercase select-none text-secondary"><?php esc_html_e( 'Sorted by:', 'digital-library-membership' ); ?> <span id="current-sort-label" class="text-on-surface font-bold"><?php esc_html_e( 'Recent', 'digital-library-membership' ); ?></span></span>
+						<span class="material-symbols-outlined text-[18px] text-secondary">filter_list</span>
 
 						<!-- Dropdown Menu -->
 						<div id="sort-dropdown" class="hidden absolute right-0 top-12 w-48 bg-white border border-outline-variant/30 rounded-2xl shadow-xl z-50 py-2 animate-fade-in">
@@ -261,33 +326,20 @@ class DLM_Public {
 					<img id="modal-cover" class="w-24 h-36 object-cover rounded-xl shadow-md border border-outline-variant/30" src="" alt="Book cover">
 					<div class="flex-1 space-y-2 pt-2">
 						<span id="modal-category" class="text-label-micro text-primary font-bold uppercase tracking-wider"></span>
-						<h3 id="modal-title" class="font-title-sm text-on-surface serif-title text-xl font-bold"></h3>
+						<h3 id="modal-title" class="font-title-sm text-on-surface text-xl font-bold"></h3>
 						<p id="modal-author" class="text-sm text-secondary"></p>
-
-						<div class="pt-3">
-							<div class="flex justify-between text-xs font-semibold mb-1">
-								<span class="text-secondary"><?php esc_html_e( 'Current Progress', 'digital-library-membership' ); ?></span>
-								<span id="modal-progress-text" class="text-primary font-bold">0%</span>
-							</div>
-							<div class="w-full h-2 bg-surface-container rounded-full overflow-hidden">
-								<div id="modal-progress-bar" class="h-full bg-surface-amber transition-all duration-500" style="width: 0%;"></div>
-							</div>
-						</div>
+						<p id="modal-published" class="text-xs text-secondary/70"></p>
 					</div>
 				</div>
 
-				<div class="space-y-4 pt-2 border-t border-outline-muted">
-					<p class="text-xs text-secondary leading-relaxed">
-						<?php esc_html_e( 'You are opening this digital manuscript. Continue your reading session or update your progress below.', 'digital-library-membership' ); ?>
-					</p>
+				<div class="space-y-4 pt-4 border-t border-outline-muted">
+					<div>
+						<h4 class="text-xs font-bold text-on-surface uppercase tracking-wider mb-2"><?php esc_html_e( 'Synopsis', 'digital-library-membership' ); ?></h4>
+						<p id="modal-description" class="text-xs text-secondary leading-relaxed max-h-32 overflow-y-auto pr-2"></p>
+					</div>
 
-					<div class="flex gap-3">
-						<button id="modal-read-now-btn" class="flex-1 py-3.5 bg-primary text-white font-bold rounded-full hover:opacity-90 transition-all shadow-md" type="button">
-							<?php esc_html_e( 'Start Reading', 'digital-library-membership' ); ?>
-						</button>
-						<button id="modal-mark-complete-btn" class="px-6 py-3.5 bg-surface-container text-on-surface font-bold rounded-full hover:bg-surface-variant transition-all" type="button">
-							<?php esc_html_e( '+15% Progress', 'digital-library-membership' ); ?>
-						</button>
+					<div class="flex gap-3 pt-2">
+						<a id="modal-action-btn" href="#" class="w-full py-3.5 text-center block text-sm rounded-full" style="text-decoration:none; box-sizing:border-box;"></a>
 					</div>
 				</div>
 			</div>
@@ -331,11 +383,9 @@ class DLM_Public {
 			$features_monthly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", "", $features_monthly_raw ) ) ) );
 		} else {
 			$features_monthly = array(
-				__( 'Unlimited frontend reading access', 'digital-library-membership' ),
-				__( 'Physical book-like page turn reader', 'digital-library-membership' ),
-				__( 'High-resolution rendering canvas', 'digital-library-membership' ),
-				__( 'Saves reading bookmarks automatically', 'digital-library-membership' ),
-				__( 'Cancel online anytime', 'digital-library-membership' ),
+				__( 'Unlimited digital reading', 'digital-library-membership' ),
+				__( 'Real-time reading journal logs', 'digital-library-membership' ),
+				__( 'Saves streaks & achievements', 'digital-library-membership' ),
 			);
 		}
 
@@ -344,10 +394,9 @@ class DLM_Public {
 			$features_yearly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", "", $features_yearly_raw ) ) ) );
 		} else {
 			$features_yearly = array(
-				__( 'Everything in Monthly plan included', 'digital-library-membership' ),
-				__( 'Locked in low pricing for 1 year', 'digital-library-membership' ),
-				__( 'Priority customer support access', 'digital-library-membership' ),
-				__( 'No price increases during billing year', 'digital-library-membership' ),
+				__( 'Everything in Monthly', 'digital-library-membership' ),
+				__( 'Save ~30% annually', 'digital-library-membership' ),
+				__( 'Collector badges unlocked', 'digital-library-membership' ),
 			);
 		}
 
@@ -356,10 +405,9 @@ class DLM_Public {
 			$features_lifetime = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", "", $features_lifetime_raw ) ) ) );
 		} else {
 			$features_lifetime = array(
-				__( 'Everything in Monthly plan included', 'digital-library-membership' ),
-				__( 'No recurring bills or subscription fees', 'digital-library-membership' ),
-				__( 'Permanent lifetime access to library', 'digital-library-membership' ),
-				__( 'Free updates to reader & future uploads', 'digital-library-membership' ),
+				__( 'Unlimited permanent access', 'digital-library-membership' ),
+				__( 'No recurring bills or fees', 'digital-library-membership' ),
+				__( 'All future books included', 'digital-library-membership' ),
 			);
 		}
 
@@ -367,73 +415,95 @@ class DLM_Public {
 
 		ob_start();
 		?>
-		<div class="dlm-pricing-container dlm-container">
-			<h1 class="dlm-checkout-title"><?php esc_html_e( 'Choose Your Plan', 'digital-library-membership' ); ?></h1>
-			<p class="dlm-checkout-subtitle"><?php esc_html_e( 'Get instant, unlimited access to our entire library of digital books. Cancel anytime.', 'digital-library-membership' ); ?></p>
+		<script id="tailwind-config-pricing">
+			if (typeof tailwind !== 'undefined') {
+				tailwind.config = {
+					darkMode: "class",
+					theme: {
+						extend: {
+							"colors": {
+								"primary": "#855300",
+								"primary-container": "#613b00",
+								"secondary": "#5f5e60",
+								"secondary-container": "#fdb965",
+								"on-secondary-container": "#855300",
+								"on-surface": "#1d1d1f",
+								"on-surface-variant": "#514538",
+								"background": "#fafafa"
+							}
+						}
+					}
+				};
+			}
+		</script>
+		<div class="dlm-pricing-container max-w-5xl mx-auto px-4 py-12" style="font-family: 'Plus Jakarta Sans', sans-serif;">
+			<div class="text-center mb-12">
+				<h1 class="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight mb-3"><?php esc_html_e( 'Choose Your Plan', 'digital-library-membership' ); ?></h1>
+				<p class="text-sm md:text-base text-secondary max-w-xl mx-auto"><?php esc_html_e( 'Get instant, unlimited access to our entire library of digital books. Cancel anytime.', 'digital-library-membership' ); ?></p>
+			</div>
 
 			<?php if ( $is_active ) : ?>
-				<div class="dlm-msg-box success" style="background:#e6f4ea; border:1px solid #ceead6; color:#137333; padding:15px 20px; border-radius:12px; margin-bottom:30px; text-align:center;">
-					<p style="margin:0; font-size:15px;">
-						<?php esc_html_e( 'You already have an active membership subscription!', 'digital-library-membership' ); ?>
-						<a href="<?php echo esc_url( dlm_get_page_url( 'account' ) ); ?>" style="font-weight:700; text-decoration:underline; margin-left:8px; color:#137333;"><?php esc_html_e( 'Manage Account', 'digital-library-membership' ); ?></a>
-					</p>
+				<div class="dlm-msg-box success bg-green-50 border border-green-200 text-green-700 p-4 rounded-2xl mb-8 text-center max-w-xl mx-auto text-sm font-semibold">
+					<?php esc_html_e( 'You already have an active membership subscription!', 'digital-library-membership' ); ?>
+					<a href="<?php echo esc_url( dlm_get_page_url( 'account' ) ); ?>" class="underline ml-2 text-green-800 font-bold"><?php esc_html_e( 'Manage Account', 'digital-library-membership' ); ?></a>
 				</div>
 			<?php endif; ?>
 
-			<div class="dlm-pricing-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-				<!-- Monthly Plan -->
-				<div class="dlm-price-card" id="card-monthly">
-					<div class="dlm-price-header">
-						<h3><?php esc_html_e( 'Monthly Membership', 'digital-library-membership' ); ?></h3>
-						<div class="dlm-price">
-							<span class="currency">$</span>
-							<span class="amount"><?php echo esc_html( $monthly_price ); ?></span>
-							<span class="period">/<?php esc_html_e( 'mo', 'digital-library-membership' ); ?></span>
+			<!-- Pricing Tiers Grid -->
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+				<!-- Monthly Plan Card -->
+				<div class="bg-white border border-outline-variant/30 rounded-[32px] p-8 flex flex-col shadow-sm book-card-shadow transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+					<div class="mb-8">
+						<span class="text-secondary bg-[#f5f5f7] px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Reader</span>
+						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'Monthly Access', 'digital-library-membership' ); ?></h3>
+						<div class="flex items-baseline gap-1 mt-4">
+							<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $monthly_price ); ?></span>
+							<span class="text-secondary text-xs">/month</span>
 						</div>
 					</div>
-					<ul class="dlm-features-list">
+					<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
 						<?php foreach ( $features_monthly as $feat ) : ?>
-							<li><?php echo esc_html( $feat ); ?></li>
+							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> <?php echo esc_html( $feat ); ?></li>
 						<?php endforeach; ?>
 					</ul>
-					<a href="<?php echo esc_url( add_query_arg( 'plan', 'monthly', $checkout_url ) ); ?>" class="dlm-btn dlm-btn-secondary dlm-btn-block" style="text-decoration:none; text-align:center; display:block; box-sizing:border-box;"><?php esc_html_e( 'Subscribe Monthly', 'digital-library-membership' ); ?></a>
+					<a href="<?php echo esc_url( add_query_arg( 'plan', 'monthly', $checkout_url ) ); ?>" class="w-full py-3.5 bg-[#f5f5f7] hover:bg-[#e5e5ea] text-on-surface font-semibold rounded-2xl text-center transition-all block text-sm" style="text-decoration: none; box-sizing: border-box;"><?php esc_html_e( 'Select Plan', 'digital-library-membership' ); ?></a>
 				</div>
 
-				<!-- Yearly Plan -->
-				<div class="dlm-price-card popular" id="card-yearly">
-					<div class="dlm-popular-badge"><?php esc_html_e( 'Best Value (Save ~20%)', 'digital-library-membership' ); ?></div>
-					<div class="dlm-price-header">
-						<h3><?php esc_html_e( 'Yearly Membership', 'digital-library-membership' ); ?></h3>
-						<div class="dlm-price">
-							<span class="currency">$</span>
-							<span class="amount"><?php echo esc_html( $yearly_price ); ?></span>
-							<span class="period">/<?php esc_html_e( 'yr', 'digital-library-membership' ); ?></span>
+				<!-- Yearly Plan Card -->
+				<div class="bg-white border-2 border-primary rounded-[32px] p-8 flex flex-col relative shadow-xl book-card-shadow transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+					<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap">BEST VALUE</div>
+					<div class="mb-8">
+						<span class="text-primary bg-primary/10 px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Scholar</span>
+						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'Yearly Membership', 'digital-library-membership' ); ?></h3>
+						<div class="flex items-baseline gap-1 mt-4">
+							<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $yearly_price ); ?></span>
+							<span class="text-secondary text-xs">/year</span>
 						</div>
 					</div>
-					<ul class="dlm-features-list">
+					<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
 						<?php foreach ( $features_yearly as $feat ) : ?>
-							<li><?php echo esc_html( $feat ); ?></li>
+							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> <?php echo esc_html( $feat ); ?></li>
 						<?php endforeach; ?>
 					</ul>
-					<a href="<?php echo esc_url( add_query_arg( 'plan', 'yearly', $checkout_url ) ); ?>" class="dlm-btn dlm-btn-accent dlm-btn-block" style="text-decoration:none; text-align:center; display:block; box-sizing:border-box;"><?php esc_html_e( 'Subscribe Yearly', 'digital-library-membership' ); ?></a>
+					<a href="<?php echo esc_url( add_query_arg( 'plan', 'yearly', $checkout_url ) ); ?>" class="w-full py-3.5 bg-primary hover:bg-primary-container text-white font-semibold rounded-2xl text-center transition-all block text-sm shadow-md" style="text-decoration: none; box-sizing: border-box;"><?php esc_html_e( 'Subscribe Yearly', 'digital-library-membership' ); ?></a>
 				</div>
 
-				<!-- Lifetime Plan -->
-				<div class="dlm-price-card" id="card-lifetime">
-					<div class="dlm-price-header">
-						<h3><?php esc_html_e( 'Lifetime Access', 'digital-library-membership' ); ?></h3>
-						<div class="dlm-price">
-							<span class="currency">$</span>
-							<span class="amount"><?php echo esc_html( $lifetime_price ); ?></span>
-							<span class="period">/<?php esc_html_e( 'one-time', 'digital-library-membership' ); ?></span>
+				<!-- Lifetime Plan Card -->
+				<div class="bg-white border border-outline-variant/30 rounded-[32px] p-8 flex flex-col shadow-sm book-card-shadow transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+					<div class="mb-8">
+						<span class="text-secondary bg-[#f5f5f7] px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Collector</span>
+						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'Lifetime Access', 'digital-library-membership' ); ?></h3>
+						<div class="flex items-baseline gap-1 mt-4">
+							<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $lifetime_price ); ?></span>
+							<span class="text-secondary text-xs">/one-time</span>
 						</div>
 					</div>
-					<ul class="dlm-features-list">
+					<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
 						<?php foreach ( $features_lifetime as $feat ) : ?>
-							<li><?php echo esc_html( $feat ); ?></li>
+							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> <?php echo esc_html( $feat ); ?></li>
 						<?php endforeach; ?>
 					</ul>
-					<a href="<?php echo esc_url( add_query_arg( 'plan', 'lifetime', $checkout_url ) ); ?>" class="dlm-btn dlm-btn-secondary dlm-btn-block" style="text-decoration:none; text-align:center; display:block; box-sizing:border-box;"><?php esc_html_e( 'Buy Lifetime Access', 'digital-library-membership' ); ?></a>
+					<a href="<?php echo esc_url( add_query_arg( 'plan', 'lifetime', $checkout_url ) ); ?>" class="w-full py-3.5 bg-[#f5f5f7] hover:bg-[#e5e5ea] text-on-surface font-semibold rounded-2xl text-center transition-all block text-sm" style="text-decoration: none; box-sizing: border-box;"><?php esc_html_e( 'Unlock Lifetime', 'digital-library-membership' ); ?></a>
 				</div>
 			</div>
 		</div>
@@ -521,7 +591,8 @@ class DLM_Public {
 
 					<!-- Google ReCAPTCHA Bot Protection -->
 					<?php 
-					$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
+					$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
+					$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
 					$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
 					if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
 						<div id="dlm-checkout-recaptcha-wrapper" style="margin-bottom: 20px; display: flex; justify-content: center;">
@@ -735,7 +806,8 @@ class DLM_Public {
 
 						<!-- Google ReCAPTCHA -->
 						<?php 
-						$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
+						$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
+						$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
 						$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
 						if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
 							<div class="g-recaptcha flex justify-center my-3" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
@@ -869,7 +941,7 @@ class DLM_Public {
 
 		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
 		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
 		}
 
 		$username = isset( $_POST['username'] ) ? sanitize_user( wp_unslash( $_POST['username'] ) ) : '';
@@ -916,7 +988,7 @@ class DLM_Public {
 
 		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
 		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
 		}
 
 		$name     = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';

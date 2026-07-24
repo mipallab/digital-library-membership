@@ -1113,10 +1113,47 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 								<div class="border-t border-outline-variant/10 pt-4 mt-4"></div>
 
 								<h4 class="text-xs font-bold text-primary uppercase tracking-wider">Google ReCAPTCHA Bot Protection</h4>
-								<p class="text-xs text-secondary leading-relaxed">Protects checkout, registration, and login screens from automated attacks.</p>
+								<p class="text-xs text-secondary leading-relaxed mb-3">Protects checkout, registration, and login screens from automated attacks. <a href="https://www.google.com/recaptcha/admin/create" target="_blank" class="text-primary hover:underline font-semibold inline-flex items-center gap-1 ml-1">Create ReCAPTCHA Keys <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></p>
+
+								<!-- Connection status badge -->
+								<div class="mb-4">
+									<?php 
+									$recaptcha_conn = dlm_get_recaptcha_connection_status(); 
+									if ( $recaptcha_conn['status'] === 'connected' ) : ?>
+										<div class="flex items-center gap-2 p-3.5 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-semibold">
+											<span class="w-2.5 h-2.5 rounded-full bg-green-600 animate-pulse shrink-0"></span>
+											<span><?php echo esc_html( $recaptcha_conn['message'] ); ?></span>
+										</div>
+									<?php elseif ( $recaptcha_conn['status'] === 'testing' ) : ?>
+										<div class="flex items-center gap-2 p-3.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs font-semibold">
+											<span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+											<span><?php echo esc_html( $recaptcha_conn['message'] ); ?></span>
+										</div>
+									<?php elseif ( $recaptcha_conn['status'] === 'failed' ) : ?>
+										<div class="flex flex-col gap-1.5 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
+											<div class="flex items-center gap-2">
+												<span class="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0"></span>
+												<span><?php esc_html_e( 'Not Connected to ReCAPTCHA', 'digital-library-membership' ); ?></span>
+											</div>
+											<p class="text-[11px] text-red-600 font-normal leading-relaxed"><strong><?php esc_html_e( 'Connection Failed Cause:', 'digital-library-membership' ); ?></strong> <?php echo esc_html( $recaptcha_conn['message'] ); ?></p>
+										</div>
+									<?php else : ?>
+										<div class="flex items-center gap-2 p-3.5 bg-surface-container-high border border-outline-variant/30 text-secondary rounded-xl text-xs font-semibold">
+											<span class="w-2.5 h-2.5 rounded-full bg-outline-variant shrink-0"></span>
+											<span><?php echo esc_html( $recaptcha_conn['message'] ); ?></span>
+										</div>
+									<?php endif; ?>
+								</div>
 
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									<div class="space-y-1 sm:col-span-2">
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Mode</label>
+										<select name="dlm_recaptcha_mode" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+											<option value="production" <?php selected( get_option( 'dlm_recaptcha_mode', 'production' ), 'production' ); ?>><?php esc_html_e( 'Live Production Mode', 'digital-library-membership' ); ?></option>
+											<option value="testing" <?php selected( get_option( 'dlm_recaptcha_mode' ), 'testing' ); ?>><?php esc_html_e( 'Developer Testing Mode', 'digital-library-membership' ); ?></option>
+										</select>
+									</div>
+									<div class="space-y-1">
 										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Version</label>
 										<select name="dlm_recaptcha_version" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
 											<option value="v2" <?php selected( get_option( 'dlm_recaptcha_version', 'v2' ), 'v2' ); ?>>v2 Checkbox ("I'm not a robot")</option>
@@ -1135,13 +1172,13 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							</div>
 						</div>
 
-						<!-- Page Maintenance Tools -->
+						<!-- Setup Flow Relaunch Tool -->
 						<div class="mt-8 pt-6 border-t border-outline-variant/10">
-							<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-2">Frontend Pages Tools</h3>
-							<p class="text-xs text-secondary mb-4">If any required plugin pages (Library, Library Account, Plan, Checkout) were accidentally deleted or trashed, click below to recreate them automatically.</p>
-							<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=dlm_recreate_pages' ), 'dlm_recreate_pages_nonce' ) ); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-on-surface transition-all">
-								<i class="fa-solid fa-arrows-rotate text-xs"></i>
-								Recreate Missing Pages
+							<h3 class="text-sm font-bold text-on-surface uppercase tracking-wider mb-2">Setup Flow Wizard</h3>
+							<p class="text-xs text-secondary mb-4">Click below to relaunch the setup wizard to easily configure pages, payment options, and recaptcha settings again.</p>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=dlm-setup-wizard' ) ); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-on-surface transition-all">
+								<i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+								Setup Widget
 							</a>
 						</div>
 
