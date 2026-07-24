@@ -310,7 +310,7 @@ function initWPBooksMediaUploader(btnId, inputId, previewId, placeholderId) {
 function initSettingsTabs() {
     window.switchSettingsTab = function(tabName) {
         // Toggle tab highlights
-        const tabIds = ['general', 'stripe', 'paypal', 'woocommerce'];
+        const tabIds = ['general', 'stripe', 'paypal', 'woocommerce', 'security'];
         tabIds.forEach(id => {
             const btn = document.getElementById('tab-settings-' + id);
             const panel = document.getElementById('panel-settings-' + id);

@@ -76,10 +76,14 @@ class DLM {
 		// Defer public scripts
 		add_filter( 'script_loader_tag', array( $this, 'defer_public_scripts' ), 10, 3 );
 
+		// Redirect any query param payment requests to account page
+		add_action( 'template_redirect', array( $this, 'handle_payment_status_redirect' ) );
+
 		// Admin hooks
 		if ( is_admin() ) {
 			add_action( 'admin_menu', array( $this->admin, 'add_admin_menu' ) );
 			add_action( 'admin_init', array( $this->admin, 'register_settings' ) );
+			add_action( 'admin_init', array( $this, 'handle_activation_redirect' ) );
 			add_action( 'admin_post_dlm_save_book', array( $this->admin, 'handle_save_book' ) );
 			add_action( 'admin_post_dlm_edit_book', array( $this->admin, 'handle_edit_book' ) );
 			add_action( 'admin_post_dlm_delete_book', array( $this->admin, 'handle_delete_book' ) );
@@ -114,6 +118,9 @@ class DLM {
 		add_action( 'wp_ajax_nopriv_dlm_ajax_login', array( $this->public, 'ajax_login' ) );
 		add_action( 'wp_ajax_dlm_ajax_register', array( $this->public, 'ajax_register' ) );
 		add_action( 'wp_ajax_nopriv_dlm_ajax_register', array( $this->public, 'ajax_register' ) );
+
+		// Admin Setup Wizard AJAX
+		add_action( 'wp_ajax_dlm_save_setup_wizard', array( $this->admin, 'ajax_save_setup_wizard' ) );
 
 		// Member SPA AJAX actions
 		add_action( 'wp_ajax_dlm_sync_achievements', array( $this->public, 'ajax_sync_achievements' ) );
@@ -231,6 +238,17 @@ class DLM {
 			wp_enqueue_script( 'dlm-paypal-sdk', 'https://www.paypal.com/sdk/js?client-id=' . esc_attr( $paypal_client_id ) . '&vault=true&intent=subscription', array(), DLM_VERSION, true );
 		}
 
+		// Google ReCAPTCHA Integration
+		$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
+		$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
+		if ( $recaptcha_site_key ) {
+			if ( $recaptcha_version === 'v3' ) {
+				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js?render=' . esc_attr( $recaptcha_site_key ), array(), null, true );
+			} else {
+				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js', array(), null, true );
+			}
+		}
+
 		// Enqueue reader styles & PDF.js if we are on the reader page
 		if ( get_query_var( 'dlm_reader' ) ) {
 			wp_enqueue_style( 'dlm-reader-css', DLM_URL . 'public/css/dlm-reader.css', array(), DLM_VERSION );
@@ -257,6 +275,8 @@ class DLM {
 			'paypalLifetimePlanId' => get_option( 'dlm_paypal_lifetime_plan_id' ),
 			'nonce'             => wp_create_nonce( 'dlm_public_nonce' ),
 			'useWooCommerce'    => class_exists( 'WooCommerce' ) && ( get_option( 'dlm_wc_monthly_product' ) || get_option( 'dlm_wc_yearly_product' ) || get_option( 'dlm_wc_lifetime_product' ) ),
+			'recaptchaSiteKey'  => get_option( 'dlm_recaptcha_site_key' ),
+			'recaptchaVersion'  => get_option( 'dlm_recaptcha_version', 'v2' ),
 		) );
 	}
 
@@ -496,6 +516,49 @@ class DLM {
 		}
 		return $tag;
 	}
+
+	/**
+	 * Handles redirection to the Setup Wizard on plugin activation
+	 */
+	public function handle_activation_redirect() {
+		if ( get_option( 'dlm_activation_redirect' ) ) {
+			delete_option( 'dlm_activation_redirect' );
+			
+			// Only redirect if setup is not already completed
+			if ( 'yes' !== get_option( 'dlm_setup_completed' ) ) {
+				// Don't redirect on bulk activation
+				if ( ! isset( $_GET['activate-multi'] ) ) {
+					wp_safe_redirect( admin_url( 'admin.php?page=dlm-setup-wizard' ) );
+					exit;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Redirect any page loaded with payment query parameters to the account dashboard
+	 */
+	public function handle_payment_status_redirect() {
+		if ( isset( $_GET['payment'] ) ) {
+			$payment = sanitize_key( $_GET['payment'] );
+			$valid_statuses = array( 'success', 'active', 'pending', 'cancelled', 'cancel', 'failed', 'faild' );
+			if ( in_array( $payment, $valid_statuses, true ) ) {
+				$account_page_id = dlm_get_page_id( 'account' );
+				if ( ! is_page( $account_page_id ) ) {
+					$query_args = array(
+						'payment' => $payment,
+					);
+					if ( isset( $_GET['session_id'] ) ) {
+						$query_args['session_id'] = sanitize_text_field( $_GET['session_id'] );
+					}
+					
+					$redirect_url = add_query_arg( $query_args, dlm_get_page_url( 'account' ) );
+					wp_safe_redirect( $redirect_url );
+					exit;
+				}
+			}
+		}
+	}
 }
 
 /**
@@ -528,6 +591,37 @@ function dlm_user_has_active_subscription( $user_id = 0 ) {
 	}
 	$db = new DLM_DB();
 	return $db->has_active_membership( $user_id );
+}
+
+/**
+ * Global helper function to verify Google ReCAPTCHA token (v2 or v3)
+ */
+function dlm_verify_recaptcha( $token ) {
+	$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+	if ( empty( $secret_key ) ) {
+		return true; // Skip verification if not configured
+	}
+
+	if ( empty( $token ) ) {
+		return false;
+	}
+
+	$response = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
+		'body' => array(
+			'secret'   => $secret_key,
+			'response' => $token,
+			'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
+		),
+	) );
+
+	if ( is_wp_error( $response ) ) {
+		return false;
+	}
+
+	$body   = wp_remote_retrieve_body( $response );
+	$result = json_decode( $body, true );
+
+	return ! empty( $result['success'] ) && $result['success'];
 }
 
 

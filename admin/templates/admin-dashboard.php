@@ -841,11 +841,15 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						PayPal Setup
 					</button>
 					<?php if ( class_exists( 'WooCommerce' ) ) : ?>
-					<button onclick="switchSettingsTab('woocommerce')" id="tab-settings-woocommerce" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
+					<button type="button" onclick="switchSettingsTab('woocommerce')" id="tab-settings-woocommerce" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
 						<i class="fa-brands fa-woocommerce"></i>
 						WooCommerce Setup
 					</button>
 					<?php endif; ?>
+					<button type="button" onclick="switchSettingsTab('security')" id="tab-settings-security" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
+						<i class="fa-solid fa-shield-halved"></i>
+						Security & Legal
+					</button>
 				</div>
 
 				<!-- Settings Forms container -->
@@ -1012,6 +1016,69 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							</div>
 						</div>
 						<?php endif; ?>
+
+						<!-- Security & Legal Panel -->
+						<div id="panel-settings-security" class="space-y-6 hidden">
+							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Security & Legal Settings</h3>
+							
+							<div class="space-y-4">
+								<h4 class="text-xs font-bold text-primary uppercase tracking-wider">Legal Pages Association</h4>
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">Privacy Policy Page</label>
+										<select name="dlm_privacy_policy_page_id" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+											<option value="0">-- Select Page --</option>
+											<?php 
+											$wp_pages = get_pages();
+											$selected_privacy = get_option( 'dlm_privacy_policy_page_id' );
+											foreach ( $wp_pages as $p ) {
+												?>
+												<option value="<?php echo intval( $p->ID ); ?>" <?php selected( $selected_privacy, $p->ID ); ?>><?php echo esc_html( $p->post_title ); ?></option>
+												<?php
+											}
+											?>
+										</select>
+									</div>
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">Terms & Conditions Page</label>
+										<select name="dlm_terms_page_id" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+											<option value="0">-- Select Page --</option>
+											<?php 
+											$selected_terms = get_option( 'dlm_terms_page_id' );
+											foreach ( $wp_pages as $p ) {
+												?>
+												<option value="<?php echo intval( $p->ID ); ?>" <?php selected( $selected_terms, $p->ID ); ?>><?php echo esc_html( $p->post_title ); ?></option>
+												<?php
+											}
+											?>
+										</select>
+									</div>
+								</div>
+
+								<div class="border-t border-outline-variant/10 pt-4 mt-4"></div>
+
+								<h4 class="text-xs font-bold text-primary uppercase tracking-wider">Google ReCAPTCHA Bot Protection</h4>
+								<p class="text-xs text-secondary leading-relaxed">Protects checkout, registration, and login screens from automated attacks.</p>
+
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+									<div class="space-y-1 sm:col-span-2">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Version</label>
+										<select name="dlm_recaptcha_version" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+											<option value="v2" <?php selected( get_option( 'dlm_recaptcha_version', 'v2' ), 'v2' ); ?>>v2 Checkbox ("I'm not a robot")</option>
+											<option value="v3" <?php selected( get_option( 'dlm_recaptcha_version' ), 'v3' ); ?>>v3 Invisible</option>
+										</select>
+									</div>
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Site Key</label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_recaptcha_site_key" value="<?php echo esc_attr( get_option( 'dlm_recaptcha_site_key' ) ); ?>" placeholder="e.g. 6LdK...">
+									</div>
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Secret Key</label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_recaptcha_secret_key" value="<?php echo esc_attr( get_option( 'dlm_recaptcha_secret_key' ) ); ?>" placeholder="e.g. 6LdK_secret...">
+									</div>
+								</div>
+							</div>
+						</div>
 
 						<!-- Page Maintenance Tools -->
 						<div class="mt-8 pt-6 border-t border-outline-variant/10">

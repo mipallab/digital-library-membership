@@ -113,6 +113,11 @@ class DLM_Activator {
 
 		// Auto-create required frontend pages
 		self::create_pages();
+
+		// Set flag for setup wizard redirection if not already completed
+		if ( 'yes' !== get_option( 'dlm_setup_completed' ) ) {
+			update_option( 'dlm_activation_redirect', 'yes' );
+		}
 	}
 
 	/**

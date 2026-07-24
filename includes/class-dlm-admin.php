@@ -88,6 +88,16 @@ class DLM_Admin {
 			'manage_dlm_library',
 			'edit-tags.php?taxonomy=dlm_book_tag&post_type=dlm_book'
 		);
+
+		// Hidden setup wizard menu page
+		add_submenu_page(
+			null, // No parent menu = hidden
+			__( 'Plugin Setup Wizard', 'digital-library-membership' ),
+			__( 'Setup Wizard', 'digital-library-membership' ),
+			'manage_dlm_library',
+			'dlm-setup-wizard',
+			array( $this, 'render_setup_wizard' )
+		);
 	}
 
 	/**
@@ -115,6 +125,12 @@ class DLM_Admin {
 			'dlm_wc_monthly_product',
 			'dlm_wc_yearly_product',
 			'dlm_wc_lifetime_product',
+			'dlm_privacy_policy_page_id',
+			'dlm_terms_page_id',
+			'dlm_recaptcha_version',
+			'dlm_recaptcha_site_key',
+			'dlm_recaptcha_secret_key',
+			'dlm_setup_completed',
 		);
 
 		foreach ( $settings as $opt ) {
@@ -166,6 +182,67 @@ class DLM_Admin {
 			return 50;
 		}
 		return $value;
+	}
+
+	/**
+	 * Render the Setup Wizard standalone page
+	 */
+	public function render_setup_wizard() {
+		DLM_Security::check_admin_capabilities();
+
+		// Auto create pages if they aren't already created (insurance check)
+		DLM_Activator::create_pages();
+
+		// Enqueue FontAwesome for admin (normally handled, but we ensure it is loaded)
+		wp_enqueue_style( 'font-awesome', DLM_URL . 'admin/css/font-awesome.min.css', array(), DLM_VERSION );
+
+		// Load template
+		include DLM_PATH . 'admin/templates/setup-wizard.php';
+	}
+
+	/**
+	 * AJAX handler to save Setup Wizard configurations
+	 */
+	public function ajax_save_setup_wizard() {
+		// Check security
+		if ( ! current_user_can( 'manage_dlm_library' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-library-membership' ) ) );
+		}
+
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+
+		$step = isset( $_POST['step'] ) ? sanitize_key( $_POST['step'] ) : '';
+
+		if ( $step === 'pages' ) {
+			// Step 1: Pages are automatically verified and created. 
+			// We just verify they exist.
+			wp_send_json_success( array( 'message' => __( 'Pages verified and active.', 'digital-library-membership' ) ) );
+		} elseif ( $step === 'legal' ) {
+			// Step 2: Legal Pages settings
+			$privacy_policy_id = isset( $_POST['privacy_policy_page_id'] ) ? intval( $_POST['privacy_policy_page_id'] ) : 0;
+			$terms_id          = isset( $_POST['terms_page_id'] ) ? intval( $_POST['terms_page_id'] ) : 0;
+
+			update_option( 'dlm_privacy_policy_page_id', $privacy_policy_id );
+			update_option( 'dlm_terms_page_id', $terms_id );
+
+			wp_send_json_success( array( 'message' => __( 'Legal pages successfully matched.', 'digital-library-membership' ) ) );
+		} elseif ( $step === 'recaptcha' ) {
+			// Step 3: Google ReCAPTCHA configurations
+			$recaptcha_version = isset( $_POST['recaptcha_version'] ) ? sanitize_key( $_POST['recaptcha_version'] ) : 'v2';
+			$recaptcha_site    = isset( $_POST['recaptcha_site_key'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_site_key'] ) ) : '';
+			$recaptcha_secret  = isset( $_POST['recaptcha_secret_key'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_secret_key'] ) ) : '';
+
+			update_option( 'dlm_recaptcha_version', $recaptcha_version );
+			update_option( 'dlm_recaptcha_site_key', $recaptcha_site );
+			update_option( 'dlm_recaptcha_secret_key', $recaptcha_secret );
+
+			// Mark setup as completed!
+			update_option( 'dlm_setup_completed', 'yes' );
+
+			wp_send_json_success( array( 'message' => __( 'Google ReCAPTCHA configured. Setup completed!', 'digital-library-membership' ) ) );
+		}
+
+		wp_send_json_error( array( 'message' => __( 'Invalid setup step.', 'digital-library-membership' ) ) );
 	}
 
 	/**

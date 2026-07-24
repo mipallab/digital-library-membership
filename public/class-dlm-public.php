@@ -519,6 +519,16 @@ class DLM_Public {
 				<div class="dlm-payment-box" style="background:#fff; border:1px solid #d2d2d7; border-radius:20px; padding:30px; box-shadow:0 4px 20px rgba(0,0,0,0.03);">
 					<h3 style="margin-top:0; margin-bottom:20px; font-size:18px; font-weight:700; color:#1d1d1f;"><?php esc_html_e( 'Select Payment Method', 'digital-library-membership' ); ?></h3>
 
+					<!-- Google ReCAPTCHA Bot Protection -->
+					<?php 
+					$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
+					$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
+					if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
+						<div id="dlm-checkout-recaptcha-wrapper" style="margin-bottom: 20px; display: flex; justify-content: center;">
+							<div class="g-recaptcha" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
+						</div>
+					<?php endif; ?>
+
 					<div class="dlm-payment-options">
 						<!-- Stripe Checkout Button -->
 						<button id="dlm-stripe-btn" class="dlm-btn dlm-btn-stripe dlm-btn-block select-plan-btn" data-interval="<?php echo esc_attr( $selected_plan ); ?>">
@@ -723,6 +733,14 @@ class DLM_Public {
 							<label class="text-[13px] text-[#5f5e60] select-none cursor-pointer" for="remember"><?php esc_html_e( 'Keep me signed in on this device', 'digital-library-membership' ); ?></label>
 						</div>
 
+						<!-- Google ReCAPTCHA -->
+						<?php 
+						$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
+						$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
+						if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
+							<div class="g-recaptcha flex justify-center my-3" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
+						<?php endif; ?>
+
 						<!-- Sign In Button -->
 						<button class="w-full h-13 bg-[#855300] hover:bg-[#613b00] text-white font-semibold text-[15px] rounded-xl btn-transition shadow-md hover:shadow-lg active:scale-[0.98] mt-4 flex items-center justify-center gap-2 cursor-pointer" type="submit">
 							<span><?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?></span>
@@ -779,6 +797,12 @@ class DLM_Public {
 							</div>
 						</div>
 
+						<!-- Google ReCAPTCHA -->
+						<?php 
+						if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
+							<div class="g-recaptcha flex justify-center my-3" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
+						<?php endif; ?>
+
 						<!-- Register Button -->
 						<button class="w-full h-13 bg-[#855300] hover:bg-[#613b00] text-white font-semibold text-[15px] rounded-xl btn-transition shadow-md hover:shadow-lg active:scale-[0.98] mt-4 flex items-center justify-center gap-2 cursor-pointer" type="submit">
 							<span><?php esc_html_e( 'Register & Auto-Login', 'digital-library-membership' ); ?></span>
@@ -799,8 +823,21 @@ class DLM_Public {
 			
 			<!-- Footer Nav Links -->
 			<div class="mt-6 flex justify-center gap-6 opacity-70">
-				<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Privacy Policy</a>
-				<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Terms of Access</a>
+				<?php 
+				$privacy_id = get_option( 'dlm_privacy_policy_page_id' );
+				$terms_id    = get_option( 'dlm_terms_page_id' );
+				if ( $privacy_id ) : ?>
+					<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="<?php echo esc_url( get_permalink( $privacy_id ) ); ?>" target="_blank">Privacy Policy</a>
+				<?php else : ?>
+					<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Privacy Policy</a>
+				<?php endif; ?>
+				
+				<?php if ( $terms_id ) : ?>
+					<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="<?php echo esc_url( get_permalink( $terms_id ) ); ?>" target="_blank">Terms of Access</a>
+				<?php else : ?>
+					<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Terms of Access</a>
+				<?php endif; ?>
+				
 				<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Contact Support</a>
 			</div>
 		</div>
@@ -829,6 +866,11 @@ class DLM_Public {
 	 */
 	public function ajax_login() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+
+		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
+		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+		}
 
 		$username = isset( $_POST['username'] ) ? sanitize_user( wp_unslash( $_POST['username'] ) ) : '';
 		// Passwords should not be sanitized as it would alter the value
@@ -871,6 +913,11 @@ class DLM_Public {
 	 */
 	public function ajax_register() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+
+		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
+		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security verification failed (ReCAPTCHA). Please try again.', 'digital-library-membership' ) ) );
+		}
 
 		$name     = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 		$email    = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
