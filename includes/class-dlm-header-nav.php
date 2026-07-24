@@ -137,6 +137,7 @@ class DLM_Header_Nav {
 			'dropdown_item_title_color'  => '',
 			'dropdown_item_time_color'   => '',
 			'dropdown_item_hover_bg'     => '',
+			'btn_text'                   => 'Sign In',
 		), $atts );
 
 		$style_container = '';
@@ -518,7 +519,7 @@ class DLM_Header_Nav {
 				</div>
 			<?php else : ?>
 				<a href="<?php echo esc_url( self::get_dashboard_url() ); ?>" class="dlm-header-signin-btn" style="<?php if(!empty($a['text_color'])) echo 'color: '.esc_attr($a['text_color']).' !important;'; ?> <?php if(!empty($a['bg_color'])) echo 'background-color: '.esc_attr($a['bg_color']).' !important;'; ?>">
-					<?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?>
+					<?php echo esc_html( ! empty( $a['btn_text'] ) ? $a['btn_text'] : __( 'Sign In', 'digital-library-membership' ) ); ?>
 				</a>
 			<?php endif; ?>
 		</div>
@@ -554,6 +555,7 @@ class DLM_Header_Nav {
 				'spacing'      => array( 'type' => 'string', 'default' => '16px' ),
 				'margin'       => array( 'type' => 'string', 'default' => '0' ),
 				'padding'      => array( 'type' => 'string', 'default' => '0' ),
+				'btn_text'     => array( 'type' => 'string', 'default' => 'Sign In' ),
 			),
 		) );
 	}

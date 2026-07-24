@@ -97,6 +97,16 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_control(
+			'logout_btn_text',
+			array(
+				'label'       => __( 'Sign In Button Text', 'digital-library-membership' ),
+				'type'        => \Elementor\Controls_Manager::TEXT,
+				'default'     => __( 'Sign In', 'digital-library-membership' ),
+				'placeholder' => __( 'Sign In', 'digital-library-membership' ),
+			)
+		);
+
 		$this->end_controls_section();
 
 		// ==========================================
@@ -153,6 +163,101 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 				'selectors'  => array(
 					'{{WRAPPER}} .dlm-header-nav-container' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
 				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ==========================================
+		// STYLE TAB: LOGOUT STATE BUTTON
+		// ==========================================
+		$this->start_controls_section(
+			'logout_btn_style_section',
+			array(
+				'label' => __( 'Logout State Button', 'digital-library-membership' ),
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'btn_text_color',
+			array(
+				'label'     => __( 'Button Text Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-header-signin-btn' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'btn_bg_color',
+			array(
+				'label'     => __( 'Button Background Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-header-signin-btn' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'btn_typography',
+				'selector' => '{{WRAPPER}} .dlm-header-signin-btn',
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Border::get_type(),
+			array(
+				'name'     => 'btn_border',
+				'selector' => '{{WRAPPER}} .dlm-header-signin-btn',
+			)
+		);
+
+		$this->add_responsive_control(
+			'btn_border_radius',
+			array(
+				'label'      => __( 'Border Radius', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%', 'em' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-header-signin-btn' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'btn_padding',
+			array(
+				'label'      => __( 'Padding', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%', 'em' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-header-signin-btn' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'btn_margin',
+			array(
+				'label'      => __( 'Margin', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%', 'em' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-header-signin-btn' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Box_Shadow::get_type(),
+			array(
+				'name'     => 'btn_box_shadow',
+				'selector' => '{{WRAPPER}} .dlm-header-signin-btn',
 			)
 		);
 
@@ -429,19 +534,18 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 	}
 
-	/**
-	 * Compile HTML structure for rendering
-	 */
 	protected function render() {
 		$settings  = $this->get_settings_for_display();
 		$avatar_sz = isset( $settings['avatar_size']['size'] ) ? $settings['avatar_size']['size'] . 'px' : '36px';
 		$spc       = isset( $settings['spacing']['size'] ) ? $settings['spacing']['size'] . 'px' : '16px';
+		$btn_text  = isset( $settings['logout_btn_text'] ) ? $settings['logout_btn_text'] : '';
 
 		// Render via the modular shortcode logic
 		echo do_shortcode( sprintf(
-			'[dlm_header_nav avatar_size="%s" spacing="%s"]',
+			'[dlm_header_nav avatar_size="%s" spacing="%s" btn_text="%s"]',
 			esc_attr( $avatar_sz ),
-			esc_attr( $spc )
+			esc_attr( $spc ),
+			esc_attr( $btn_text )
 		) );
 	}
 }

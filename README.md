@@ -3,7 +3,7 @@ Contributors: mipallab123
 Tags: library, membership, reader, flipbook, stripe
 Requires at least: 6.2
 Tested up to: 7.0
-Stable tag: 1.9.5
+Stable tag: 1.9.6
 Requires PHP: 8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
