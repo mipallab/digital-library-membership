@@ -55,8 +55,8 @@ class DLM_Checkout {
 				),
 				'mode'                 => $mode,
 				'customer_email'       => $current_user->user_email,
-				'success_url'          => add_query_arg( 'session_id', '{CHECKOUT_SESSION_ID}', home_url( '/account/?payment=success' ) ),
-				'cancel_url'           => home_url( '/account/?payment=cancelled' ),
+				'success_url'          => add_query_arg( 'session_id', '{CHECKOUT_SESSION_ID}', add_query_arg( 'payment', 'success', dlm_get_page_url( 'account' ) ) ),
+				'cancel_url'           => add_query_arg( 'payment', 'cancelled', dlm_get_page_url( 'account' ) ),
 				'metadata'             => array(
 					'user_id'  => $current_user->ID,
 					'interval' => $interval,
@@ -150,7 +150,7 @@ class DLM_Checkout {
 		delete_transient( 'dlm_analytics_summary' );
 		delete_transient( 'dlm_trending_books' );
 
-		wp_send_json_success( array( 'redirect' => home_url( '/account/?payment=success' ) ) );
+		wp_send_json_success( array( 'redirect' => add_query_arg( 'payment', 'success', dlm_get_page_url( 'account' ) ) ) );
 	}
 
 	/**
@@ -504,7 +504,7 @@ class DLM_Checkout {
 			delete_transient( 'dlm_analytics_summary' );
 			delete_transient( 'dlm_trending_books' );
 
-			wp_send_json_success( array( 'redirect' => home_url( '/account/?payment=pending' ) ) );
+			wp_send_json_success( array( 'redirect' => add_query_arg( 'payment', 'pending', dlm_get_page_url( 'account' ) ) ) );
 		} else {
 			wp_send_json_error( array( 'message' => __( 'Could not log manual checkout request.', 'digital-library-membership' ) ) );
 		}
