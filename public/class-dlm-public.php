@@ -740,7 +740,7 @@ class DLM_Public {
 			<div class="glass-card book-card-shadow rounded-2xl p-6 md:p-10 border border-[#d8c3ad]/40 bg-white/95 backdrop-blur-xl">
 				<!-- Brand Identity & Tab Toggle -->
 				<div class="dlm-auth-header-row flex items-center justify-between mb-8 pb-4 border-b border-[#d8c3ad]/30">
-					<div class="flex items-center gap-3">
+					<div class="dlm-auth-brand-wrapper flex items-center gap-3">
 						<div class="w-10 h-10 bg-[#855300] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
 							<i class="fa-solid fa-book-open text-white text-[16px]"></i>
 						</div>

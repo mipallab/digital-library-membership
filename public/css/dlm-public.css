@@ -1179,6 +1179,42 @@
     color: #855300;
 }
 
+/* Mobile responsive styles for Login/Registration Cards */
+@media (max-width: 480px) {
+    .dlm-auth-header-row {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 16px !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+    
+    .dlm-auth-brand-wrapper {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .dlm-auth-brand-wrapper .sidebar-brand-text {
+        text-align: left !important;
+    }
+
+    .dlm-auth-mode-tabs {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+        max-width: 280px !important;
+        margin: 0 auto !important;
+    }
+
+    .dlm-auth-mode-tabs .dlm-auth-tab-btn {
+        flex: 1 !important;
+        padding: 8px 12px !important;
+    }
+}
+
 
 
 
