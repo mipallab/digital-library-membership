@@ -10,15 +10,43 @@ jQuery(document).ready(function($) {
             return;
         }
 
+        // Safety fallback timer to prevent infinite frontend hangs if Google's script fails/hangs
+        var called = false;
+        var safetyTimeout = setTimeout(function() {
+            if (!called) {
+                called = true;
+                console.warn('ReCAPTCHA token retrieval timed out.');
+                callback('');
+            }
+        }, 3000); // 3 seconds safety timeout
+
+        var safeCallback = function(token) {
+            clearTimeout(safetyTimeout);
+            if (!called) {
+                called = true;
+                callback(token);
+            }
+        };
+
         if (dlmParams.recaptchaVersion === 'v3') {
             if (typeof grecaptcha !== 'undefined') {
-                grecaptcha.ready(function() {
-                    grecaptcha.execute(dlmParams.recaptchaSiteKey, {action: actionName}).then(function(token) {
-                        callback(token);
+                try {
+                    grecaptcha.ready(function() {
+                        grecaptcha.execute(dlmParams.recaptchaSiteKey, {action: actionName})
+                            .then(function(token) {
+                                safeCallback(token);
+                            })
+                            .catch(function(err) {
+                                console.error('ReCAPTCHA execution failed:', err);
+                                safeCallback('');
+                            });
                     });
-                });
+                } catch(e) {
+                    console.error('ReCAPTCHA ready failed:', e);
+                    safeCallback('');
+                }
             } else {
-                callback('');
+                safeCallback('');
             }
         } else {
             var response = $form.find('[name="g-recaptcha-response"]').val();
@@ -27,7 +55,7 @@ jQuery(document).ready(function($) {
                     response = grecaptcha.getResponse();
                 } catch(e) {}
             }
-            callback(response || '');
+            safeCallback(response || '');
         }
     }
 

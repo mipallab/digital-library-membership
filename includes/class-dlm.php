@@ -632,6 +632,7 @@ function dlm_verify_recaptcha( $token ) {
 			'response' => $token,
 			'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
 		),
+		'timeout' => 5,
 	) );
 
 	if ( is_wp_error( $response ) ) {
