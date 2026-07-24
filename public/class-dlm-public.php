@@ -247,31 +247,31 @@ class DLM_Public {
 			<?php endif; ?>
 
 			<!-- Filters & Controls Bar -->
-			<div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
+			<div class="dlm-filters-bar mb-10">
 				<!-- Category Filter Pills -->
-				<div id="category-filters" class="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-2 md:pb-0">
+				<div id="category-filters" class="dlm-category-filters-row">
 					<button data-category="All" class="filter-btn active whitespace-nowrap"><?php esc_html_e( 'All Library', 'digital-library-membership' ); ?></button>
 					<?php foreach ( $categories_set as $cat ) : ?>
 						<button data-category="<?php echo esc_attr( $cat ); ?>" class="filter-btn whitespace-nowrap"><?php echo esc_html( $cat ); ?></button>
 					<?php endforeach; ?>
 				</div>
 
-				<!-- Search Input & Sort Dropdown -->
-				<div class="relative flex items-center gap-4 text-secondary flex-wrap">
+				<!-- Search Input & Sort Dropdown Row -->
+				<div class="dlm-search-sort-row">
 					<!-- Search Input -->
-					<div class="relative min-w-[240px]">
-						<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary text-[18px]">search</span>
-						<input id="search-input" class="pl-11 pr-4 py-2.5 bg-white border border-outline-variant/30 rounded-xl w-64 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all text-body-md text-on-surface" placeholder="<?php esc_attr_e( 'Search titles, authors...', 'digital-library-membership' ); ?>" type="text">
+					<div class="dlm-search-wrapper">
+						<span class="dlm-search-icon">🔍</span>
+						<input id="search-input" class="dlm-search-input" placeholder="<?php esc_attr_e( 'Search titles, authors...', 'digital-library-membership' ); ?>" type="text">
 					</div>
 
 					<!-- Sort Selector -->
-					<div class="relative flex items-center gap-2 cursor-pointer select-none border border-outline-variant/30 rounded-xl px-4 py-2.5 bg-white hover:bg-[#f5f5f7] transition-all text-sm" id="sort-trigger">
-						<span class="text-xs uppercase select-none text-secondary"><?php esc_html_e( 'Sorted by:', 'digital-library-membership' ); ?> <span id="current-sort-label" class="text-on-surface font-bold"><?php esc_html_e( 'Recent', 'digital-library-membership' ); ?></span></span>
-						<span class="material-symbols-outlined text-[18px] text-secondary">filter_list</span>
+					<div class="dlm-sort-wrapper" id="sort-trigger">
+						<span class="dlm-sort-label"><?php esc_html_e( 'Sorted by:', 'digital-library-membership' ); ?> <span id="current-sort-label" class="dlm-sort-current-val"><?php esc_html_e( 'Recent', 'digital-library-membership' ); ?></span></span>
+						<span class="dlm-sort-icon">⇅</span>
 
 						<!-- Dropdown Menu -->
-						<div id="sort-dropdown" class="hidden absolute right-0 top-12 w-48 bg-white border border-outline-variant/30 rounded-2xl shadow-xl z-50 py-2 animate-fade-in">
-							<button data-sort="recent" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container flex items-center justify-between" type="button">
+						<div id="sort-dropdown" class="dlm-sort-dropdown hidden">
+							<button data-sort="recent" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-bold text-on-surface hover:bg-surface-container flex items-center justify-between" type="button">
 								<?php esc_html_e( 'Recent', 'digital-library-membership' ); ?> <span>✓</span>
 							</button>
 							<button data-sort="title-asc" class="sort-opt w-full text-left px-4 py-2.5 text-sm font-medium text-secondary hover:bg-surface-container flex items-center justify-between" type="button">

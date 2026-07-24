@@ -1016,5 +1016,169 @@
     box-shadow: 0 4px 12px rgba(133, 83, 0, 0.15) !important;
 }
 
+/* Public Library Filter & Control Bar Styles */
+.dlm-filters-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.dlm-category-filters-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+/* Hide Scrollbar for category chips row */
+.dlm-category-filters-row::-webkit-scrollbar {
+    display: none;
+}
+.dlm-category-filters-row {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+.dlm-search-sort-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.dlm-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 280px;
+    flex-grow: 1;
+    max-width: 480px;
+}
+
+.dlm-search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 16px;
+    color: #867461;
+    pointer-events: none;
+}
+
+.dlm-search-input {
+    width: 100%;
+    height: 44px;
+    padding: 8px 16px 8px 42px !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid #d8c3ad !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    color: #1a1c1c !important;
+    outline: none !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.dlm-search-input:focus {
+    border-color: #855300 !important;
+    box-shadow: 0 0 0 3px rgba(133, 83, 0, 0.12) !important;
+}
+
+.dlm-sort-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 8px 16px !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid #d8c3ad !important;
+    border-radius: 12px !important;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.dlm-sort-wrapper:hover {
+    background-color: #f5f5f7 !important;
+    border-color: #855300 !important;
+}
+
+.dlm-sort-label {
+    font-size: 13px;
+    color: #5f5e60;
+    text-transform: uppercase;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.dlm-sort-current-val {
+    color: #1a1c1c;
+    font-weight: 700;
+}
+
+.dlm-sort-icon {
+    font-size: 14px;
+    color: #867461;
+}
+
+.dlm-sort-dropdown {
+    position: absolute;
+    right: 0;
+    top: 50px;
+    width: 200px;
+    background-color: #ffffff !important;
+    border: 1.5px solid #d8c3ad !important; /* Premium SPA border */
+    border-radius: 14px !important;
+    box-shadow: 0 8px 24px rgba(133, 83, 0, 0.12) !important;
+    z-index: 100;
+    padding: 6px 0 !important;
+    display: none;
+}
+
+.dlm-sort-dropdown.hidden {
+    display: none !important;
+}
+
+.dlm-sort-dropdown .sort-opt {
+    width: 100%;
+    background: none !important;
+    border: none !important;
+    text-align: left;
+    padding: 10px 16px !important;
+    font-size: 13.5px !important;
+    color: #4a5568 !important;
+    font-weight: 500 !important;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s ease-in-out;
+}
+
+.dlm-sort-dropdown .sort-opt:hover {
+    background-color: #fdf5ea !important; /* Soft SPA light brown hover */
+    color: #855300 !important;
+}
+
+/* Connect JS Tailwind state helpers to custom selectors */
+.dlm-sort-dropdown .sort-opt.font-bold {
+    color: #855300 !important;
+    font-weight: 700 !important;
+}
+
+.dlm-sort-dropdown .sort-opt.font-medium {
+    color: #4a5568 !important;
+    font-weight: 500 !important;
+}
+
+.dlm-sort-dropdown .sort-opt .check-mark {
+    font-size: 12px;
+    color: #855300;
+}
+
+
 
 
