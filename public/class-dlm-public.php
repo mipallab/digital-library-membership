@@ -664,50 +664,162 @@ class DLM_Public {
 	public function get_login_prompt_html() {
 		ob_start();
 		?>
-		<div class="dlm-container dlm-auth-container">
-			<div class="dlm-auth-card">
-				<div class="dlm-auth-tabs">
-					<button class="dlm-auth-tab-btn active" data-tab="login"><?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?></button>
-					<button class="dlm-auth-tab-btn" data-tab="register"><?php esc_html_e( 'Create Account', 'digital-library-membership' ); ?></button>
+		<div class="dlm-auth-container-wrapper relative z-10 w-full max-w-[480px] mx-auto">
+			<div class="glass-card book-card-shadow rounded-2xl p-6 md:p-10 border border-[#d8c3ad]/40 bg-white/95 backdrop-blur-xl">
+				<!-- Brand Identity & Tab Toggle -->
+				<div class="dlm-auth-header-row flex items-center justify-between mb-8 pb-4 border-b border-[#d8c3ad]/30">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 bg-[#855300] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+							<i class="fa-solid fa-book-open text-white text-[16px]"></i>
+						</div>
+						<div class="sidebar-brand-text">
+							<span class="font-title-sm text-[17px] text-[#1a1c1c] font-bold tracking-tight block leading-tight">Bridgeway36</span>
+							<p class="text-[#5f5e60] text-[10px] font-semibold uppercase tracking-widest mt-0.5">Digital Library</p>
+						</div>
+					</div>
+
+					<!-- Auth Mode Tabs (Sign In / Register) -->
+					<div class="dlm-auth-mode-tabs flex bg-[#eeeeee] p-1 rounded-xl gap-1">
+						<button type="button" class="dlm-auth-tab-btn active px-3 py-1.5 rounded-lg text-[12px] font-semibold text-[#5f5e60] transition-all cursor-pointer" data-tab="login"><?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?></button>
+						<button type="button" class="dlm-auth-tab-btn px-3 py-1.5 rounded-lg text-[12px] font-semibold text-[#5f5e60] transition-all cursor-pointer" data-tab="register"><?php esc_html_e( 'Register', 'digital-library-membership' ); ?></button>
+					</div>
 				</div>
 
-				<!-- Login Panel -->
+				<!-- LOGIN PANEL -->
 				<div class="dlm-auth-panel" id="panel-login">
-					<form id="dlm-login-form">
-						<div class="dlm-auth-alert" style="display:none;"></div>
-						<p>
-							<label for="dlm_username"><?php esc_html_e( 'Username or Email', 'digital-library-membership' ); ?></label>
-							<input type="text" id="dlm_username" class="dlm-auth-input" required>
-						</p>
-						<p>
-							<label for="dlm_password"><?php esc_html_e( 'Password', 'digital-library-membership' ); ?></label>
-							<input type="password" id="dlm_password" class="dlm-auth-input" required>
-						</p>
-						<button type="submit" class="dlm-btn dlm-btn-primary dlm-btn-block" style="margin-top:20px;"><?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?></button>
+					<header class="mb-6">
+						<h1 class="text-[28px] md:text-[34px] font-bold text-[#1a1c1c] mb-2 leading-tight tracking-tight"><?php esc_html_e( 'Welcome Back', 'digital-library-membership' ); ?></h1>
+						<p class="text-[15px] text-[#5f5e60] leading-relaxed"><?php esc_html_e( 'Continue your journey through the curated archives.', 'digital-library-membership' ); ?></p>
+					</header>
+
+					<form id="dlm-login-form" class="space-y-4">
+						<div class="dlm-auth-alert text-xs p-3 rounded-xl mb-3 font-medium" style="display:none;"></div>
+
+						<!-- Email/Username Field -->
+						<div class="field-group space-y-1.5">
+							<label class="text-[11px] font-bold text-[#5f5e60] uppercase tracking-wider block" for="dlm_username"><?php esc_html_e( 'Email Address or Username', 'digital-library-membership' ); ?></label>
+							<div class="input-relative-wrapper relative">
+								<input class="w-full h-13 px-4 bg-white border border-[#d8c3ad] rounded-xl text-[14px] text-[#1a1c1c] input-focus-ring btn-transition placeholder:text-[#867461]/60" id="dlm_username" name="username" placeholder="name@example.com" required type="text" />
+								<i class="fa-regular fa-envelope input-icon-right absolute right-4 top-1/2 -translate-y-1/2 text-[#867461]"></i>
+							</div>
+						</div>
+
+						<!-- Password Field -->
+						<div class="field-group space-y-1.5">
+							<div class="flex justify-between items-center">
+								<label class="text-[11px] font-bold text-[#5f5e60] uppercase tracking-wider block" for="dlm_password"><?php esc_html_e( 'Password', 'digital-library-membership' ); ?></label>
+							</div>
+							<div class="input-relative-wrapper relative">
+								<input class="w-full h-13 px-4 bg-white border border-[#d8c3ad] rounded-xl text-[14px] text-[#1a1c1c] input-focus-ring btn-transition placeholder:text-[#867461]/60" id="dlm_password" name="password" placeholder="••••••••" required type="password" />
+								<button class="dlm-pwd-toggle-btn absolute right-3 top-1/2 -translate-y-1/2 text-[#867461] hover:text-[#855300] transition-colors p-1 cursor-pointer border-none bg-transparent flex items-center justify-center" onclick="togglePasswordVisibility('dlm_password', this)" type="button">
+									<i class="fa-solid fa-eye text-[15px]"></i>
+								</button>
+							</div>
+						</div>
+
+						<!-- Remember Me -->
+						<div class="remember-row flex items-center gap-2.5 pt-1">
+							<input class="w-4 h-4 rounded border-[#d8c3ad] text-[#855300] focus:ring-[#855300]/20 cursor-pointer" id="remember" type="checkbox" checked />
+							<label class="text-[13px] text-[#5f5e60] select-none cursor-pointer" for="remember"><?php esc_html_e( 'Keep me signed in on this device', 'digital-library-membership' ); ?></label>
+						</div>
+
+						<!-- Sign In Button -->
+						<button class="w-full h-13 bg-[#855300] hover:bg-[#613b00] text-white font-semibold text-[15px] rounded-xl btn-transition shadow-md hover:shadow-lg active:scale-[0.98] mt-4 flex items-center justify-center gap-2 cursor-pointer" type="submit">
+							<span><?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?></span>
+							<i class="fa-solid fa-arrow-right text-xs"></i>
+						</button>
 					</form>
+
+					<!-- Footer Switcher -->
+					<footer class="mt-8 pt-6 border-t border-[#d8c3ad]/50 flex flex-col items-center gap-1.5 text-center">
+						<p class="text-[13px] text-[#5f5e60]"><?php esc_html_e( 'New to the Library?', 'digital-library-membership' ); ?></p>
+						<button type="button" class="dlm-auth-tab-btn font-semibold text-[14px] text-[#1a1c1c] hover:text-[#855300] transition-colors flex items-center gap-1 group cursor-pointer" data-tab="register">
+							<span><?php esc_html_e( 'Register for Membership', 'digital-library-membership' ); ?></span>
+							<i class="fa-solid fa-chevron-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
+						</button>
+					</footer>
 				</div>
 
-				<!-- Register Panel -->
+				<!-- REGISTER PANEL -->
 				<div class="dlm-auth-panel" id="panel-register" style="display:none;">
-					<form id="dlm-register-form">
-						<div class="dlm-auth-alert" style="display:none;"></div>
-						<p>
-							<label for="dlm_reg_name"><?php esc_html_e( 'Display Name', 'digital-library-membership' ); ?></label>
-							<input type="text" id="dlm_reg_name" class="dlm-auth-input" required>
-						</p>
-						<p>
-							<label for="dlm_reg_email"><?php esc_html_e( 'Email Address', 'digital-library-membership' ); ?></label>
-							<input type="email" id="dlm_reg_email" class="dlm-auth-input" required>
-						</p>
-						<p>
-							<label for="dlm_reg_password"><?php esc_html_e( 'Choose Password', 'digital-library-membership' ); ?></label>
-							<input type="password" id="dlm_reg_password" class="dlm-auth-input" required minlength="6">
-						</p>
-						<button type="submit" class="dlm-btn dlm-btn-accent dlm-btn-block" style="margin-top:20px;"><?php esc_html_e( 'Register & Auto-Login', 'digital-library-membership' ); ?></button>
+					<header class="mb-6">
+						<h1 class="text-[28px] md:text-[34px] font-bold text-[#1a1c1c] mb-2 leading-tight tracking-tight"><?php esc_html_e( 'Create Account', 'digital-library-membership' ); ?></h1>
+						<p class="text-[15px] text-[#5f5e60] leading-relaxed"><?php esc_html_e( 'Join our digital library and unlock unlimited access.', 'digital-library-membership' ); ?></p>
+					</header>
+
+					<form id="dlm-register-form" class="space-y-4">
+						<div class="dlm-auth-alert text-xs p-3 rounded-xl mb-3 font-medium" style="display:none;"></div>
+
+						<!-- Display Name Field -->
+						<div class="field-group space-y-1.5">
+							<label class="text-[11px] font-bold text-[#5f5e60] uppercase tracking-wider block" for="dlm_reg_name"><?php esc_html_e( 'Full Name', 'digital-library-membership' ); ?></label>
+							<div class="input-relative-wrapper relative">
+								<input class="w-full h-13 px-4 bg-white border border-[#d8c3ad] rounded-xl text-[14px] text-[#1a1c1c] input-focus-ring btn-transition placeholder:text-[#867461]/60" id="dlm_reg_name" name="reg_name" placeholder="e.g. Alex Morgan" required type="text" />
+								<i class="fa-regular fa-user input-icon-right absolute right-4 top-1/2 -translate-y-1/2 text-[#867461]"></i>
+							</div>
+						</div>
+
+						<!-- Email Field -->
+						<div class="field-group space-y-1.5">
+							<label class="text-[11px] font-bold text-[#5f5e60] uppercase tracking-wider block" for="dlm_reg_email"><?php esc_html_e( 'Email Address', 'digital-library-membership' ); ?></label>
+							<div class="input-relative-wrapper relative">
+								<input class="w-full h-13 px-4 bg-white border border-[#d8c3ad] rounded-xl text-[14px] text-[#1a1c1c] input-focus-ring btn-transition placeholder:text-[#867461]/60" id="dlm_reg_email" name="reg_email" placeholder="alex@example.com" required type="email" />
+								<i class="fa-regular fa-envelope input-icon-right absolute right-4 top-1/2 -translate-y-1/2 text-[#867461]"></i>
+							</div>
+						</div>
+
+						<!-- Password Field -->
+						<div class="field-group space-y-1.5">
+							<label class="text-[11px] font-bold text-[#5f5e60] uppercase tracking-wider block" for="dlm_reg_password"><?php esc_html_e( 'Choose Password', 'digital-library-membership' ); ?></label>
+							<div class="input-relative-wrapper relative">
+								<input class="w-full h-13 px-4 bg-white border border-[#d8c3ad] rounded-xl text-[14px] text-[#1a1c1c] input-focus-ring btn-transition placeholder:text-[#867461]/60" id="dlm_reg_password" name="reg_password" placeholder="Minimum 6 characters" required minlength="6" type="password" />
+								<button class="dlm-pwd-toggle-btn absolute right-3 top-1/2 -translate-y-1/2 text-[#867461] hover:text-[#855300] transition-colors p-1 cursor-pointer border-none bg-transparent flex items-center justify-center" onclick="togglePasswordVisibility('dlm_reg_password', this)" type="button">
+									<i class="fa-solid fa-eye text-[15px]"></i>
+								</button>
+							</div>
+						</div>
+
+						<!-- Register Button -->
+						<button class="w-full h-13 bg-[#855300] hover:bg-[#613b00] text-white font-semibold text-[15px] rounded-xl btn-transition shadow-md hover:shadow-lg active:scale-[0.98] mt-4 flex items-center justify-center gap-2 cursor-pointer" type="submit">
+							<span><?php esc_html_e( 'Register & Auto-Login', 'digital-library-membership' ); ?></span>
+							<i class="fa-solid fa-arrow-right text-xs"></i>
+						</button>
 					</form>
+
+					<!-- Footer Switcher -->
+					<footer class="mt-8 pt-6 border-t border-[#d8c3ad]/50 flex flex-col items-center gap-1.5 text-center">
+						<p class="text-[13px] text-[#5f5e60]"><?php esc_html_e( 'Already have an account?', 'digital-library-membership' ); ?></p>
+						<button type="button" class="dlm-auth-tab-btn font-semibold text-[14px] text-[#1a1c1c] hover:text-[#855300] transition-colors flex items-center gap-1 group cursor-pointer" data-tab="login">
+							<span><?php esc_html_e( 'Sign In to Your Account', 'digital-library-membership' ); ?></span>
+							<i class="fa-solid fa-chevron-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
+						</button>
+					</footer>
 				</div>
 			</div>
+			
+			<!-- Footer Nav Links -->
+			<div class="mt-6 flex justify-center gap-6 opacity-70">
+				<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Privacy Policy</a>
+				<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Terms of Access</a>
+				<a class="text-[11px] font-semibold text-[#5f5e60] hover:text-[#855300] transition-colors uppercase tracking-widest" href="#" onclick="return false;">Contact Support</a>
+			</div>
 		</div>
+
+		<script>
+		function togglePasswordVisibility(inputId, btn) {
+			const pwdInput = document.getElementById(inputId);
+			if (pwdInput) {
+				const icon = btn.querySelector('i') || btn;
+				if (pwdInput.type === 'password') {
+					pwdInput.type = 'text';
+					icon.className = 'fa-solid fa-eye-slash text-[#867461] text-[15px]';
+				} else {
+					pwdInput.type = 'password';
+					icon.className = 'fa-solid fa-eye text-[#867461] text-[15px]';
+				}
+			}
+		}
+		</script>
 		<?php
 		return ob_get_clean();
 	}
@@ -736,7 +848,7 @@ class DLM_Public {
 		$user = wp_signon( $creds, is_ssl() );
 
 		if ( is_wp_error( $user ) ) {
-			wp_send_json_error( array( 'message' => esc_html( $user->get_error_message() ) ) );
+			wp_send_json_error( array( 'message' => wp_kses_post( $user->get_error_message() ) ) );
 		} else {
 			$redirect_post = isset( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : '';
 			$referer       = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
@@ -787,7 +899,7 @@ class DLM_Public {
 		$user_id = wp_create_user( $username, $password, $email );
 
 		if ( is_wp_error( $user_id ) ) {
-			wp_send_json_error( array( 'message' => esc_html( $user_id->get_error_message() ) ) );
+			wp_send_json_error( array( 'message' => wp_kses_post( $user_id->get_error_message() ) ) );
 		}
 
 		// Update Display Name and add subscriber roles

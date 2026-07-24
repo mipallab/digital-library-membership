@@ -449,7 +449,7 @@
     font-size: 13px;
     font-weight: 500;
     line-height: 1.4;
-    border-left: 4px solid var(--dlm-primary);
+    border-left: 4px solid #855300;
 }
 
 /* Custom Buttons System */
@@ -646,3 +646,341 @@
     color: #004085;
     border: 1px solid #cce5ff;
 }
+
+/* ==========================================================================
+   Full-Page SPA Authentication Card & Input Styling
+   ========================================================================== */
+.dlm-auth-container {
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 15px;
+}
+
+.dlm-auth-card {
+    background: #ffffff;
+    border: 1px solid rgba(213, 196, 178, 0.4);
+    border-radius: 24px;
+    padding: 36px 32px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
+    font-family: var(--dlm-font-family);
+}
+
+.dlm-auth-tabs {
+    display: flex;
+    background: #f5f5f7;
+    padding: 4px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+}
+
+.dlm-auth-tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6e6e73;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dlm-auth-tab-btn.active {
+    background: #ffffff;
+    color: #1d1d1f;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dlm-auth-panel form p {
+    margin-bottom: 16px;
+}
+
+.dlm-auth-panel label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 6px;
+}
+
+.dlm-auth-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d2d2d7;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #1d1d1f;
+    background: #f9f9fb;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.dlm-auth-input:focus {
+    outline: none;
+    border-color: #653e00;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(101, 62, 0, 0.15);
+}
+
+.dlm-auth-alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   Pixel-Perfect login.html Design System Overrides
+   ========================================================================== */
+.dlm-auth-container-wrapper {
+    max-width: 480px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(216, 195, 173, 0.5) !important;
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.book-card-shadow {
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.08) !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.book-card-shadow:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0px 12px 30px rgba(0, 0, 0, 0.12) !important;
+}
+
+.btn-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.input-focus-ring:focus {
+    outline: none !important;
+    border-color: #855300 !important;
+    box-shadow: 0 0 0 3px rgba(133, 83, 0, 0.12) !important;
+}
+
+/* Header Brand & Tabs Row */
+.dlm-auth-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 28px !important;
+    padding-bottom: 16px !important;
+    border-bottom: 1px solid rgba(216, 195, 173, 0.3) !important;
+}
+
+.dlm-auth-mode-tabs {
+    display: inline-flex !important;
+    align-items: center !important;
+    background-color: #eeeeee !important;
+    padding: 3px !important;
+    border-radius: 10px !important;
+    gap: 2px !important;
+}
+
+.dlm-auth-mode-tabs .dlm-auth-tab-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 14px !important;
+    border-radius: 7px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #5f5e60 !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    transition: all 0.2s ease !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.dlm-auth-mode-tabs .dlm-auth-tab-btn.active {
+    background-color: #ffffff !important;
+    color: #855300 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Form Spacing & Fields */
+.dlm-auth-panel form {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 18px !important;
+}
+
+.dlm-auth-panel .field-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+}
+
+.dlm-auth-panel label {
+    display: block !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #5f5e60 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin: 0 !important;
+}
+
+.dlm-auth-panel .input-relative-wrapper {
+    position: relative !important;
+    width: 100% !important;
+}
+
+.dlm-auth-panel input[type="text"],
+.dlm-auth-panel input[type="email"],
+.dlm-auth-panel input[type="password"] {
+    width: 100% !important;
+    height: 52px !important;
+    padding: 0 44px 0 16px !important;
+    background-color: #ffffff !important;
+    border: 1px solid #d8c3ad !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    color: #1a1c1c !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s ease !important;
+    margin: 0 !important;
+}
+
+.dlm-auth-panel input:focus {
+    outline: none !important;
+    border-color: #855300 !important;
+    box-shadow: 0 0 0 3px rgba(133, 83, 0, 0.12) !important;
+}
+
+/* Icons inside input */
+.dlm-auth-panel .input-icon-right {
+    position: absolute !important;
+    right: 16px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: #867461 !important;
+    font-size: 16px !important;
+    pointer-events: none !important;
+}
+
+.dlm-auth-panel .dlm-pwd-toggle-btn {
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #867461 !important;
+}
+
+.dlm-auth-panel .dlm-pwd-toggle-btn:hover {
+    color: #855300 !important;
+}
+
+/* Remember Me Checkbox Row */
+.dlm-auth-panel .remember-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-top: 2px !important;
+}
+
+.dlm-auth-panel .remember-row input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    border-radius: 4px !important;
+    border: 1px solid #d8c3ad !important;
+    cursor: pointer !important;
+    accent-color: #855300 !important;
+}
+
+.dlm-auth-panel .remember-row label {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    color: #5f5e60 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    cursor: pointer !important;
+}
+
+/* Primary Action Submit Buttons */
+.dlm-auth-panel button[type="submit"] {
+    width: 100% !important;
+    height: 52px !important;
+    background-color: #855300 !important;
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    margin-top: 12px !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 4px 12px rgba(133, 83, 0, 0.15) !important;
+}
+
+.dlm-auth-panel button[type="submit"]:hover {
+    background-color: #613b00 !important;
+    box-shadow: 0 6px 16px rgba(97, 59, 0, 0.25) !important;
+}
+
+/* Footer Switcher inside panel */
+.dlm-auth-panel footer {
+    margin-top: 24px !important;
+    padding-top: 20px !important;
+    border-top: 1px solid rgba(216, 195, 173, 0.4) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+    text-align: center !important;
+}
+
+.dlm-auth-panel footer p {
+    font-size: 13px !important;
+    color: #5f5e60 !important;
+    margin: 0 !important;
+}
+
+.dlm-auth-panel footer .dlm-auth-tab-btn {
+    background: transparent !important;
+    border: none !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #1a1c1c !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+    transition: color 0.2s ease !important;
+    padding: 0 !important;
+}
+
+.dlm-auth-panel footer .dlm-auth-tab-btn:hover {
+    color: #855300 !important;
+}
+
+
+

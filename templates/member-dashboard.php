@@ -497,6 +497,12 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	<!-- LOGOUT AUTH PANELS (Login & Register Tabs) -->
 	<!-- ========================================== -->
 	<div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+		<!-- Ambient Background Elements (From login.html) -->
+		<div class="absolute inset-0 z-0 pointer-events-none">
+			<div class="absolute top-0 right-0 w-[60%] h-full opacity-40 mix-blend-multiply bg-cover bg-right" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCN5XWEA_e7fhXdjDPfF7f60RufK7a6FR3e5K6BNZzK6XE9Of4WbEQP9RBevx5y0YTFlPoA0KRQGlk70QJYqwZgrTQi_SHKFSwbPWLNyiXtO6m7fDwnPTDueKaW4-85BSlDtXlyybNlzNn_lczDMCqRGUuFjVBPHE3xp5d913wnj-c_ZqqlbK16duF1KP1X2Qd0u8nLbw21brHyJtOS-BZ-B_-rn2xmmBpZJf41QRgpN9NIpmivqqF1')"></div>
+			<div class="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-transparent"></div>
+		</div>
+
 		<main class="relative z-10 w-full max-w-[480px] py-8">
 			<?php
 			$dlm_public = new DLM_Public( $dlm_db, new DLM_Checkout() );
