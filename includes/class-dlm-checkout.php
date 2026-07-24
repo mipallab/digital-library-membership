@@ -19,10 +19,7 @@ class DLM_Checkout {
 	public function ajax_stripe_create_session() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
 
-		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
-		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
-		}
+
 
 		if ( ! is_user_logged_in() ) {
 			wp_send_json_error( array( 'message' => __( 'Please log in to subscribe.', 'digital-library-membership' ) ) );
@@ -82,10 +79,7 @@ class DLM_Checkout {
 	public function ajax_paypal_create_subscription() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
 
-		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
-		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
-		}
+
 
 		if ( ! is_user_logged_in() ) {
 			wp_send_json_error( array( 'message' => __( 'Please log in to subscribe.', 'digital-library-membership' ) ) );
@@ -446,10 +440,7 @@ class DLM_Checkout {
 	public function ajax_submit_manual_payment() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
 
-		$recaptcha_response = isset( $_POST['recaptcha_response'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_response'] ) ) : '';
-		if ( ! dlm_verify_recaptcha( $recaptcha_response ) ) {
-			wp_send_json_error( array( 'message' => __( 'You failed the Google ReCAPTCHA verification. Please try again.', 'digital-library-membership' ) ) );
-		}
+
 
 		if ( ! is_user_logged_in() ) {
 			wp_send_json_error( array( 'message' => __( 'Please log in to process payment.', 'digital-library-membership' ) ) );

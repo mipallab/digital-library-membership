@@ -589,16 +589,7 @@ class DLM_Public {
 				<div class="dlm-payment-box" style="background:#fff; border:1px solid #d2d2d7; border-radius:20px; padding:30px; box-shadow:0 4px 20px rgba(0,0,0,0.03);">
 					<h3 style="margin-top:0; margin-bottom:20px; font-size:18px; font-weight:700; color:#1d1d1f;"><?php esc_html_e( 'Select Payment Method', 'digital-library-membership' ); ?></h3>
 
-					<!-- Google ReCAPTCHA Bot Protection -->
-					<?php 
-					$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
-					$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
-					$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
-					if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
-						<div id="dlm-checkout-recaptcha-wrapper" style="margin-bottom: 20px; display: flex; justify-content: center;">
-							<div class="g-recaptcha" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
-						</div>
-					<?php endif; ?>
+
 
 					<div class="dlm-payment-options">
 						<!-- Stripe Checkout Button -->

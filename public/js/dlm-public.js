@@ -139,29 +139,20 @@ jQuery(document).ready(function($) {
         var $btn = $(this);
         $btn.prop('disabled', true).text('Loading stripe secure checkout...');
 
-        dlmGetRecaptchaToken($('#dlm-checkout-recaptcha-wrapper'), 'checkout', function(recaptchaToken) {
-            $.post(dlmParams.ajaxUrl, {
-                action: 'dlm_stripe_create_session',
-                nonce: dlmParams.nonce,
-                interval: selectedInterval,
-                recaptcha_response: recaptchaToken
-            }, function(res) {
-                if (res.success && res.data.url) {
-                    window.location.href = res.data.url;
-                } else {
-                    alert(res.data.message || 'An error occurred creating Stripe Checkout Session.');
-                    $btn.prop('disabled', false).html('<span class="stripe-icon"></span> Pay with Credit/Debit Card (Stripe)');
-                    if (typeof grecaptcha !== 'undefined' && dlmParams.recaptchaVersion === 'v2') {
-                        grecaptcha.reset();
-                    }
-                }
-            }).fail(function() {
-                alert('Failed connection to Stripe Gateway. Try again.');
+        $.post(dlmParams.ajaxUrl, {
+            action: 'dlm_stripe_create_session',
+            nonce: dlmParams.nonce,
+            interval: selectedInterval
+        }, function(res) {
+            if (res.success && res.data.url) {
+                window.location.href = res.data.url;
+            } else {
+                alert(res.data.message || 'An error occurred creating Stripe Checkout Session.');
                 $btn.prop('disabled', false).html('<span class="stripe-icon"></span> Pay with Credit/Debit Card (Stripe)');
-                if (typeof grecaptcha !== 'undefined' && dlmParams.recaptchaVersion === 'v2') {
-                    grecaptcha.reset();
-                }
-            });
+            }
+        }).fail(function() {
+            alert('Failed connection to Stripe Gateway. Try again.');
+            $btn.prop('disabled', false).html('<span class="stripe-icon"></span> Pay with Credit/Debit Card (Stripe)');
         });
     });
 
@@ -241,22 +232,19 @@ jQuery(document).ready(function($) {
                 
                 var txnId = (interval === 'lifetime') ? data.orderID : data.subscriptionID;
                 
-                dlmGetRecaptchaToken($('#dlm-checkout-recaptcha-wrapper'), 'checkout', function(recaptchaToken) {
-                    $.post(dlmParams.ajaxUrl, {
-                        action: 'dlm_paypal_create_subscription',
-                        nonce: dlmParams.nonce,
-                        subscription_id: txnId,
-                        interval: interval,
-                        recaptcha_response: recaptchaToken
-                    }, function(res) {
-                        if (res.success && res.data.redirect) {
-                            window.location.href = res.data.redirect;
-                        } else {
-                            alert(res.data.message || 'Failed to verify PayPal payment.');
-                        }
-                    }).fail(function() {
-                        alert('Connection timeout logging PayPal transaction.');
-                    });
+                $.post(dlmParams.ajaxUrl, {
+                    action: 'dlm_paypal_create_subscription',
+                    nonce: dlmParams.nonce,
+                    subscription_id: txnId,
+                    interval: interval
+                }, function(res) {
+                    if (res.success && res.data.redirect) {
+                        window.location.href = res.data.redirect;
+                    } else {
+                        alert(res.data.message || 'Failed to verify PayPal payment.');
+                    }
+                }).fail(function() {
+                    alert('Connection timeout logging PayPal transaction.');
                 });
             },
             onError: function(err) {
@@ -284,30 +272,21 @@ jQuery(document).ready(function($) {
 
         $btn.prop('disabled', true).text('Submitting reference details...');
 
-        dlmGetRecaptchaToken($('#dlm-checkout-recaptcha-wrapper'), 'checkout', function(recaptchaToken) {
-            $.post(dlmParams.ajaxUrl, {
-                action: 'dlm_submit_manual_payment',
-                nonce: dlmParams.nonce,
-                interval: selectedInterval,
-                reference: ref,
-                recaptcha_response: recaptchaToken
-            }, function(res) {
-                if (res.success && res.data.redirect) {
-                    window.location.href = res.data.redirect;
-                } else {
-                    alert(res.data.message || 'Failed to submit manual payment request.');
-                    $btn.prop('disabled', false).text('Submit Reference Code');
-                    if (typeof grecaptcha !== 'undefined' && dlmParams.recaptchaVersion === 'v2') {
-                        grecaptcha.reset();
-                    }
-                }
-            }).fail(function() {
-                alert('Connection timeout submitting request. Try again.');
+        $.post(dlmParams.ajaxUrl, {
+            action: 'dlm_submit_manual_payment',
+            nonce: dlmParams.nonce,
+            interval: selectedInterval,
+            reference: ref
+        }, function(res) {
+            if (res.success && res.data.redirect) {
+                window.location.href = res.data.redirect;
+            } else {
+                alert(res.data.message || 'Failed to submit manual payment request.');
                 $btn.prop('disabled', false).text('Submit Reference Code');
-                if (typeof grecaptcha !== 'undefined' && dlmParams.recaptchaVersion === 'v2') {
-                    grecaptcha.reset();
-                }
-            });
+            }
+        }).fail(function() {
+            alert('Connection timeout submitting request. Try again.');
+            $btn.prop('disabled', false).text('Submit Reference Code');
         });
     });
 
