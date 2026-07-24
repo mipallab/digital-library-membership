@@ -1279,6 +1279,30 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				</div>
 			</div>
 		</div>
+
+		<!-- SECTION 9: PAYMENT STATUS VIEW -->
+		<div id="section-payment-status" class="spa-page hidden">
+			<section class="spa-page-header mb-10 text-center md:text-left">
+				<h2 class="font-display-lg text-display-lg text-on-surface mb-2 font-bold">Checkout Status</h2>
+				<p class="text-secondary">Summary of your transaction process status.</p>
+			</section>
+
+			<div class="max-w-xl mx-auto bg-white border border-outline-variant/30 rounded-[28px] p-8 md:p-10 shadow-sm text-center flex flex-col items-center justify-center space-y-6">
+				<!-- Status Icon Container -->
+				<div id="payment-status-icon-container" class="w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-inner">
+					<!-- Dynamic Icon -->
+				</div>
+				<div class="space-y-2">
+					<h3 id="payment-status-title" class="font-headline-md text-[24px] font-bold text-on-surface"></h3>
+					<p id="payment-status-message" class="text-sm text-secondary leading-relaxed max-w-md mx-auto"></p>
+				</div>
+
+				<!-- Action Buttons -->
+				<div id="payment-status-actions" class="pt-6 w-full flex flex-col sm:flex-row justify-center items-center gap-4">
+					<!-- Dynamic Buttons -->
+				</div>
+			</div>
+		</div>
 	</main>
 	</div> <!-- End main content flex wrapper -->
 	</div> <!-- End centered portal content wrapper -->
@@ -1538,6 +1562,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			else if (tabName === 'achievements') pageTitle = 'Achievements';
 			else if (tabName === 'settings') pageTitle = 'Settings';
 			else if (tabName === 'checkout') pageTitle = 'Checkout';
+			else if (tabName === 'payment-status') pageTitle = 'Payment Status';
 			
 			jQuery('#top-bar-title').text(pageTitle);
 
@@ -2299,6 +2324,74 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				}, 1000);
 			}
 
+			function handlePaymentRedirectStatus() {
+				const urlParams = new URLSearchParams(window.location.search);
+				const payment = urlParams.get('payment');
+				if (!payment) return;
+
+				// Clean up url parameters without reloading
+				window.history.replaceState({}, document.title, window.location.pathname);
+
+				const iconContainer = jQuery('#payment-status-icon-container');
+				const titleEl = jQuery('#payment-status-title');
+				const msgEl = jQuery('#payment-status-message');
+				const actionsContainer = jQuery('#payment-status-actions');
+
+				// Reset state classes
+				iconContainer.removeClass().addClass('w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-inner');
+				actionsContainer.html('');
+
+				if (payment === 'active' || payment === 'success') {
+					iconContainer.addClass('bg-[#e6f4ea] text-[#137333]').html('<i class="fa-solid fa-circle-check"></i>');
+					titleEl.text('Payment Successful!');
+					msgEl.text('Thank you! Your subscription is now active. You have been granted full reading access to the entire digital library.');
+					
+					actionsContainer.html(`
+						<button onclick="showTab('library')" class="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md shadow-primary/10">
+							Start Reading
+						</button>
+					`);
+				} else if (payment === 'pending') {
+					iconContainer.addClass('bg-[#fef7e0] text-[#b06000]').html('<i class="fa-solid fa-clock"></i>');
+					titleEl.text('Verification Pending');
+					msgEl.text('Your bank transfer reference code has been recorded. An administrator will verify the transaction and activate your account shortly.');
+					
+					actionsContainer.html(`
+						<button onclick="showTab('library')" class="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md shadow-primary/10">
+							Back to Library
+						</button>
+						<button onclick="showTab('membership')" class="px-6 py-3 border border-outline-variant/30 text-secondary hover:bg-surface-container rounded-xl text-sm font-bold transition-all">
+							Check Membership Status
+						</button>
+					`);
+				} else if (payment === 'cancelled' || payment === 'cancel') {
+					iconContainer.addClass('bg-surface-container-high text-secondary').html('<i class="fa-solid fa-circle-xmark"></i>');
+					titleEl.text('Payment Cancelled');
+					msgEl.text('The checkout process was cancelled. If you want to change your payment method or try again, you can return to the plans page.');
+					
+					actionsContainer.html(`
+						<button onclick="showTab('membership')" class="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md shadow-primary/10">
+							View Membership Plans
+						</button>
+					`);
+				} else if (payment === 'faild' || payment === 'failed') {
+					iconContainer.addClass('bg-red-50 text-red-800').html('<i class="fa-solid fa-circle-exclamation"></i>');
+					titleEl.text('Payment Failed');
+					msgEl.text('We were unable to process your payment. Please try again or choose a different payment method.');
+					
+					actionsContainer.html(`
+						<button onclick="showTab('membership')" class="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md shadow-primary/10">
+							Try Again
+						</button>
+					`);
+				} else {
+					showTab('library');
+					return;
+				}
+
+				showTab('payment-status');
+			}
+
 			function init() {
 				const state = loadState();
 				const result = bumpStreakOnVisit(state);
@@ -2315,6 +2408,8 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				} else if (result.leveled) {
 					setTimeout(() => toast(`✨ Level up! You reached Level ${state.level}`, { accent: true, duration: 3800 }), 900);
 				}
+
+				handlePaymentRedirectStatus();
 			}
 
 			jQuery(document).ready(init);
