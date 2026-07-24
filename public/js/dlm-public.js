@@ -50,9 +50,27 @@ jQuery(document).ready(function($) {
             }
         } else {
             var response = $form.find('[name="g-recaptcha-response"]').val();
+            if (!response) {
+                // Search globally on the page for any non-empty recaptcha response
+                jQuery('[name="g-recaptcha-response"]').each(function() {
+                    var val = jQuery(this).val();
+                    if (val) {
+                        response = val;
+                    }
+                });
+            }
             if (!response && typeof grecaptcha !== 'undefined') {
                 try {
-                    response = grecaptcha.getResponse();
+                    // Try retrieving from widget index 0 to 4 (in case of multiple widgets)
+                    for (var i = 0; i < 5; i++) {
+                        try {
+                            var val = grecaptcha.getResponse(i);
+                            if (val) {
+                                response = val;
+                                break;
+                            }
+                        } catch(err) {}
+                    }
                 } catch(e) {}
             }
             safeCallback(response || '');
