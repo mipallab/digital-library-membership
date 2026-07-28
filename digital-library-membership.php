@@ -114,14 +114,12 @@ function run_digital_library_membership() {
 	$header_nav->init();
 
 	// Initialize GitHub update checker
-	if ( is_admin() ) {
-		$github_token = defined( 'DLM_GITHUB_TOKEN' ) ? DLM_GITHUB_TOKEN : get_option( 'dlm_github_token', '' );
-		DLM_Updater::init(
-			__FILE__,
-			'https://github.com/mipallab/digital-library-membership',
-			'digital-library-membership',
-			$github_token
-		);
-	}
+	$github_token = defined( 'DLM_GITHUB_TOKEN' ) ? DLM_GITHUB_TOKEN : get_option( 'dlm_github_token', '' );
+	DLM_Updater::init(
+		__FILE__,
+		'https://github.com/mipallab/digital-library-membership',
+		'digital-library-membership',
+		$github_token
+	);
 }
 run_digital_library_membership();

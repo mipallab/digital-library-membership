@@ -23,10 +23,6 @@ class DLM_Updater {
 	 * @param string $token       Optional GitHub Personal Access Token.
 	 */
 	public static function init( $plugin_file, $repo_url, $slug = '', $token = '' ) {
-		// Guard: only run in admin area
-		if ( ! is_admin() ) {
-			return;
-		}
 
 		// Ensure we load the library if not already loaded by Composer
 		if ( ! class_exists( 'YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory' ) ) {
@@ -53,12 +49,16 @@ class DLM_Updater {
 			);
 
 			// Enable release assets so updates are pulled from release zip files
+			// Note: Commented out because the default source code ZIP from GitHub is sufficient
+			// and doesn't require uploading a custom built ZIP file to every Release's assets section.
+			/*
 			if ( method_exists( $update_checker, 'getVcsApi' ) ) {
 				$vcs_api = $update_checker->getVcsApi();
 				if ( $vcs_api && method_exists( $vcs_api, 'enableReleaseAssets' ) ) {
 					$vcs_api->enableReleaseAssets();
 				}
 			}
+			*/
 
 			// Pass authentication token if available
 			if ( ! empty( $token ) && method_exists( $update_checker, 'setAuthentication' ) ) {
