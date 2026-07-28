@@ -84,6 +84,7 @@ class DLM {
 			add_action( 'admin_menu', array( $this->admin, 'add_admin_menu' ) );
 			add_action( 'admin_init', array( $this->admin, 'register_settings' ) );
 			add_action( 'admin_init', array( $this, 'handle_activation_redirect' ) );
+			add_action( 'admin_init', array( $this, 'restrict_admin_area' ) );
 
 			// Clear connection cache on key changes
 			add_action( 'update_option_dlm_stripe_secret_key', 'dlm_clear_stripe_conn_transient' );
@@ -571,6 +572,23 @@ class DLM {
 					exit;
 				}
 			}
+		}
+	}
+
+	/**
+	 * Restrict non-admin users from accessing wp-admin dashboard
+	 */
+	public function restrict_admin_area() {
+		// Do not redirect AJAX requests
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+			return;
+		}
+
+		// Check if the user is logged in but does not have administrative privileges
+		if ( is_user_logged_in() && ! current_user_can( 'manage_options' ) ) {
+			$redirect_url = dlm_get_page_url( 'account' );
+			wp_safe_redirect( $redirect_url );
+			exit;
 		}
 	}
 }
