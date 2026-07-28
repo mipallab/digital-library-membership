@@ -132,6 +132,7 @@ class DLM_Admin {
 			'dlm_recaptcha_secret_key',
 			'dlm_recaptcha_mode',
 			'dlm_setup_completed',
+			'dlm_github_token',
 		);
 
 		foreach ( $settings as $opt ) {

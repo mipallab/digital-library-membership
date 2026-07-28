@@ -1,19 +1,19 @@
 <?php return array(
     'root' => array(
-        'name' => 'antigravity/composer',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'name' => 'antigravity/digital-library-membership',
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '33ea458838d348fb929dab89f832f4be7e206057',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
         'dev' => true,
     ),
     'versions' => array(
-        'antigravity/composer' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+        'antigravity/digital-library-membership' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '33ea458838d348fb929dab89f832f4be7e206057',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -25,6 +25,15 @@
             'reference' => 'b4ab319731958077227fad1874a3671458c5d593',
             'type' => 'library',
             'install_path' => __DIR__ . '/../stripe/stripe-php',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'yahnis-elsts/plugin-update-checker' => array(
+            'pretty_version' => 'v5.7',
+            'version' => '5.7.0.0',
+            'reference' => '275a96a2a18d03c34c87f35cb68673c8c49ac3b1',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../yahnis-elsts/plugin-update-checker',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

@@ -1169,6 +1169,24 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_recaptcha_secret_key" value="<?php echo esc_attr( get_option( 'dlm_recaptcha_secret_key' ) ); ?>" placeholder="e.g. 6LdK_secret...">
 									</div>
 								</div>
+
+								<div class="border-t border-outline-variant/10 pt-4 mt-4"></div>
+
+								<h4 class="text-xs font-bold text-primary uppercase tracking-wider">GitHub Plugin Updates</h4>
+								<p class="text-xs text-secondary leading-relaxed mb-3">Configure updates from a private GitHub repository if needed. You can also define the <code>DLM_GITHUB_TOKEN</code> constant in your <code>wp-config.php</code> file to bypass this setting.</p>
+
+								<div class="grid grid-cols-1 gap-4">
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase">GitHub Personal Access Token (PAT)</label>
+										<?php if ( defined( 'DLM_GITHUB_TOKEN' ) ) : ?>
+											<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 bg-surface-container-low text-sm text-secondary cursor-not-allowed" type="text" value="Defined in wp-config.php" disabled>
+											<span class="text-[11px] text-primary block mt-1"><i class="fa-solid fa-circle-check"></i> Active via constant configuration.</span>
+										<?php else : ?>
+											<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_github_token" value="<?php echo esc_attr( get_option( 'dlm_github_token' ) ); ?>" placeholder="ghp_...">
+											<span class="text-[11px] text-secondary block mt-1">Provide a personal access token with 'repo' scope if the repository is private.</span>
+										<?php endif; ?>
+									</div>
+								</div>
 							</div>
 						</div>
 

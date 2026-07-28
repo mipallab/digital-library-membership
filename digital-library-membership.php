@@ -8,14 +8,14 @@
  * that starts the plugin.
  *
  * @link              https://profiles.wordpress.org/mipallab123
- * @since             1.9.7
+ * @since             1.9.8
  * @package           DLM
  *
  * @wordpress-plugin
  * Plugin Name:       Digital Library Membership
  * Plugin URI:        https://profiles.wordpress.org/mipallab123/digital-library-membership
  * Description:       A premium, secure subscription membership plugin to read digital books frontend with a physical page-flip feel.
- * Version:           1.9.7
+ * Version:           1.9.8
  * Author:            Majadul Islam Pallab
  * Author URI:        https://profiles.wordpress.org/mipallab123
  * License:           GPL-2.0+
@@ -33,7 +33,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Define Plugin Constants
  */
-define( 'DLM_VERSION', '1.9.7' );
+define( 'DLM_VERSION', '1.9.8' );
 define( 'DLM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DLM_URL', plugin_dir_url( __FILE__ ) );
 
@@ -112,5 +112,16 @@ function run_digital_library_membership() {
 	// Instantiate header navigation widget manager
 	$header_nav = new DLM_Header_Nav();
 	$header_nav->init();
+
+	// Initialize GitHub update checker
+	if ( is_admin() ) {
+		$github_token = defined( 'DLM_GITHUB_TOKEN' ) ? DLM_GITHUB_TOKEN : get_option( 'dlm_github_token', '' );
+		DLM_Updater::init(
+			__FILE__,
+			'https://github.com/mipallab/digital-library-membership',
+			'digital-library-membership',
+			$github_token
+		);
+	}
 }
 run_digital_library_membership();
