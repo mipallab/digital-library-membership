@@ -144,7 +144,7 @@ class DLM_DB {
 
 			$exp_timestamp = strtotime( $sub->expires_at );
 			if ( false === $exp_timestamp ) {
-				return true; // Invalid date format fallback to active
+				return false; // Fail closed — treat unparsable expiry as expired
 			}
 
 			return $exp_timestamp > time();

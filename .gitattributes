@@ -1,0 +1,8 @@
+# Export ignore rules for release packages
+.git export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+composer.json export-ignore
+composer.lock export-ignore
+vendor/stripe/stripe-php/.git export-ignore
+vendor/stripe/stripe-php/.github export-ignore

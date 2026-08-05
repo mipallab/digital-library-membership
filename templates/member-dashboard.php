@@ -620,9 +620,16 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 
 					<!-- Notifications Menu Dropdown -->
 					<div class="relative">
+						<?php
+						$notifications = array();
+						if ( $is_logged_in && class_exists( 'DLM_Header_Nav' ) ) {
+							$notifications = DLM_Header_Nav::get_user_notifications( $user_id );
+						}
+						$notif_count = count( $notifications );
+						?>
 						<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative">
 							<i class="fa-regular fa-bell text-[20px]"></i>
-							<span id="notification-badge" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-surface"></span>
+							<span id="notification-badge" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-surface<?php if ( $notif_count === 0 ) echo ' hidden'; ?>"></span>
 						</button>
 
 						<div id="notification-dropdown" class="absolute right-0 top-12 w-80 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl shadow-xl py-4 px-2 hidden z-50">
@@ -631,20 +638,34 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 								<span class="text-[11px] text-primary hover:underline cursor-pointer" id="clear-notifications-btn">Clear all</span>
 							</div>
 							<div class="max-h-64 overflow-y-auto mt-2 space-y-1" id="notification-list">
-								<div class="p-3 hover:bg-surface-variant/30 rounded-xl transition-all cursor-pointer">
-									<div class="flex gap-2.5 items-start">
-										<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-											<i class="fa-solid fa-fire text-sm"></i>
-										</div>
-										<div>
-											<p class="text-body-md font-bold text-on-surface leading-snug">Welcome to Bridgeway36!</p>
-											<p class="text-xs text-secondary opacity-70 mt-0.5">Start reading your first book to unlock achievements!</p>
-										</div>
+								<?php if ( empty( $notifications ) ) : ?>
+									<div class="p-6 text-center text-secondary opacity-60">
+										<i class="fa-regular fa-bell text-xl mb-1 block"></i>
+										No new alerts
 									</div>
-								</div>
+								<?php else : ?>
+									<?php foreach ( $notifications as $notif ) : ?>
+										<div class="p-3 hover:bg-surface-variant/30 rounded-xl transition-all cursor-pointer">
+											<div class="flex gap-2.5 items-start">
+												<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+													<i class="fa-solid <?php 
+														if ( $notif['type'] === 'badge' ) echo 'fa-trophy';
+														elseif ( $notif['type'] === 'streak' ) echo 'fa-fire';
+														else echo 'fa-award';
+													?> text-sm"></i>
+												</div>
+												<div>
+													<p class="text-body-md font-bold text-on-surface leading-snug"><?php echo esc_html( $notif['title'] ); ?></p>
+													<p class="text-xs text-secondary opacity-70 mt-0.5"><?php echo esc_html( $notif['time'] ); ?></p>
+												</div>
+											</div>
+										</div>
+									<?php endforeach; ?>
+								<?php endif; ?>
 							</div>
 						</div>
 					</div>
+
 
 					<!-- Quick Settings Nav -->
 					<div class="h-8 w-px bg-outline-variant/30"></div>

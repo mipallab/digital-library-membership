@@ -205,14 +205,6 @@ class DLM_Activator {
 			$editor->add_cap( 'manage_dlm_library' );
 		}
 
-		// Add subscriber & customer capability to check library access
-		$subscriber = get_role( 'subscriber' );
-		if ( $subscriber ) {
-			$subscriber->add_cap( 'read_dlm_library' );
-		}
-		$customer = get_role( 'customer' );
-		if ( $customer ) {
-			$customer->add_cap( 'read_dlm_library' );
-		}
+		// Note: read_dlm_library capability is granted dynamically per-user upon valid active subscription.
 	}
 }

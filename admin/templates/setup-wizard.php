@@ -484,7 +484,7 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 <script>
 jQuery(document).ready(function($) {
 	const ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
-	const nonce = '<?php echo $public_nonce; ?>';
+	const nonce = '<?php echo esc_attr( $public_nonce ); ?>';
 
 	// Step 1 Click
 	$('#btn-next-step-1').on('click', function() {

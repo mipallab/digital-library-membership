@@ -356,13 +356,13 @@ class DLM_Admin {
 
 		// Insert DB entry
 		$book_data = array(
-			'title'           => sanitize_text_field( $_POST['title'] ),
-			'author'          => sanitize_text_field( $_POST['author'] ),
-			'description'     => wp_kses_post( $_POST['description'] ),
-			'cover_image_url' => esc_url_raw( $_POST['cover_image_url'] ),
+			'title'           => sanitize_text_field( wp_unslash( $_POST['title'] ) ),
+			'author'          => sanitize_text_field( wp_unslash( $_POST['author'] ) ),
+			'description'     => wp_kses_post( wp_unslash( $_POST['description'] ) ),
+			'cover_image_url' => esc_url_raw( wp_unslash( $_POST['cover_image_url'] ) ),
 			'file_path'       => $target_path,
 			'file_type'       => $file_ext,
-			'status'          => ( isset( $_POST['status'] ) && $_POST['status'] === 'draft' ) ? 'draft' : 'publish',
+			'status'          => ( isset( $_POST['status'] ) && sanitize_text_field( wp_unslash( $_POST['status'] ) ) === 'draft' ) ? 'draft' : 'publish',
 		);
 
 		$book_id = $this->db->insert_book( $book_data );
@@ -839,11 +839,11 @@ class DLM_Admin {
 		DLM_Security::check_admin_capabilities();
 		DLM_Security::verify_nonce( 'dlm_add_member_nonce', 'dlm_nonce' );
 
-		$display_name      = sanitize_text_field( $_POST['display_name'] );
-		$user_email        = sanitize_email( $_POST['user_email'] );
-		$plan_interval     = sanitize_text_field( $_POST['plan_interval'] );
-		$user_pass         = isset( $_POST['user_pass'] ) ? $_POST['user_pass'] : '';
-		$user_pass_confirm = isset( $_POST['user_pass_confirm'] ) ? $_POST['user_pass_confirm'] : '';
+		$display_name      = sanitize_text_field( wp_unslash( $_POST['display_name'] ) );
+		$user_email        = sanitize_email( wp_unslash( $_POST['user_email'] ) );
+		$plan_interval     = sanitize_text_field( wp_unslash( $_POST['plan_interval'] ) );
+		$user_pass         = isset( $_POST['user_pass'] ) ? wp_unslash( $_POST['user_pass'] ) : '';
+		$user_pass_confirm = isset( $_POST['user_pass_confirm'] ) ? wp_unslash( $_POST['user_pass_confirm'] ) : '';
 		$status            = 'active';
 		$custom_expiry     = '';
 
@@ -925,13 +925,17 @@ class DLM_Admin {
 		// Send welcome email to the member
 		$subject = __( 'Your Library Membership Account Created', 'digital-library-membership' );
 		
-		// If it's a new user, we include their password. Otherwise we notify them their subscription is active.
+		// If it's a new user, send a password reset link instead of raw password.
 		if ( ! $user ) {
+			$created_user = get_user_by( 'id', $user_id );
+			$reset_key    = get_password_reset_key( $created_user );
+			$reset_url    = is_wp_error( $reset_key ) ? wp_login_url() : add_query_arg( array( 'action' => 'rp', 'key' => $reset_key, 'login' => rawurlencode( $created_user->user_login ) ), wp_login_url() );
+
 			$body = sprintf(
-				__( "Hello %1\$s,\n\nAn administrator has created a library membership account for you.\n\nHere are your account credentials:\nUsername/Email: %2\$s\nPassword: %3\$s\n\nLogin Page: %4\$s\n\nEnjoy reading our premium digital books.\n\nBest regards,\nDigital Library Team", 'digital-library-membership' ),
+				__( "Hello %1\$s,\n\nAn administrator has created a library membership account for you.\n\nUsername/Email: %2\$s\n\nPlease set your password using the link below:\n%3\$s\n\nLogin Page: %4\$s\n\nEnjoy reading our premium digital books.\n\nBest regards,\nDigital Library Team", 'digital-library-membership' ),
 				$display_name,
 				$user_email,
-				$user_pass,
+				$reset_url,
 				home_url( '/checkout/' )
 			);
 		} else {

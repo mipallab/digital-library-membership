@@ -169,8 +169,11 @@ class DLM_Checkout {
 			return true;
 		}
 
+		$mode     = get_option( 'dlm_paypal_mode', 'live' );
+		$base_url = ( $mode === 'sandbox' ) ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+
 		// 1. Get Access Token
-		$auth_url = 'https://api-m.sandbox.paypal.com/v1/oauth2/token'; // Fallback sandbox, check live later
+		$auth_url = $base_url . '/v1/oauth2/token';
 		$response = wp_remote_post( $auth_url, array(
 			'headers' => array(
 				'Accept' => 'application/json',
@@ -194,7 +197,7 @@ class DLM_Checkout {
 		$access_token = $body->access_token;
 
 		// 2. Fetch Subscription Details
-		$details_url = "https://api-m.sandbox.paypal.com/v1/billing/subscriptions/$subscription_id";
+		$details_url = $base_url . "/v1/billing/subscriptions/$subscription_id";
 		$sub_response = wp_remote_get( $details_url, array(
 			'headers' => array(
 				'Content-Type' => 'application/json',
@@ -245,24 +248,24 @@ class DLM_Checkout {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$sig_header = isset( $_SERVER['HTTP_STRIPE_SIGNATURE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_STRIPE_SIGNATURE'] ) ) : '';
 
-		// Real Webhook signing secret (configured in Stripe dashboard, but we fallback if not set)
+		// Webhook signing secret
 		$endpoint_secret = get_option( 'dlm_stripe_webhook_secret' );
+
+		if ( empty( $endpoint_secret ) ) {
+			http_response_code( 500 );
+			error_log( 'DLM: Stripe webhook secret not configured — refusing webhook.' );
+			exit;
+		}
+
+		if ( empty( $sig_header ) ) {
+			http_response_code( 400 );
+			error_log( 'DLM: Missing Stripe signature header — refusing webhook.' );
+			exit;
+		}
 
 		try {
 			\Stripe\Stripe::setApiKey( $secret_key );
-			$event = null;
-
-			if ( $endpoint_secret && $sig_header ) {
-				$event = \Stripe\Webhook::constructEvent(
-					$payload, $sig_header, $endpoint_secret
-				);
-			} else {
-				// Fallback without signature check (warning: insecure, only for local testing / sandbox)
-				$event = \Stripe\Event::constructFrom(
-					json_decode( $payload, true )
-				);
-			}
-
+			$event = \Stripe\Webhook::constructEvent( $payload, $sig_header, $endpoint_secret );
 			$db = new DLM_DB();
 
 			switch ( $event->type ) {
@@ -371,15 +374,97 @@ class DLM_Checkout {
 	}
 
 	/**
+	 * Verify PayPal Webhook signature via PayPal API
+	 */
+	private function verify_paypal_webhook_signature( $payload ) {
+		$webhook_id = get_option( 'dlm_paypal_webhook_id' );
+		$client_id  = get_option( 'dlm_paypal_client_id' );
+		$secret     = get_option( 'dlm_paypal_secret_key' );
+
+		if ( empty( $webhook_id ) || empty( $client_id ) || empty( $secret ) ) {
+			error_log( 'DLM: PayPal webhook credentials or Webhook ID missing — refusing webhook.' );
+			return false;
+		}
+
+		$headers = array_change_key_case( getallheaders(), CASE_UPPER );
+		$transmission_id   = isset( $headers['PAYPAL-TRANSMISSION-ID'] ) ? $headers['PAYPAL-TRANSMISSION-ID'] : '';
+		$transmission_time = isset( $headers['PAYPAL-TRANSMISSION-TIME'] ) ? $headers['PAYPAL-TRANSMISSION-TIME'] : '';
+		$cert_url          = isset( $headers['PAYPAL-CERT-URL'] ) ? $headers['PAYPAL-CERT-URL'] : '';
+		$auth_algo         = isset( $headers['PAYPAL-AUTH-ALGO'] ) ? $headers['PAYPAL-AUTH-ALGO'] : '';
+		$transmission_sig  = isset( $headers['PAYPAL-TRANSMISSION-SIG'] ) ? $headers['PAYPAL-TRANSMISSION-SIG'] : '';
+
+		if ( empty( $transmission_id ) || empty( $transmission_time ) || empty( $cert_url ) || empty( $auth_algo ) || empty( $transmission_sig ) ) {
+			error_log( 'DLM: Missing PayPal signature headers.' );
+			return false;
+		}
+
+		$data = json_decode( $payload );
+		if ( ! $data ) {
+			return false;
+		}
+
+		$mode     = get_option( 'dlm_paypal_mode', 'live' );
+		$base_url = ( $mode === 'sandbox' ) ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+
+		// Get Access Token
+		$auth_response = wp_remote_post( $base_url . '/v1/oauth2/token', array(
+			'headers' => array(
+				'Accept'        => 'application/json',
+				'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ),
+			),
+			'body' => array(
+				'grant_type' => 'client_credentials',
+			),
+		) );
+
+		if ( is_wp_error( $auth_response ) ) {
+			return false;
+		}
+
+		$auth_body = json_decode( wp_remote_retrieve_body( $auth_response ) );
+		if ( empty( $auth_body->access_token ) ) {
+			return false;
+		}
+
+		$verify_body = array(
+			'transmission_id'   => $transmission_id,
+			'transmission_time' => $transmission_time,
+			'cert_url'          => $cert_url,
+			'auth_algo'         => $auth_algo,
+			'transmission_sig'  => $transmission_sig,
+			'webhook_id'        => $webhook_id,
+			'webhook_event'     => $data,
+		);
+
+		$verify_response = wp_remote_post( $base_url . '/v1/notifications/verify-webhook-signature', array(
+			'headers' => array(
+				'Content-Type'  => 'application/json',
+				'Authorization' => 'Bearer ' . $auth_body->access_token,
+			),
+			'body' => wp_json_encode( $verify_body ),
+		) );
+
+		if ( is_wp_error( $verify_response ) ) {
+			return false;
+		}
+
+		$res_body = json_decode( wp_remote_retrieve_body( $verify_response ) );
+		return ( ! empty( $res_body->verification_status ) && 'SUCCESS' === strtoupper( $res_body->verification_status ) );
+	}
+
+	/**
 	 * Process PayPal Webhooks (IPN/Webhooks)
 	 */
 	private function process_paypal_webhook() {
-		// Verify and process webhook notifications
-		// To maintain robustness, users' status is cached and synced via direct API queries, 
-		// but simple PayPal webhook callbacks can sync events here.
 		$payload = file_get_contents( 'php://input' );
-		$data    = json_decode( $payload );
-		$db      = new DLM_DB();
+		if ( ! $this->verify_paypal_webhook_signature( $payload ) ) {
+			http_response_code( 400 );
+			echo 'PayPal Webhook Verification Failed';
+			exit;
+		}
+
+		$data = json_decode( $payload );
+		$db   = new DLM_DB();
 
 		if ( ! empty( $data->event_type ) ) {
 			$sub_id = '';

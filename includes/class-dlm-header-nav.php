@@ -137,6 +137,14 @@ class DLM_Header_Nav {
 			'dropdown_item_title_color'  => '',
 			'dropdown_item_time_color'   => '',
 			'dropdown_item_hover_bg'     => '',
+			'dropdown_width'             => '',
+			'dropdown_height'            => '',
+			'dropdown_padding'           => '',
+			'dropdown_margin'            => '',
+			'dropdown_item_active_bg'    => '',
+			'dropdown_item_active_color' => '',
+			'show_name'                  => 'yes',
+			'show_avatar'                => 'yes',
 			'btn_text'                   => 'Sign In',
 		), $atts );
 
@@ -276,8 +284,14 @@ class DLM_Header_Nav {
 				cursor: pointer;
 				text-decoration: none;
 			}
-			.dlm-notif-item:hover {
+			.dlm-notif-item:hover,
+			.dlm-notif-item:focus {
 				background-color: #f5f5f7;
+				outline: none;
+			}
+			.dlm-notif-item:active {
+				background-color: #eef0f2;
+				outline: none;
 			}
 			.dlm-notif-icon-box {
 				color: #855300;
@@ -435,7 +449,36 @@ class DLM_Header_Nav {
 				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-time { color: <?php echo esc_attr( $a['dropdown_item_time_color'] ); ?> !important; }
 			<?php endif; ?>
 			<?php if ( ! empty( $a['dropdown_item_hover_bg'] ) ) : ?>
-				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-item:hover { background-color: <?php echo esc_attr( $a['dropdown_item_hover_bg'] ); ?> !important; }
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-item:hover,
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-item:focus { 
+					background-color: <?php echo esc_attr( $a['dropdown_item_hover_bg'] ); ?> !important; 
+				}
+			<?php endif; ?>
+			<?php if ( ! empty( $a['dropdown_item_active_bg'] ) ) : ?>
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-item:active { background-color: <?php echo esc_attr( $a['dropdown_item_active_bg'] ); ?> !important; }
+			<?php endif; ?>
+			<?php if ( ! empty( $a['dropdown_item_active_color'] ) ) : ?>
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-item:active .dlm-notif-title { color: <?php echo esc_attr( $a['dropdown_item_active_color'] ); ?> !important; }
+			<?php endif; ?>
+			<?php if ( ! empty( $a['dropdown_width'] ) ) : ?>
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-dropdown { width: <?php echo esc_attr( $a['dropdown_width'] ); ?> !important; }
+			<?php endif; ?>
+			<?php if ( ! empty( $a['dropdown_height'] ) ) : ?>
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-dropdown { 
+					height: <?php echo esc_attr( $a['dropdown_height'] ); ?> !important; 
+					display: flex !important;
+					flex-direction: column !important;
+				}
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-list { 
+					flex: 1 !important; 
+					max-height: none !important; 
+				}
+			<?php endif; ?>
+			<?php if ( ! empty( $a['dropdown_padding'] ) ) : ?>
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-dropdown { padding: <?php echo esc_attr( $a['dropdown_padding'] ); ?> !important; }
+			<?php endif; ?>
+			<?php if ( ! empty( $a['dropdown_margin'] ) ) : ?>
+				#<?php echo esc_attr( $uniq_id ); ?> .dlm-notif-dropdown { margin: <?php echo esc_attr( $a['dropdown_margin'] ); ?> !important; }
 			<?php endif; ?>
 			
 			/* Responsive adjustments */
@@ -511,10 +554,14 @@ class DLM_Header_Nav {
 
 					<!-- Profile Link -->
 					<a href="<?php echo esc_url( self::get_dashboard_url() ); ?>" class="dlm-profile-link" style="gap: 10px;">
-						<span class="dlm-user-first-name" style="<?php if(!empty($a['text_color'])) echo 'color: '.esc_attr($a['text_color']).' !important;'; ?>">
-							<?php echo esc_html( $first_name ); ?>
-						</span>
-						<img class="dlm-user-avatar" src="<?php echo esc_url( $avatar_url ); ?>" alt="<?php echo esc_attr( $first_name ); ?>" style="width: <?php echo esc_attr( $a['avatar_size'] ); ?>; height: <?php echo esc_attr( $a['avatar_size'] ); ?>;">
+						<?php if ( $a['show_name'] === 'yes' ) : ?>
+							<span class="dlm-user-first-name" style="<?php if(!empty($a['text_color'])) echo 'color: '.esc_attr($a['text_color']).' !important;'; ?>">
+								<?php echo esc_html( $first_name ); ?>
+							</span>
+						<?php endif; ?>
+						<?php if ( $a['show_avatar'] === 'yes' ) : ?>
+							<img class="dlm-user-avatar" src="<?php echo esc_url( $avatar_url ); ?>" alt="<?php echo esc_attr( $first_name ); ?>" style="width: <?php echo esc_attr( $a['avatar_size'] ); ?>; height: <?php echo esc_attr( $a['avatar_size'] ); ?>;">
+						<?php endif; ?>
 					</a>
 				</div>
 			<?php else : ?>

@@ -959,9 +959,9 @@ class DLM_Public {
 			$referer       = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
 			$checkout_url  = dlm_get_page_url( 'checkout' );
 
-			if ( ! empty( $redirect_post ) ) {
+			if ( ! empty( $redirect_post ) && wp_validate_redirect( $redirect_post, false ) ) {
 				$redirect = $redirect_post;
-			} elseif ( ! empty( $referer ) && strpos( $referer, strtok( $checkout_url, '?' ) ) !== false ) {
+			} elseif ( ! empty( $referer ) && strpos( $referer, strtok( $checkout_url, '?' ) ) !== false && wp_validate_redirect( $referer, false ) ) {
 				$redirect = $referer;
 			} else {
 				$redirect = dlm_get_page_url( 'account' );
@@ -1048,9 +1048,9 @@ class DLM_Public {
 		$referer       = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
 		$checkout_url  = dlm_get_page_url( 'checkout' );
 
-		if ( ! empty( $redirect_post ) ) {
+		if ( ! empty( $redirect_post ) && wp_validate_redirect( $redirect_post, false ) ) {
 			$redirect = $redirect_post;
-		} elseif ( ! empty( $referer ) && strpos( $referer, strtok( $checkout_url, '?' ) ) !== false ) {
+		} elseif ( ! empty( $referer ) && strpos( $referer, strtok( $checkout_url, '?' ) ) !== false && wp_validate_redirect( $referer, false ) ) {
 			$redirect = $referer;
 		} else {
 			$redirect = dlm_get_page_url( 'account' );
@@ -1223,7 +1223,8 @@ class DLM_Public {
 		$user_id = get_current_user_id();
 		$display_name = isset( $_POST['display_name'] ) ? sanitize_text_field( wp_unslash( $_POST['display_name'] ) ) : '';
 		$user_email = isset( $_POST['user_email'] ) ? sanitize_email( wp_unslash( $_POST['user_email'] ) ) : '';
-		$new_password = isset( $_POST['new_password'] ) ? wp_unslash( $_POST['new_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$new_password     = isset( $_POST['new_password'] ) ? wp_unslash( $_POST['new_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$current_password = isset( $_POST['current_password'] ) ? wp_unslash( $_POST['current_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( empty( $display_name ) || empty( $user_email ) ) {
 			wp_send_json_error( array( 'message' => __( 'Display name and email are required.', 'digital-library-membership' ) ) );
@@ -1245,16 +1246,35 @@ class DLM_Public {
 			'user_email'   => $user_email,
 		);
 
+		$password_changed = false;
 		if ( ! empty( $new_password ) ) {
+			if ( empty( $current_password ) ) {
+				wp_send_json_error( array( 'message' => __( 'Current password is required to change your password.', 'digital-library-membership' ) ) );
+			}
+
+			$user = get_user_by( 'id', $user_id );
+			if ( ! $user || ! wp_check_password( $current_password, $user->user_pass, $user->ID ) ) {
+				wp_send_json_error( array( 'message' => __( 'Incorrect current password.', 'digital-library-membership' ) ) );
+			}
+
 			if ( strlen( $new_password ) < 6 ) {
 				wp_send_json_error( array( 'message' => __( 'New password must be at least 6 characters.', 'digital-library-membership' ) ) );
 			}
 			$userdata['user_pass'] = $new_password;
+			$password_changed = true;
 		}
 
 		$updated_user_id = wp_update_user( $userdata );
 		if ( is_wp_error( $updated_user_id ) ) {
 			wp_send_json_error( array( 'message' => $updated_user_id->get_error_message() ) );
+		}
+
+		if ( $password_changed ) {
+			wp_mail(
+				$user_email,
+				__( 'Your password was changed', 'digital-library-membership' ),
+				__( "Hello,\n\nYour Digital Library account password was successfully updated. If you did not make this change, please contact support immediately.\n\nBest regards,\nDigital Library Team", 'digital-library-membership' )
+			);
 		}
 
 		wp_send_json_success( array( 'message' => __( 'Profile updated successfully.', 'digital-library-membership' ) ) );

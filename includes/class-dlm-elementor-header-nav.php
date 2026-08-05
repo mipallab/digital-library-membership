@@ -107,6 +107,30 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 			)
 		);
 
+		$this->add_control(
+			'show_name',
+			array(
+				'label'        => __( 'Show Name', 'digital-library-membership' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'     => __( 'Show', 'digital-library-membership' ),
+				'label_off'    => __( 'Hide', 'digital-library-membership' ),
+				'return_value' => 'yes',
+				'default'      => 'yes',
+			)
+		);
+
+		$this->add_control(
+			'show_avatar',
+			array(
+				'label'        => __( 'Show Avatar', 'digital-library-membership' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'     => __( 'Show', 'digital-library-membership' ),
+				'label_off'    => __( 'Hide', 'digital-library-membership' ),
+				'return_value' => 'yes',
+				'default'      => 'yes',
+			)
+		);
+
 		$this->end_controls_section();
 
 		// ==========================================
@@ -523,10 +547,95 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 		$this->add_control(
 			'dropdown_item_hover_bg',
 			array(
-				'label'     => __( 'Alert Item Hover Background', 'digital-library-membership' ),
+				'label'     => __( 'Alert Item Hover/Focus Background', 'digital-library-membership' ),
 				'type'      => \Elementor\Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}} .dlm-notif-item:hover' => 'background-color: {{VALUE}} !important;',
+					'{{WRAPPER}} .dlm-notif-item:hover, {{WRAPPER}} .dlm-notif-item:focus' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'dropdown_item_active_bg',
+			array(
+				'label'     => __( 'Alert Item Active Background Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-notif-item:active' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'dropdown_item_active_color',
+			array(
+				'label'     => __( 'Alert Item Active Text Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-notif-item:active .dlm-notif-title' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'dropdown_width',
+			array(
+				'label'      => __( 'Width', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px', '%', 'vw' ),
+				'range'      => array(
+					'px' => array(
+						'min'  => 200,
+						'max'  => 600,
+						'step' => 1,
+					),
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-notif-dropdown' => 'width: {{SIZE}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'dropdown_height',
+			array(
+				'label'      => __( 'Height', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => array( 'px', 'vh' ),
+				'range'      => array(
+					'px' => array(
+						'min'  => 100,
+						'max'  => 800,
+						'step' => 1,
+					),
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-notif-dropdown' => 'height: {{SIZE}}{{UNIT}} !important; display: flex !important; flex-direction: column !important;',
+					'{{WRAPPER}} .dlm-notif-list'     => 'flex: 1 !important; max-height: none !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'dropdown_padding',
+			array(
+				'label'      => __( 'Padding', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%', 'em' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-notif-dropdown' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'dropdown_margin',
+			array(
+				'label'      => __( 'Margin', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%', 'em' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-notif-dropdown' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
 				),
 			)
 		);
@@ -539,13 +648,54 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 		$avatar_sz = isset( $settings['avatar_size']['size'] ) ? $settings['avatar_size']['size'] . 'px' : '36px';
 		$spc       = isset( $settings['spacing']['size'] ) ? $settings['spacing']['size'] . 'px' : '16px';
 		$btn_text  = isset( $settings['logout_btn_text'] ) ? $settings['logout_btn_text'] : '';
+		$show_name = isset( $settings['show_name'] ) ? $settings['show_name'] : 'yes';
+		$show_avatar = isset( $settings['show_avatar'] ) ? $settings['show_avatar'] : 'yes';
+		$dropdown_width = isset( $settings['dropdown_width']['size'] ) ? $settings['dropdown_width']['size'] . $settings['dropdown_width']['unit'] : '';
+		$dropdown_height = isset( $settings['dropdown_height']['size'] ) ? $settings['dropdown_height']['size'] . $settings['dropdown_height']['unit'] : '';
+		
+		$dropdown_padding_val = '';
+		if ( ! empty( $settings['dropdown_padding'] ) && is_array( $settings['dropdown_padding'] ) ) {
+			$p = $settings['dropdown_padding'];
+			if ( isset( $p['top'] ) && $p['top'] !== '' ) {
+				$dropdown_padding_val = sprintf( '%s%s %s%s %s%s %s%s', 
+					$p['top'], $p['unit'],
+					$p['right'], $p['unit'],
+					$p['bottom'], $p['unit'],
+					$p['left'], $p['unit']
+				);
+			}
+		}
+
+		$dropdown_margin_val = '';
+		if ( ! empty( $settings['dropdown_margin'] ) && is_array( $settings['dropdown_margin'] ) ) {
+			$m = $settings['dropdown_margin'];
+			if ( isset( $m['top'] ) && $m['top'] !== '' ) {
+				$dropdown_margin_val = sprintf( '%s%s %s%s %s%s %s%s', 
+					$m['top'], $m['unit'],
+					$m['right'], $m['unit'],
+					$m['bottom'], $m['unit'],
+					$m['left'], $m['unit']
+				);
+			}
+		}
+
+		$active_bg = isset( $settings['dropdown_item_active_bg'] ) ? $settings['dropdown_item_active_bg'] : '';
+		$active_color = isset( $settings['dropdown_item_active_color'] ) ? $settings['dropdown_item_active_color'] : '';
 
 		// Render via the modular shortcode logic
 		echo do_shortcode( sprintf(
-			'[dlm_header_nav avatar_size="%s" spacing="%s" btn_text="%s"]',
+			'[dlm_header_nav avatar_size="%s" spacing="%s" btn_text="%s" show_name="%s" show_avatar="%s" dropdown_width="%s" dropdown_height="%s" dropdown_padding="%s" dropdown_margin="%s" dropdown_item_active_bg="%s" dropdown_item_active_color="%s"]',
 			esc_attr( $avatar_sz ),
 			esc_attr( $spc ),
-			esc_attr( $btn_text )
+			esc_attr( $btn_text ),
+			esc_attr( $show_name ),
+			esc_attr( $show_avatar ),
+			esc_attr( $dropdown_width ),
+			esc_attr( $dropdown_height ),
+			esc_attr( $dropdown_padding_val ),
+			esc_attr( $dropdown_margin_val ),
+			esc_attr( $active_bg ),
+			esc_attr( $active_color )
 		) );
 	}
 }
