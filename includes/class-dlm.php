@@ -341,6 +341,22 @@ class DLM {
 			return;
 		}
 
+		$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
+		if ( 'testing' === $recaptcha_mode ) {
+			echo '<div class="notice notice-warning is-dismissible"><p><strong>DLM Security Notice:</strong> reCAPTCHA is currently running in <strong>TEST mode</strong>. Real bot protection is disabled site-wide.</p></div>';
+		}
+
+		$recaptcha_secret = get_option( 'dlm_recaptcha_secret_key' );
+		if ( 'testing' !== $recaptcha_mode && empty( $recaptcha_secret ) ) {
+			echo '<div class="notice notice-warning is-dismissible"><p><strong>DLM Notice:</strong> reCAPTCHA secret key is not set. Login and registration forms currently have no bot protection.</p></div>';
+		}
+
+		$stripe_secret = get_option( 'dlm_stripe_secret_key' );
+		$stripe_webhook_secret = get_option( 'dlm_stripe_webhook_secret' );
+		if ( ! empty( $stripe_secret ) && empty( $stripe_webhook_secret ) ) {
+			echo '<div class="notice notice-error is-dismissible"><p><strong>DLM Security Warning:</strong> Stripe webhook secret is not configured. Webhooks will be refused to prevent unauthorized access.</p></div>';
+		}
+
 		// Check for missing DLM pages
 		$required_page_options = array( 'dlm_library_page_id', 'dlm_account_page_id', 'dlm_pricing_page_id', 'dlm_checkout_page_id' );
 		$has_missing_page      = false;
@@ -575,30 +591,7 @@ class DLM {
 		}
 	}
 
-	/**
-	 * Display plugin admin notices for security warnings and setup alerts
-	 */
-	public function display_admin_notices() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
 
-		$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
-		if ( 'testing' === $recaptcha_mode ) {
-			echo '<div class="notice notice-warning is-dismissible"><p><strong>DLM Security Notice:</strong> reCAPTCHA is currently running in <strong>TEST mode</strong>. Real bot protection is disabled site-wide.</p></div>';
-		}
-
-		$recaptcha_secret = get_option( 'dlm_recaptcha_secret_key' );
-		if ( 'testing' !== $recaptcha_mode && empty( $recaptcha_secret ) ) {
-			echo '<div class="notice notice-warning is-dismissible"><p><strong>DLM Notice:</strong> reCAPTCHA secret key is not set. Login and registration forms currently have no bot protection.</p></div>';
-		}
-
-		$stripe_secret = get_option( 'dlm_stripe_secret_key' );
-		$stripe_webhook_secret = get_option( 'dlm_stripe_webhook_secret' );
-		if ( ! empty( $stripe_secret ) && empty( $stripe_webhook_secret ) ) {
-			echo '<div class="notice notice-error is-dismissible"><p><strong>DLM Security Warning:</strong> Stripe webhook secret is not configured. Webhooks will be refused to prevent unauthorized access.</p></div>';
-		}
-	}
 
 	/**
 	 * Restrict non-admin users from accessing wp-admin dashboard
