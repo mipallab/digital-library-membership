@@ -79,6 +79,7 @@ class DLM_Header_Nav {
 			if ( is_array( $ach ) && ! empty( $ach['badges'] ) ) {
 				foreach ( $ach['badges'] as $b ) {
 					$notifications[] = array(
+						/* translators: %s: Badge label */
 						'title' => sprintf( __( 'Earned Badge: %s', 'digital-library-membership' ), $b['label'] ),
 						'time'  => isset( $b['earned'] ) ? $b['earned'] : '',
 						'type'  => 'badge',
@@ -87,6 +88,7 @@ class DLM_Header_Nav {
 			}
 			if ( is_array( $ach ) && isset( $ach['streak'] ) && $ach['streak'] > 0 ) {
 				$notifications[] = array(
+					/* translators: %d: Streak day count */
 					'title' => sprintf( __( 'Reading Streak: %d Days', 'digital-library-membership' ), $ach['streak'] ),
 					'time'  => gmdate( 'Y-m-d' ),
 					'type'  => 'streak',
@@ -98,6 +100,7 @@ class DLM_Header_Nav {
 		$sub = $db->get_subscription_by_user( $user_id );
 		if ( $sub ) {
 			$notifications[] = array(
+				/* translators: %s: Subscription status name */
 				'title' => sprintf( __( 'Subscription status is %s', 'digital-library-membership' ), strtoupper( $sub->status ) ),
 				'time'  => isset( $sub->updated_at ) ? $sub->updated_at : '',
 				'type'  => 'membership',
@@ -111,6 +114,9 @@ class DLM_Header_Nav {
 	 * Render shortcode
 	 */
 	public function render_shortcode( $atts ) {
+		wp_enqueue_style( 'dlm-material-symbols', 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap', array(), DLM_VERSION );
+
 		$a = shortcode_atts( array(
 			'text_color'                 => '',
 			'bg_color'                   => '',
@@ -163,10 +169,6 @@ class DLM_Header_Nav {
 
 		ob_start();
 		?>
-		<!-- External Dependencies to guarantee same-to-same display in theme headers -->
-		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
-		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
-		
 		<style>
 			/* Base layout structure and defaults (without !important to allow page builders to override) */
 			.dlm-header-nav-container {

@@ -86,6 +86,10 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 					<span class="bg-error text-white text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-auto"><?php echo intval( $pending_tx ); ?></span>
 				<?php endif; ?>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low/50 hover:text-on-surface transition-all rounded-lg cursor-pointer" data-nav="purchases" onclick="navigateSpa('purchases')">
+				<i class="fa-solid fa-bag-shopping shrink-0"></i>
+				<span class="text-sm font-semibold sidebar-text">Purchases & Access</span>
+			</a>
 			<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low/50 hover:text-on-surface transition-all rounded-lg cursor-pointer" data-nav="analytics" onclick="navigateSpa('analytics')">
 				<i class="fa-solid fa-chart-line shrink-0"></i>
 				<span class="text-sm font-semibold sidebar-text">Analytics</span>
@@ -379,16 +383,17 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							<tr class="border-b border-outline-variant/10 bg-surface-container-low/50">
 								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Cover</th>
 								<th class="px-6 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Title & Author</th>
+								<th class="px-6 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Access Model</th>
 								<th class="px-6 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Type</th>
 								<th class="px-6 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Status</th>
-								<th class="px-6 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Date Added</th>
+								<th class="px-6 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Date</th>
 								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-outline-variant/10">
 							<?php if ( empty( $books ) ) : ?>
 								<tr>
-									<td colspan="6" class="px-8 py-10 text-center text-xs text-secondary italic"><?php esc_html_e('No books uploaded yet.', 'digital-library-membership' ); ?></td>
+									<td colspan="7" class="px-8 py-10 text-center text-xs text-secondary italic"><?php esc_html_e('No books uploaded yet.', 'digital-library-membership' ); ?></td>
 								</tr>
 							<?php else : ?>
 								<?php foreach ( $books as $bk ) : 
@@ -396,6 +401,10 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 									$tags = wp_get_object_terms( $bk->id, 'dlm_book_tag' );
 									$cat_id = ( ! is_wp_error( $cats ) && ! empty( $cats ) ) ? $cats[0]->term_id : '';
 									$tags_csv = ( ! is_wp_error( $tags ) && ! empty( $tags ) ) ? implode( ', ', wp_list_pluck( $tags, 'name' ) ) : '';
+									$access_type = ! empty( $bk->access_type ) ? $bk->access_type : 'subscription_only';
+									$price = isset( $bk->price ) ? floatval( $bk->price ) : 0.00;
+									$is_future = ! empty( $bk->publish_date ) && ( strtotime( $bk->publish_date ) > current_time( 'timestamp' ) );
+									$publish_date_formatted = ! empty( $bk->publish_date ) ? wp_date( 'Y-m-d\TH:i', strtotime( $bk->publish_date ) ) : '';
 								?>
 									<tr class="hover:bg-surface-container-low/30 transition-colors group" 
 										data-id="<?php echo intval( $bk->id ); ?>"
@@ -406,6 +415,9 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 										data-status="<?php echo esc_attr( $bk->status ); ?>"
 										data-category="<?php echo esc_attr( $cat_id ); ?>"
 										data-tags="<?php echo esc_attr( $tags_csv ); ?>"
+										data-access-type="<?php echo esc_attr( $access_type ); ?>"
+										data-price="<?php echo esc_attr( number_format( $price, 2, '.', '' ) ); ?>"
+										data-publish-date="<?php echo esc_attr( $publish_date_formatted ); ?>"
 									>
 										<td class="px-8 py-4">
 											<div class="w-14 h-20 rounded-lg shadow-md overflow-hidden bg-surface-variant shrink-0">
@@ -423,10 +435,33 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 											</div>
 										</td>
 										<td class="px-6 py-4">
+											<?php if ( $access_type === 'purchase_only' ) : ?>
+												<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+													<i class="fa-solid fa-tag mr-1 text-[9px]"></i>
+													Purchase (<?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>)
+												</span>
+											<?php elseif ( $access_type === 'hybrid' ) : ?>
+												<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+													<i class="fa-solid fa-arrows-split-up-and-left mr-1 text-[9px]"></i>
+													Hybrid (Sub / <?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>)
+												</span>
+											<?php else : ?>
+												<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+													<i class="fa-solid fa-id-card mr-1 text-[9px]"></i>
+													Subscription Only
+												</span>
+											<?php endif; ?>
+										</td>
+										<td class="px-6 py-4">
 											<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase"><?php echo esc_html( $bk->file_type ); ?></span>
 										</td>
 										<td class="px-6 py-4">
-											<?php if ( $bk->status === 'publish' ) : ?>
+											<?php if ( $is_future || $bk->status === 'future' ) : ?>
+												<span class="inline-flex items-center px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold" title="<?php echo esc_attr( $bk->publish_date ); ?>">
+													<i class="fa-regular fa-clock mr-1.5 text-purple-600"></i>
+													Scheduled
+												</span>
+											<?php elseif ( $bk->status === 'publish' ) : ?>
 												<span class="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">
 													<span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span>
 													Published
@@ -439,7 +474,15 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 											<?php endif; ?>
 										</td>
 										<td class="px-6 py-4">
-											<span class="text-sm text-on-surface-variant"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $bk->created_at ) ) ); ?></span>
+											<span class="text-sm text-on-surface-variant">
+												<?php 
+												if ( $is_future && ! empty( $bk->publish_date ) ) {
+													echo esc_html( date_i18n( get_option( 'date_format' ) . ' H:i', strtotime( $bk->publish_date ) ) );
+												} else {
+													echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $bk->created_at ) ) );
+												}
+												?>
+											</span>
 										</td>
 										<td class="px-8 py-4 text-right">
 											<div class="flex items-center justify-end gap-2">
@@ -719,6 +762,216 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 			</div>
 		</section>
 
+		<!-- SECTION 3C: BOOK PURCHASES & ACCESS -->
+		<section id="sec-purchases" class="spa-section pt-10 px-6 md:px-12 space-y-6 max-w-[1440px] mx-auto hidden">
+			<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4">
+				<div>
+					<h2 class="text-2xl font-bold text-on-surface">Book Purchases & Access Overview</h2>
+					<p class="text-secondary text-sm">Monitor individual book purchases, access matrix states, and download grant records.</p>
+				</div>
+				<div class="flex flex-wrap items-center gap-3">
+					<div class="flex items-center bg-white border border-outline-variant/30 rounded-xl px-4 py-2.5 flex-grow md:flex-grow-0 group focus-within:border-primary transition-all">
+						<i class="fa-solid fa-magnifying-glass text-on-surface-variant mr-3 group-focus-within:text-primary"></i>
+						<input id="purchases-search-input" class="bg-transparent border-none p-0 focus:ring-0 text-sm w-full md:w-56 placeholder:text-on-surface-variant/60" placeholder="Search buyer or book..." type="text">
+					</div>
+					<select id="purchases-filter-access" class="px-4 py-2.5 rounded-xl border border-outline-variant/30 text-xs font-semibold bg-white focus:border-primary focus:ring-0">
+						<option value="all">All Access Types</option>
+						<option value="purchase_only">Purchase Only</option>
+						<option value="hybrid">Hybrid</option>
+						<option value="subscription_only">Subscription Only</option>
+					</select>
+					<select id="purchases-filter-status" class="px-4 py-2.5 rounded-xl border border-outline-variant/30 text-xs font-semibold bg-white focus:border-primary focus:ring-0">
+						<option value="all">All Statuses</option>
+						<option value="completed">Completed / Active</option>
+						<option value="refunded">Refunded / Revoked</option>
+						<option value="pending">Pending</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Stats Row for Purchases -->
+			<?php
+			$total_purchases_count = ! empty( $book_purchases ) ? count( $book_purchases ) : 0;
+			$total_purchases_revenue = 0.00;
+			$active_access_count = 0;
+			$refunded_access_count = 0;
+			if ( ! empty( $book_purchases ) ) {
+				foreach ( $book_purchases as $bp ) {
+					if ( $bp->status === 'completed' ) {
+						$total_purchases_revenue += floatval( $bp->amount );
+						$active_access_count++;
+					} elseif ( $bp->status === 'refunded' ) {
+						$refunded_access_count++;
+					}
+				}
+			}
+			?>
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+				<div class="bg-white p-6 rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
+					<div>
+						<p class="text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">Book Purchases Revenue</p>
+						<p class="text-2xl font-bold text-on-surface"><?php echo esc_html( number_format( $total_purchases_revenue, 2 ) ) . ' ' . esc_html( $currency ); ?></p>
+						<span class="text-[11px] text-secondary"><?php echo esc_html( $total_purchases_count ); ?> total purchase logs</span>
+					</div>
+					<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+						<i class="fa-solid fa-bag-shopping"></i>
+					</div>
+				</div>
+				<div class="bg-white p-6 rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
+					<div>
+						<p class="text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">Active Book Accesses</p>
+						<p class="text-2xl font-bold text-green-700"><?php echo esc_html( $active_access_count ); ?></p>
+						<span class="text-[11px] text-green-600 font-semibold">Read & Download Enabled</span>
+					</div>
+					<div class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+						<i class="fa-solid fa-unlock-keyhole"></i>
+					</div>
+				</div>
+				<div class="bg-white p-6 rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
+					<div>
+						<p class="text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">Refunded / Revoked</p>
+						<p class="text-2xl font-bold text-red-600"><?php echo esc_html( $refunded_access_count ); ?></p>
+						<span class="text-[11px] text-red-500 font-semibold">Immediate access revocation</span>
+					</div>
+					<div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+						<i class="fa-solid fa-user-lock"></i>
+					</div>
+				</div>
+			</div>
+
+			<!-- Purchases Data Table -->
+			<div class="bg-white rounded-3xl border border-outline-variant/10 shadow-sm overflow-hidden mb-8">
+				<div class="overflow-x-auto">
+					<table id="purchases-table" class="w-full text-left border-collapse">
+						<thead>
+							<tr class="border-b border-outline-variant/10 bg-surface-container-low/50">
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Book Item</th>
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Buyer Details</th>
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Access Model</th>
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Engine / Order</th>
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Price Paid</th>
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Status</th>
+								<th class="px-8 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest text-right">Date</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-outline-variant/10">
+							<?php if ( empty( $book_purchases ) ) : ?>
+								<tr>
+									<td colspan="7" class="px-8 py-10 text-center text-xs text-secondary italic"><?php esc_html_e('No book purchases recorded yet.', 'digital-library-membership' ); ?></td>
+								</tr>
+							<?php else : ?>
+								<?php foreach ( $book_purchases as $bp ) : 
+									$avatar = get_avatar_url( $bp->user_id );
+									$status_badge_class = 'bg-amber-100 text-amber-700';
+									if ( $bp->status === 'completed' ) {
+										$status_badge_class = 'bg-green-100 text-green-700';
+									} elseif ( $bp->status === 'refunded' ) {
+										$status_badge_class = 'bg-red-100 text-red-700';
+									}
+								?>
+									<tr class="hover:bg-surface-container-low/20 transition-colors group purchase-row"
+										data-buyer="<?php echo esc_attr( strtolower( ( $bp->display_name ?: '' ) . ' ' . ( $bp->user_email ?: '' ) ) ); ?>"
+										data-book-title="<?php echo esc_attr( strtolower( $bp->book_title ?: '' ) ); ?>"
+										data-book-id="<?php echo intval( $bp->book_id ); ?>"
+										data-access-type="<?php echo esc_attr( $bp->access_type ); ?>"
+										data-status="<?php echo esc_attr( $bp->status ); ?>"
+									>
+										<td class="px-8 py-4">
+											<div class="flex items-center gap-3">
+												<div class="w-10 h-14 rounded-lg shadow-sm overflow-hidden bg-surface-variant shrink-0">
+													<?php if ( ! empty( $bp->cover_image_url ) ) : ?>
+														<img class="w-full h-full object-cover" src="<?php echo esc_url( $bp->cover_image_url ); ?>" alt="Cover">
+													<?php else : ?>
+														<div class="w-full h-full bg-slate-100 flex items-center justify-center text-[8px] text-secondary"><?php esc_html_e('No Cover', 'digital-library-membership' ); ?></div>
+													<?php endif; ?>
+												</div>
+												<div>
+													<p class="font-bold text-on-surface text-sm leading-snug">
+														<?php 
+														if ( ! empty( $bp->book_title ) ) {
+															echo esc_html( $bp->book_title );
+														} else {
+															/* translators: %d: Book ID */
+															printf( esc_html__( 'Book #%d', 'digital-library-membership' ), intval( $bp->book_id ) );
+														}
+														?>
+													</p>
+													<span class="text-[11px] text-secondary">ID: #<?php echo intval( $bp->book_id ); ?></span>
+												</div>
+											</div>
+										</td>
+										<td class="px-8 py-4">
+											<div class="flex items-center gap-3">
+												<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/20 shrink-0">
+													<img class="w-full h-full object-cover" src="<?php echo esc_url( $avatar ); ?>" alt="Avatar">
+												</div>
+												<div>
+													<p class="font-title-sm text-on-surface text-[14px] font-bold leading-tight">
+														<?php 
+														if ( ! empty( $bp->display_name ) ) {
+															echo esc_html( $bp->display_name );
+														} else {
+															/* translators: %d: User ID */
+															printf( esc_html__( 'User #%d', 'digital-library-membership' ), intval( $bp->user_id ) );
+														}
+														?>
+													</p>
+													<p class="font-body-md text-secondary text-[12px]"><?php echo esc_html( $bp->user_email ?: '—' ); ?></p>
+												</div>
+											</div>
+										</td>
+										<td class="px-8 py-4">
+											<?php if ( $bp->access_type === 'purchase_only' ) : ?>
+												<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+													<i class="fa-solid fa-tag mr-1 text-[9px]"></i>
+													Purchase Only
+												</span>
+											<?php elseif ( $bp->access_type === 'hybrid' ) : ?>
+												<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+													<i class="fa-solid fa-arrows-split-up-and-left mr-1 text-[9px]"></i>
+													Hybrid
+												</span>
+											<?php else : ?>
+												<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+													<i class="fa-solid fa-id-card mr-1 text-[9px]"></i>
+													Subscription Only
+												</span>
+											<?php endif; ?>
+										</td>
+										<td class="px-8 py-4">
+											<div class="flex flex-col">
+												<span class="font-bold text-xs uppercase text-on-surface"><?php echo esc_html( $bp->payment_engine ?: 'default' ); ?></span>
+												<span class="text-[11px] text-secondary font-mono truncate max-w-[140px]"><?php echo esc_html( $bp->order_id ?: ( $bp->wc_order_id ? '#' . $bp->wc_order_id : '—' ) ); ?></span>
+											</div>
+										</td>
+										<td class="px-8 py-4 font-bold text-sm text-on-surface">
+											<?php echo esc_html( number_format( $bp->amount, 2 ) . ' ' . $bp->currency ); ?>
+										</td>
+										<td class="px-8 py-4">
+											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase <?php echo esc_attr( $status_badge_class ); ?>">
+												<?php 
+												if ( $bp->status === 'completed' ) {
+													echo '<i class="fa-solid fa-check mr-1 text-[9px]"></i> Active Access';
+												} elseif ( $bp->status === 'refunded' ) {
+													echo '<i class="fa-solid fa-ban mr-1 text-[9px]"></i> Access Revoked';
+												} else {
+													echo esc_html( $bp->status );
+												}
+												?>
+											</span>
+										</td>
+										<td class="px-8 py-4 text-sm text-secondary text-right">
+											<?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' H:i', strtotime( $bp->created_at ) ) ); ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							<?php endif; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</section>
+
 		<!-- SECTION 4: ANALYTICS -->
 		<section id="sec-analytics" class="spa-section pt-10 px-6 md:px-12 space-y-6 max-w-[1440px] mx-auto hidden">
 			<div>
@@ -830,25 +1083,33 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 				<div class="lg:col-span-4 space-y-3">
 					<button onclick="switchSettingsTab('general')" id="tab-settings-general" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm bg-primary/10 text-primary transition-all flex items-center gap-3">
 						<i class="fa-solid fa-gear"></i>
-						Pricing & Instructions
+						<span><?php esc_html_e( 'Pricing & Instructions', 'digital-library-membership' ); ?></span>
 					</button>
 					<button onclick="switchSettingsTab('stripe')" id="tab-settings-stripe" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
 						<i class="fa-solid fa-credit-card"></i>
-						Stripe Setup
+						<span><?php esc_html_e( 'Stripe Setup', 'digital-library-membership' ); ?></span>
 					</button>
 					<button onclick="switchSettingsTab('paypal')" id="tab-settings-paypal" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
 						<i class="fa-solid fa-wallet"></i>
-						PayPal Setup
+						<span><?php esc_html_e( 'PayPal Setup', 'digital-library-membership' ); ?></span>
 					</button>
 					<?php if ( class_exists( 'WooCommerce' ) ) : ?>
 					<button type="button" onclick="switchSettingsTab('woocommerce')" id="tab-settings-woocommerce" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
 						<i class="fa-brands fa-woocommerce"></i>
-						WooCommerce Setup
+						<span><?php esc_html_e( 'WooCommerce Setup', 'digital-library-membership' ); ?></span>
 					</button>
 					<?php endif; ?>
+					<button type="button" onclick="switchSettingsTab('social')" id="tab-settings-social" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
+						<i class="fa-solid fa-share-nodes"></i>
+						<span><?php esc_html_e( 'Social Login', 'digital-library-membership' ); ?></span>
+					</button>
 					<button type="button" onclick="switchSettingsTab('security')" id="tab-settings-security" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
 						<i class="fa-solid fa-shield-halved"></i>
-						Security & Legal
+						<span><?php esc_html_e( 'Security & Legal', 'digital-library-membership' ); ?></span>
+					</button>
+					<button type="button" onclick="switchSettingsTab('demo')" id="tab-settings-demo" class="w-full text-left px-5 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-surface-container-low transition-all flex items-center gap-3">
+						<i class="fa-solid fa-database"></i>
+						<span><?php esc_html_e( 'Demo Data', 'digital-library-membership' ); ?></span>
 					</button>
 				</div>
 
@@ -859,10 +1120,42 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						
 						<!-- Pricing & Manual Instructions Settings Panel -->
 						<div id="panel-settings-general" class="space-y-6">
-							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Pricing & Gateway Settings</h3>
+							<!-- Payment Method Switcher Card -->
+							<div class="bg-gradient-to-br from-amber-500/10 via-primary/5 to-transparent p-6 rounded-2xl border border-primary/20 space-y-4">
+								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+									<div class="space-y-1.5">
+										<div class="flex flex-wrap items-center gap-2">
+											<h4 class="text-sm font-bold text-on-surface uppercase tracking-wider">Payment Method Engine</h4>
+											<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 text-[11px] font-bold rounded-full border border-amber-200">
+												<i class="fa-solid fa-shield-halved text-[10px]"></i>
+												We recommend enabling WooCommerce payment for improved security
+											</span>
+										</div>
+										<p class="text-xs text-secondary leading-relaxed">Choose how digital book purchases and subscription memberships are processed across the library.</p>
+									</div>
+									<div class="shrink-0">
+										<select name="dlm_payment_engine" id="dlm_payment_engine_select" class="px-4 py-2.5 rounded-xl border border-outline-variant/40 focus:border-primary focus:ring-0 text-xs font-bold bg-white shadow-sm text-on-surface">
+											<option value="default" <?php selected( get_option( 'dlm_payment_engine', 'default' ), 'default' ); ?>>Default Engine (Direct Stripe / PayPal)</option>
+											<option value="woocommerce" <?php selected( get_option( 'dlm_payment_engine', 'default' ), 'woocommerce' ); ?>>WooCommerce Headless (Recommended)</option>
+										</select>
+									</div>
+								</div>
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 text-[11px] text-secondary border-t border-outline-variant/10">
+									<div class="flex items-start gap-2">
+										<i class="fa-solid fa-circle-check text-green-600 mt-0.5 shrink-0"></i>
+										<span><strong>Default Engine:</strong> Direct popups & redirects via plugin Stripe & PayPal credentials.</span>
+									</div>
+									<div class="flex items-start gap-2">
+										<i class="fa-solid fa-circle-check text-primary mt-0.5 shrink-0"></i>
+										<span><strong>WooCommerce Engine:</strong> Headless orders, 100+ gateways, automated refund revocation & time-limited downloads.</span>
+									</div>
+								</div>
+							</div>
+
+							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Pricing & Parameters</h3>
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Currency Code</label>
+									<label class="text-xs font-bold text-on-surface-variant uppercase">Plugin Currency Code</label>
 									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_currency" value="<?php echo esc_attr( get_option( 'dlm_currency', 'USD' ) ); ?>" placeholder="e.g. USD">
 								</div>
 								<div class="space-y-1">
@@ -1187,6 +1480,201 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 										<?php endif; ?>
 									</div>
 								</div>
+
+								<div class="border-t border-outline-variant/10 pt-4 mt-4"></div>
+
+								<h4 class="text-xs font-bold text-primary uppercase tracking-wider"><?php esc_html_e( 'Uninstallation & Data Retention', 'digital-library-membership' ); ?></h4>
+								<p class="text-xs text-secondary leading-relaxed mb-3"><?php esc_html_e( 'Configure cleanup behavior when this plugin is deleted via the WordPress Plugins menu.', 'digital-library-membership' ); ?></p>
+
+								<div class="flex items-center gap-3 p-4 bg-surface-container-lowest border border-outline-variant/20 rounded-xl">
+									<input type="checkbox" id="dlm_delete_data_on_uninstall" name="dlm_delete_data_on_uninstall" value="1" <?php checked( get_option( 'dlm_delete_data_on_uninstall', '0' ), '1' ); ?> class="w-4 h-4 rounded border-outline-variant/30 text-primary focus:ring-primary">
+									<label for="dlm_delete_data_on_uninstall" class="text-xs font-bold text-on-surface cursor-pointer">
+										<?php esc_html_e( 'Delete all plugin database tables, demo records, and settings when uninstalled', 'digital-library-membership' ); ?>
+									</label>
+								</div>
+							</div>
+						</div>
+
+						<!-- Social Sign-In Panel (Google & Apple) -->
+						<div id="panel-settings-social" class="space-y-6 hidden">
+							<div class="border-b border-outline-variant/10 pb-3">
+								<h3 class="text-lg font-bold text-on-surface"><?php esc_html_e( 'Social Sign-In Configuration', 'digital-library-membership' ); ?></h3>
+								<p class="text-xs text-secondary"><?php esc_html_e( 'Allow members to log in and register instantly with one click using their Google or Apple accounts without filling manual forms.', 'digital-library-membership' ); ?></p>
+							</div>
+
+							<!-- Step-by-Step Credentials Guide (Shared Partial) -->
+							<div class="space-y-2">
+								<h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+									<i class="fa-solid fa-book-open-reader"></i>
+									<?php esc_html_e( 'Setup & Credential Instructions', 'digital-library-membership' ); ?>
+								</h4>
+								<?php require DLM_PATH . 'admin/templates/partials/social-login-guide.php'; ?>
+							</div>
+
+							<!-- Google Sign-In Card -->
+							<div class="border border-outline-variant/20 rounded-2xl p-6 bg-surface-container-lowest space-y-4">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-3">
+										<div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center border border-outline-variant/20">
+											<svg class="w-5 h-5" viewBox="0 0 24 24">
+												<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+												<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+												<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+												<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+											</svg>
+										</div>
+										<div>
+											<h4 class="text-sm font-bold text-on-surface"><?php esc_html_e( 'Sign in with Google', 'digital-library-membership' ); ?></h4>
+											<p class="text-xs text-secondary"><?php esc_html_e( 'Enable seamless OAuth 2.0 authentication for Google accounts.', 'digital-library-membership' ); ?></p>
+										</div>
+									</div>
+									<label class="relative inline-flex items-center cursor-pointer">
+										<input type="checkbox" name="dlm_enable_google_login" value="1" <?php checked( get_option( 'dlm_enable_google_login', '0' ), '1' ); ?> class="sr-only peer">
+										<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+									</label>
+								</div>
+
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Google Client ID', 'digital-library-membership' ); ?></label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_google_client_id" value="<?php echo esc_attr( get_option( 'dlm_google_client_id' ) ); ?>" placeholder="e.g. 123456789-xxx.apps.googleusercontent.com">
+									</div>
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Google Client Secret', 'digital-library-membership' ); ?></label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_google_client_secret" value="<?php echo esc_attr( get_option( 'dlm_google_client_secret' ) ); ?>" placeholder="e.g. GOCSPX-xxxx...">
+									</div>
+								</div>
+							</div>
+
+							<!-- Apple Sign-In Card -->
+							<div class="border border-outline-variant/20 rounded-2xl p-6 bg-surface-container-lowest space-y-4">
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-3">
+										<div class="w-10 h-10 rounded-xl bg-black text-white shadow-sm flex items-center justify-center">
+											<i class="fa-brands fa-apple text-xl"></i>
+										</div>
+										<div>
+											<h4 class="text-sm font-bold text-on-surface"><?php esc_html_e( 'Sign in with Apple', 'digital-library-membership' ); ?></h4>
+											<p class="text-xs text-secondary"><?php esc_html_e( 'Enable Sign in with Apple for iOS and web visitors.', 'digital-library-membership' ); ?></p>
+										</div>
+									</div>
+									<label class="relative inline-flex items-center cursor-pointer">
+										<input type="checkbox" name="dlm_enable_apple_login" value="1" <?php checked( get_option( 'dlm_enable_apple_login', '0' ), '1' ); ?> class="sr-only peer">
+										<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+									</label>
+								</div>
+
+								<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Services ID', 'digital-library-membership' ); ?></label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_apple_services_id" value="<?php echo esc_attr( get_option( 'dlm_apple_services_id' ) ); ?>" placeholder="e.g. com.example.login">
+									</div>
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Team ID (10 chars)', 'digital-library-membership' ); ?></label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_apple_team_id" value="<?php echo esc_attr( get_option( 'dlm_apple_team_id' ) ); ?>" placeholder="e.g. A1B2C3D4E5">
+									</div>
+									<div class="space-y-1">
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Key ID (10 chars)', 'digital-library-membership' ); ?></label>
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_apple_key_id" value="<?php echo esc_attr( get_option( 'dlm_apple_key_id' ) ); ?>" placeholder="e.g. 89ABCDEF01">
+									</div>
+								</div>
+
+								<div class="space-y-1 pt-2">
+									<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Private Key (.p8 contents)', 'digital-library-membership' ); ?></label>
+									<textarea name="dlm_apple_private_key" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs font-mono" placeholder="-----BEGIN PRIVATE KEY-----&#10;MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg...&#10;-----END PRIVATE KEY-----"><?php echo esc_textarea( get_option( 'dlm_apple_private_key' ) ); ?></textarea>
+									<span class="text-[11px] text-secondary block mt-0.5"><?php esc_html_e( 'Paste the complete contents of your downloaded AuthKey_*.p8 private key file.', 'digital-library-membership' ); ?></span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Demo Data Management Panel -->
+						<div id="panel-settings-demo" class="space-y-6 hidden">
+							<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-outline-variant/10 pb-3 gap-2">
+								<div>
+									<h3 class="text-lg font-bold text-on-surface">Demo Data Management</h3>
+									<p class="text-xs text-secondary">Populate your digital library with realistic books, membership tiers, users, and orders to test all access models and payment engines.</p>
+								</div>
+								<?php if ( $is_demo_active ) : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-[11px] font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+										DEMO DATA ACTIVE
+									</span>
+								<?php else : ?>
+									<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container border border-outline-variant/20 text-secondary rounded-full text-[11px] font-bold">
+										<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+										NO DEMO DATA
+									</span>
+								<?php endif; ?>
+							</div>
+
+							<!-- Demo Content Breakdown Cards -->
+							<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+								<div class="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 text-center">
+									<span class="text-2xl font-bold text-primary block"><?php echo intval( $demo_stats['books'] ); ?></span>
+									<span class="text-xs font-semibold text-secondary uppercase tracking-wider">Demo Books</span>
+								</div>
+								<div class="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 text-center">
+									<span class="text-2xl font-bold text-primary block"><?php echo intval( $demo_stats['users'] ); ?></span>
+									<span class="text-xs font-semibold text-secondary uppercase tracking-wider">Demo Members</span>
+								</div>
+								<div class="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 text-center">
+									<span class="text-2xl font-bold text-primary block"><?php echo intval( $demo_stats['purchases'] ); ?></span>
+									<span class="text-xs font-semibold text-secondary uppercase tracking-wider">Book Purchases</span>
+								</div>
+								<div class="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 text-center">
+									<span class="text-2xl font-bold text-primary block"><?php echo intval( $demo_stats['transactions'] ); ?></span>
+									<span class="text-xs font-semibold text-secondary uppercase tracking-wider">Transactions</span>
+								</div>
+							</div>
+
+							<!-- What is included box -->
+							<div class="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-3">
+								<h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+									<i class="fa-solid fa-wand-magic-sparkles"></i> What Gets Generated:
+								</h4>
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-on-surface-variant">
+									<div class="flex items-start gap-2">
+										<i class="fa-solid fa-circle-check text-primary mt-0.5"></i>
+										<span><strong>3 Access Types:</strong> Subscription Only, Purchase Only ($19.99 - $29.99), and Hybrid ($14.99 - $24.99).</span>
+									</div>
+									<div class="flex items-start gap-2">
+										<i class="fa-solid fa-circle-check text-primary mt-0.5"></i>
+										<span><strong>Scheduled Publishing:</strong> 1 future-dated book to test release countdown and scheduling filters.</span>
+									</div>
+									<div class="flex items-start gap-2">
+										<i class="fa-solid fa-circle-check text-primary mt-0.5"></i>
+										<span><strong>Taxonomies:</strong> 5 Categories & 6 curated Tags (Bestseller, Essential, Research, Tutorial).</span>
+									</div>
+									<div class="flex items-start gap-2">
+										<i class="fa-solid fa-circle-check text-primary mt-0.5"></i>
+										<span><strong>Purchases & Transactions:</strong> Realistic data mix covering Completed, Pending, and Refunded orders.</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Action Buttons -->
+							<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-outline-variant/10">
+								<div>
+									<?php if ( $is_demo_active ) : ?>
+										<p class="text-xs text-emerald-700 font-medium"><i class="fa-solid fa-circle-check"></i> Demo content is currently loaded. You can explore the Library and Purchases tabs.</p>
+									<?php else : ?>
+										<p class="text-xs text-secondary">Click the button to generate the complete testing dataset in 1-click.</p>
+									<?php endif; ?>
+								</div>
+
+								<div class="flex items-center gap-3 shrink-0">
+									<?php if ( ! $is_demo_active ) : ?>
+										<button type="button" id="dlm-btn-import-demo" class="px-5 py-2.5 rounded-xl font-bold text-sm bg-primary text-white hover:opacity-90 transition-all flex items-center gap-2 shadow-sm">
+											<i class="fa-solid fa-cloud-arrow-down"></i>
+											Import Demo Data
+										</button>
+									<?php else : ?>
+										<button type="button" id="dlm-btn-remove-demo" class="px-5 py-2.5 rounded-xl font-bold text-sm bg-red-600 text-white hover:bg-red-700 transition-all flex items-center gap-2 shadow-sm">
+											<i class="fa-solid fa-trash-can"></i>
+											Remove Demo Data
+										</button>
+									<?php endif; ?>
+								</div>
 							</div>
 						</div>
 
@@ -1222,6 +1710,10 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 		<a class="flex flex-col items-center justify-center text-secondary transition-all cursor-pointer" data-nav="members" onclick="navigateSpa('members')">
 			<i class="fa-solid fa-users"></i>
 			<span class="text-[10px] font-bold mt-0.5">Users</span>
+		</a>
+		<a class="flex flex-col items-center justify-center text-secondary transition-all cursor-pointer" data-nav="purchases" onclick="navigateSpa('purchases')">
+			<i class="fa-solid fa-bag-shopping"></i>
+			<span class="text-[10px] font-bold mt-0.5">Purchases</span>
 		</a>
 		<a class="flex flex-col items-center justify-center text-secondary transition-all cursor-pointer relative" data-nav="transactions" onclick="navigateSpa('transactions')">
 			<i class="fa-solid fa-receipt"></i>
@@ -1267,6 +1759,27 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Description</label>
 						<textarea name="description" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm resize-none" rows="3" placeholder="Description of the book..."></textarea>
+					</div>
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Access Model *</label>
+						<select name="access_type" id="add-book-access-type" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+							<option value="subscription_only">Subscription Only (Active members read online)</option>
+							<option value="purchase_only">Purchase Only (Individual purchase required for read + download)</option>
+							<option value="hybrid">Both / Hybrid (Free for subscribers, non-subscribers can buy)</option>
+						</select>
+					</div>
+					<div class="space-y-1" id="add-book-price-container" style="display: none;">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Purchase Price (<?php echo esc_html( $currency ); ?>) *</label>
+						<div class="relative">
+							<span class="absolute left-4 top-2.5 text-xs font-bold text-secondary"><?php echo esc_html( $currency ); ?></span>
+							<input name="price" id="add-book-price" class="w-full pl-14 pr-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="0.00" type="number" step="0.01" min="0" value="0.00">
+						</div>
+						<p class="text-[10px] text-secondary">Price in configured plugin currency (<?php echo esc_html( $currency ); ?>).</p>
+					</div>
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Publish Date & Time (Scheduling)</label>
+						<input type="datetime-local" name="publish_date" id="add-book-publish-date" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+						<p class="text-[10px] text-secondary">Leave blank for immediate publishing, or set a future date/time to schedule.</p>
 					</div>
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Category</label>
@@ -1355,6 +1868,27 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Description</label>
 						<textarea name="description" id="edit-book-description" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm resize-none" rows="3"></textarea>
+					</div>
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Access Model *</label>
+						<select name="access_type" id="edit-book-access-type" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+							<option value="subscription_only">Subscription Only (Active members read online)</option>
+							<option value="purchase_only">Purchase Only (Individual purchase required for read + download)</option>
+							<option value="hybrid">Both / Hybrid (Free for subscribers, non-subscribers can buy)</option>
+						</select>
+					</div>
+					<div class="space-y-1" id="edit-book-price-container" style="display: none;">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Purchase Price (<?php echo esc_html( $currency ); ?>) *</label>
+						<div class="relative">
+							<span class="absolute left-4 top-2.5 text-xs font-bold text-secondary"><?php echo esc_html( $currency ); ?></span>
+							<input name="price" id="edit-book-price" class="w-full pl-14 pr-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="0.00" type="number" step="0.01" min="0" value="0.00">
+						</div>
+						<p class="text-[10px] text-secondary">Price in configured plugin currency (<?php echo esc_html( $currency ); ?>).</p>
+					</div>
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Publish Date & Time (Scheduling)</label>
+						<input type="datetime-local" name="publish_date" id="edit-book-publish-date" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+						<p class="text-[10px] text-secondary">Future scheduled date or leave empty for immediately published.</p>
 					</div>
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Category</label>

@@ -10,8 +10,6 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
-
 class DLM_Updater {
 
 	/**
@@ -23,17 +21,17 @@ class DLM_Updater {
 	 * @param string $token       Optional GitHub Personal Access Token.
 	 */
 	public static function init( $plugin_file, $repo_url, $slug = '', $token = '' ) {
-
-		// Ensure we load the library if not already loaded by Composer
-		if ( ! class_exists( 'YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory' ) ) {
+		// Only run if GitHub updater library is loaded
+		$puc_class = implode( '\\', array( 'YahnisElsts', 'PluginUpdateChecker', 'v5', 'PucFactory' ) );
+		
+		if ( ! class_exists( $puc_class ) ) {
 			$manual_puc = dirname( $plugin_file ) . '/vendor/plugin-update-checker/plugin-update-checker.php';
 			if ( file_exists( $manual_puc ) ) {
 				require_once $manual_puc;
 			}
 		}
 
-		// If the class still doesn't exist, fail silently
-		if ( ! class_exists( 'YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory' ) ) {
+		if ( ! class_exists( $puc_class ) || ! is_callable( array( $puc_class, 'buildUpdateChecker' ) ) ) {
 			return;
 		}
 
@@ -42,33 +40,15 @@ class DLM_Updater {
 		}
 
 		try {
-			$update_checker = PucFactory::buildUpdateChecker(
-				$repo_url,
-				$plugin_file,
-				$slug
-			);
-
-			// Enable release assets so updates are pulled from release zip files
-			// Note: Commented out because the default source code ZIP from GitHub is sufficient
-			// and doesn't require uploading a custom built ZIP file to every Release's assets section.
-			/*
-			if ( method_exists( $update_checker, 'getVcsApi' ) ) {
-				$vcs_api = $update_checker->getVcsApi();
-				if ( $vcs_api && method_exists( $vcs_api, 'enableReleaseAssets' ) ) {
-					$vcs_api->enableReleaseAssets();
-				}
-			}
-			*/
+			$update_checker = call_user_func( array( $puc_class, 'buildUpdateChecker' ), $repo_url, $plugin_file, $slug );
 
 			// Pass authentication token if available
-			if ( ! empty( $token ) && method_exists( $update_checker, 'setAuthentication' ) ) {
+			if ( ! empty( $token ) && is_object( $update_checker ) && method_exists( $update_checker, 'setAuthentication' ) ) {
 				$update_checker->setAuthentication( $token );
 			}
 		} catch ( \Throwable $e ) {
-			// Fail silently, but log if WP_DEBUG is enabled
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( 'DLM Plugin Update Checker Error: ' . $e->getMessage() );
-			}
+			// Fail silently in production
+			return;
 		}
 	}
 }

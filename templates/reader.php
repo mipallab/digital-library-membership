@@ -21,15 +21,27 @@ if ( ! $book_id ) {
 $db = new DLM_DB();
 $user_id = get_current_user_id();
 
+$book = $db->get_book( $book_id );
+if ( ! $book ) {
+	wp_die( esc_html__( 'Requested book could not be found.', 'digital-library-membership' ) );
+}
+
+$access_status = dlm_user_can_access_book( $user_id, $book_id );
+$currency      = get_option( 'dlm_currency', 'USD' );
+
 // Verify access entitlement
-if ( ! $db->has_active_membership( $user_id ) ) {
+if ( $access_status === 'locked' ) {
+	$access_type = ! empty( $book->access_type ) ? $book->access_type : 'subscription_only';
+	$price       = isset( $book->price ) ? floatval( $book->price ) : 0.00;
+	$pricing_url = dlm_get_page_url( 'pricing' );
+	$library_url = dlm_get_page_url( 'library' );
 	?>
 	<!DOCTYPE html>
 	<html <?php language_attributes(); ?>>
 	<head>
 		<meta charset="<?php bloginfo( 'charset' ); ?>">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title><?php esc_html_e( 'Access Required', 'digital-library-membership' ); ?></title>
+		<title><?php esc_html_e( 'Access Required', 'digital-library-membership' ); ?> - <?php echo esc_html( $book->title ); ?></title>
 		<?php wp_head(); ?>
 		<style>
 			body {
@@ -47,69 +59,113 @@ if ( ! $db->has_active_membership( $user_id ) ) {
 				background: #ffffff;
 				border-radius: 24px;
 				padding: 48px 40px;
-				max-width: 460px;
+				max-width: 480px;
 				width: 100%;
 				text-align: center;
-				box-shadow: 0 12px 40px rgba(0, 0, 0, 0.04);
+				box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
 				border: 1px solid #d2d2d7;
 			}
 			.error-icon {
 				font-size: 54px;
-				margin-bottom: 24px;
+				margin-bottom: 20px;
 				display: block;
 			}
 			.error-title {
-				font-size: 26px;
+				font-size: 24px;
 				font-weight: 700;
-				margin: 0 0 16px 0;
+				margin: 0 0 12px 0;
 				letter-spacing: -0.5px;
 				color: #1d1d1f;
 			}
 			.error-msg {
-				font-size: 16px;
+				font-size: 15px;
 				line-height: 1.5;
-				color: #8e8e93;
-				margin: 0 0 32px 0;
+				color: #6e6e73;
+				margin: 0 0 28px 0;
 			}
 			.pricing-btn {
 				display: inline-block;
-				background-color: #0071e3;
-				color: #ffffff;
+				background-color: #855300;
+				color: #ffffff !important;
 				font-weight: 600;
-				font-size: 15px;
-				padding: 14px 36px;
+				font-size: 14px;
+				padding: 13px 32px;
 				border-radius: 980px;
 				text-decoration: none;
 				transition: background-color 0.2s ease, transform 0.2s ease;
+				cursor: pointer;
 			}
 			.pricing-btn:hover {
-				background-color: #0077ed;
+				background-color: #613b00;
 				transform: translateY(-1px);
 			}
-			.pricing-btn:active {
-				transform: translateY(0);
+			.pricing-btn.secondary-btn {
+				background-color: #f2f2f3;
+				color: #1d1d1f !important;
+				margin-left: 8px;
+			}
+			.pricing-btn.secondary-btn:hover {
+				background-color: #e5e5ea;
 			}
 		</style>
 	</head>
 	<body>
 		<div class="error-card">
 			<div class="error-icon">🔒</div>
-			<h1 class="error-title"><?php esc_html_e( 'Access Required', 'digital-library-membership' ); ?></h1>
-			<p class="error-msg"><?php esc_html_e( 'Active subscription required to access library books.', 'digital-library-membership' ); ?></p>
-			<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" class="pricing-btn">
-				<?php esc_html_e( 'View Pricing & Plans', 'digital-library-membership' ); ?>
-			</a>
+			<h1 class="error-title">
+				<?php 
+				if ( $access_type === 'purchase_only' ) {
+					esc_html_e( 'Purchase Required', 'digital-library-membership' );
+				} elseif ( $access_type === 'hybrid' ) {
+					esc_html_e( 'Access Required', 'digital-library-membership' );
+				} else {
+					esc_html_e( 'Membership Access Required', 'digital-library-membership' );
+				}
+				?>
+			</h1>
+			<p class="error-msg">
+				<?php 
+				if ( $access_type === 'purchase_only' ) {
+					/* translators: %s: Price with currency */
+					printf( esc_html__( 'This book is available as an individual purchase for %s.', 'digital-library-membership' ), esc_html( number_format( $price, 2 ) . ' ' . $currency ) );
+				} elseif ( $access_type === 'hybrid' ) {
+					/* translators: %s: Price with currency */
+					printf( esc_html__( 'This book is available free for active subscribers or can be purchased individually for %s.', 'digital-library-membership' ), esc_html( number_format( $price, 2 ) . ' ' . $currency ) );
+				} else {
+					esc_html_e( 'An active library membership subscription is required to read this book online.', 'digital-library-membership' );
+				}
+				?>
+			</p>
+			<div style="display:flex; justify-content:center; flex-wrap:wrap; gap:8px;">
+				<?php if ( $access_type === 'purchase_only' ) : ?>
+					<a href="<?php echo esc_url( home_url( '/library/?buy=' . $book_id ) ); ?>" class="pricing-btn">
+						<?php 
+						/* translators: %s: Price and currency formatted string */
+						printf( esc_html__( 'Purchase Book (%s)', 'digital-library-membership' ), esc_html( number_format( $price, 2 ) . ' ' . $currency ) ); 
+						?>
+					</a>
+				<?php elseif ( $access_type === 'hybrid' ) : ?>
+					<a href="<?php echo esc_url( $pricing_url ); ?>" class="pricing-btn">
+						<?php esc_html_e( 'Join Membership', 'digital-library-membership' ); ?>
+					</a>
+					<a href="<?php echo esc_url( home_url( '/library/?buy=' . $book_id ) ); ?>" class="pricing-btn secondary-btn">
+						<?php 
+						/* translators: %s: Price and currency formatted string */
+						printf( esc_html__( 'Buy for %s', 'digital-library-membership' ), esc_html( number_format( $price, 2 ) . ' ' . $currency ) ); 
+						?>
+					</a>
+				<?php else : ?>
+					<a href="<?php echo esc_url( $pricing_url ); ?>" class="pricing-btn">
+						<?php esc_html_e( 'View Pricing & Plans', 'digital-library-membership' ); ?>
+					</a>
+				<?php endif; ?>
+			</div>
 		</div>
 		<?php wp_footer(); ?>
 	</body>
 	</html>
 	<?php
 	exit;
-}
-
-$book = $db->get_book( $book_id );
-if ( ! $book ) {
-	wp_die( esc_html__( 'Requested book could not be found.', 'digital-library-membership' ) );
 }
 
 // Check reading progress
@@ -128,7 +184,7 @@ $watermark_text = esc_attr( $user_obj->display_name . ' (' . $user_obj->user_ema
 	<title><?php echo esc_html( $book->title ); ?> - Reader</title>
 	<?php wp_head(); ?>
 </head>
-<body class="dlm-reader-body theme-light" data-book-id="<?php echo intval( $book_id ); ?>" data-start-page="<?php echo intval( $last_page ); ?>" data-watermark="<?php echo esc_attr( $watermark_text ); ?>">
+<body class="dlm-reader-body theme-light" data-book-id="<?php echo intval( $book_id ); ?>" data-start-page="<?php echo intval( $last_page ); ?>" data-watermark="<?php echo esc_attr( $watermark_text ); ?>" data-access-level="<?php echo esc_attr( $access_status ); ?>">
 
 	<!-- DRM Protections: Overlay to capture click events -->
 	<div class="dlm-reader-shield"></div>
@@ -142,6 +198,12 @@ $watermark_text = esc_attr( $user_obj->display_name . ' (' . $user_obj->user_ema
 			<span class="dlm-book-title-lbl"><?php echo esc_html( $book->title ); ?></span>
 		</div>
 		<div class="dlm-toolbar-right">
+			<?php if ( $access_status === 'read_download' ) : ?>
+				<!-- Download Button for Read+Download Entitlement -->
+				<button id="dlm-download-doc-btn" class="dlm-toolbar-btn" title="<?php esc_attr_e( 'Download PDF Document', 'digital-library-membership' ); ?>" data-book-id="<?php echo intval( $book_id ); ?>">
+					⬇ <span class="lbl" style="font-size:12px; font-weight:bold; margin-left:4px;"><?php esc_html_e( 'Download', 'digital-library-membership' ); ?></span>
+				</button>
+			<?php endif; ?>
 			<!-- Theme Selector -->
 			<button id="dlm-theme-btn" class="dlm-toolbar-btn" title="Toggle Appearance">☀️</button>
 			<!-- Zoom controls -->

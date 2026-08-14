@@ -253,13 +253,11 @@ class DLM_Checkout {
 
 		if ( empty( $endpoint_secret ) ) {
 			http_response_code( 500 );
-			error_log( 'DLM: Stripe webhook secret not configured — refusing webhook.' );
 			exit;
 		}
 
 		if ( empty( $sig_header ) ) {
 			http_response_code( 400 );
-			error_log( 'DLM: Missing Stripe signature header — refusing webhook.' );
 			exit;
 		}
 
@@ -382,7 +380,6 @@ class DLM_Checkout {
 		$secret     = get_option( 'dlm_paypal_secret_key' );
 
 		if ( empty( $webhook_id ) || empty( $client_id ) || empty( $secret ) ) {
-			error_log( 'DLM: PayPal webhook credentials or Webhook ID missing — refusing webhook.' );
 			return false;
 		}
 
@@ -394,7 +391,6 @@ class DLM_Checkout {
 		$transmission_sig  = isset( $headers['PAYPAL-TRANSMISSION-SIG'] ) ? $headers['PAYPAL-TRANSMISSION-SIG'] : '';
 
 		if ( empty( $transmission_id ) || empty( $transmission_time ) || empty( $cert_url ) || empty( $auth_algo ) || empty( $transmission_sig ) ) {
-			error_log( 'DLM: Missing PayPal signature headers.' );
 			return false;
 		}
 

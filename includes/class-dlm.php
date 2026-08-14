@@ -19,6 +19,8 @@ class DLM {
 	protected $db;
 	protected $security;
 	protected $checkout;
+	protected $woocommerce;
+	protected $social_auth;
 	protected $api;
 	protected $admin;
 	protected $public;
@@ -33,6 +35,12 @@ class DLM {
 
 		// Initialize Payment Gateway integrations
 		$this->checkout = new DLM_Checkout();
+
+		// Initialize Headless WooCommerce engine
+		$this->woocommerce = new DLM_WooCommerce( $this->db, $this->checkout );
+
+		// Initialize Social Authentication engine
+		$this->social_auth = new DLM_Social_Auth( $this->db );
 
 		// Initialize admin hooks
 		if ( is_admin() ) {
@@ -50,12 +58,19 @@ class DLM {
 	 * Register all actions, filters, and shortcodes
 	 */
 	public function run() {
+		// Automatic DB schema migration check
+		DLM_Activator::check_and_upgrade_db();
+
+		// Headless WooCommerce integration
+		$this->woocommerce->init();
+
 		// Enqueue scripts/styles
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_public_assets' ) );
 
 		// REST API Init
 		add_action( 'rest_api_init', array( $this->api, 'register_routes' ) );
+		add_action( 'rest_api_init', array( $this->social_auth, 'register_routes' ) );
 
 		// Hook into page templates for customized library/single book/reader experience
 		add_filter( 'template_include', array( $this, 'custom_templates' ) );
@@ -131,6 +146,10 @@ class DLM {
 		// Admin Setup Wizard AJAX
 		add_action( 'wp_ajax_dlm_save_setup_wizard', array( $this->admin, 'ajax_save_setup_wizard' ) );
 
+		// Demo Data Management AJAX
+		add_action( 'wp_ajax_dlm_import_demo_data', array( $this->admin, 'ajax_import_demo_data' ) );
+		add_action( 'wp_ajax_dlm_remove_demo_data', array( $this->admin, 'ajax_remove_demo_data' ) );
+
 		// Member SPA AJAX actions
 		add_action( 'wp_ajax_dlm_sync_achievements', array( $this->public, 'ajax_sync_achievements' ) );
 		add_action( 'wp_ajax_dlm_manage_journal_notes', array( $this->public, 'ajax_manage_journal_notes' ) );
@@ -144,8 +163,10 @@ class DLM {
 		// Admin alerts hook
 		add_action( 'admin_notices', array( $this, 'display_admin_notices' ) );
 
-		// Daily expiration checker cron hook
+		// Cron hooks
 		add_action( 'dlm_daily_subscription_check', array( $this, 'run_expiry_checks' ) );
+		add_action( 'dlm_check_scheduled_books', array( $this->db, 'publish_scheduled_books' ) );
+		add_action( 'dlm_cleanup_stale_orders', array( $this->db, 'cleanup_stale_orders' ) );
 
 		// Hide admin bar for normal subscriber role users on frontend
 		add_filter( 'show_admin_bar', array( $this, 'hide_admin_bar_for_subscribers' ) );
@@ -204,6 +225,11 @@ class DLM {
 		wp_enqueue_style( 'dlm-admin-css', DLM_URL . 'admin/css/dlm-admin.css', array(), DLM_VERSION );
 		wp_enqueue_script( 'dlm-admin-js', DLM_URL . 'admin/js/dlm-admin.js', array( 'jquery' ), DLM_VERSION, true );
 		
+		wp_localize_script( 'dlm-admin-js', 'dlmAdminParams', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'dlm_public_nonce' ),
+		) );
+
 		// Chart.js local bundle
 		wp_enqueue_script( 'dlm-chart-js', DLM_URL . 'admin/js/chart.min.js', array(), '4.4.1', true );
 	}
@@ -258,9 +284,9 @@ class DLM {
 
 		if ( $recaptcha_site_key ) {
 			if ( $recaptcha_version === 'v3' ) {
-				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js?render=' . esc_attr( $recaptcha_site_key ), array(), null, true );
+				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js?render=' . esc_attr( $recaptcha_site_key ), array(), DLM_VERSION, true );
 			} else {
-				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js', array(), null, true );
+				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js', array(), DLM_VERSION, true );
 			}
 		}
 
@@ -341,20 +367,46 @@ class DLM {
 			return;
 		}
 
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'dlm' ) === false ) {
+			return;
+		}
+
 		$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
 		if ( 'testing' === $recaptcha_mode ) {
-			echo '<div class="notice notice-warning is-dismissible"><p><strong>DLM Security Notice:</strong> reCAPTCHA is currently running in <strong>TEST mode</strong>. Real bot protection is disabled site-wide.</p></div>';
+			?>
+			<div class="notice notice-warning is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'DLM Security Notice:', 'digital-library-membership' ); ?></strong>
+					<?php esc_html_e( 'reCAPTCHA is currently running in TEST mode. Real bot protection is disabled site-wide.', 'digital-library-membership' ); ?>
+				</p>
+			</div>
+			<?php
 		}
 
 		$recaptcha_secret = get_option( 'dlm_recaptcha_secret_key' );
 		if ( 'testing' !== $recaptcha_mode && empty( $recaptcha_secret ) ) {
-			echo '<div class="notice notice-warning is-dismissible"><p><strong>DLM Notice:</strong> reCAPTCHA secret key is not set. Login and registration forms currently have no bot protection.</p></div>';
+			?>
+			<div class="notice notice-warning is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'DLM Notice:', 'digital-library-membership' ); ?></strong>
+					<?php esc_html_e( 'reCAPTCHA secret key is not set. Login and registration forms currently have no bot protection.', 'digital-library-membership' ); ?>
+				</p>
+			</div>
+			<?php
 		}
 
 		$stripe_secret = get_option( 'dlm_stripe_secret_key' );
 		$stripe_webhook_secret = get_option( 'dlm_stripe_webhook_secret' );
 		if ( ! empty( $stripe_secret ) && empty( $stripe_webhook_secret ) ) {
-			echo '<div class="notice notice-error is-dismissible"><p><strong>DLM Security Warning:</strong> Stripe webhook secret is not configured. Webhooks will be refused to prevent unauthorized access.</p></div>';
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'DLM Security Warning:', 'digital-library-membership' ); ?></strong>
+					<?php esc_html_e( 'Stripe webhook secret is not configured. Webhooks will be refused to prevent unauthorized access.', 'digital-library-membership' ); ?>
+				</p>
+			</div>
+			<?php
 		}
 
 		// Check for missing DLM pages
@@ -384,7 +436,8 @@ class DLM {
 		// Notice if WooCommerce is explicitly set as primary gateway but WooCommerce plugin is missing
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$enable_wc = get_option( 'dlm_enable_woocommerce', '0' );
-		if ( '1' === $enable_wc && ! class_exists( 'WooCommerce' ) && isset( $_GET['page'] ) && 'dlm-library' === $_GET['page'] ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( '1' === $enable_wc && ! class_exists( 'WooCommerce' ) && isset( $_GET['page'] ) && 'dlm-library' === sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) {
 			?>
 			<div class="notice notice-warning is-dismissible">
 				<p>
@@ -407,17 +460,16 @@ class DLM {
 
 		if ( $pending_count > 0 ) {
 			?>
-			<div class="notice notice-warning is-dismissible">
+			<div class="notice notice-info is-dismissible">
 				<p>
-					<strong><?php esc_html_e( 'Digital Library:', 'digital-library-membership' ); ?></strong>
+					<strong><?php esc_html_e( 'Pending Approval Alert:', 'digital-library-membership' ); ?></strong>
 					<?php 
-					echo esc_html( sprintf( 
-						// translators: %d: Number of pending manual subscription requests
-						_n( 'There is %d manual subscription request pending your approval.', 'There are %d manual subscription requests pending your approval.', $pending_count, 'digital-library-membership' ), 
-						$pending_count 
-					) ); 
+					/* translators: %d: Count of pending manual subscriptions */
+					printf( esc_html__( 'You have %d manual payment subscription(s) waiting for admin approval.', 'digital-library-membership' ), intval( $pending_count ) ); 
 					?>
-					<a href="<?php echo esc_url( admin_url( 'admin-post.php?action=dlm_goto_members' ) ); ?>"><?php esc_html_e( 'Review and Approve Subscriptions', 'digital-library-membership' ); ?></a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=dlm-library#tab-members' ) ); ?>" style="font-weight:bold; text-decoration:underline; margin-left: 5px;">
+						<?php esc_html_e( 'Review Members', 'digital-library-membership' ); ?>
+					</a>
 				</p>
 			</div>
 			<?php
@@ -558,6 +610,7 @@ class DLM {
 			// Only redirect if setup is not already completed
 			if ( 'yes' !== get_option( 'dlm_setup_completed' ) ) {
 				// Don't redirect on bulk activation
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				if ( ! isset( $_GET['activate-multi'] ) ) {
 					wp_safe_redirect( admin_url( 'admin.php?page=dlm-setup-wizard' ) );
 					exit;
@@ -570,8 +623,10 @@ class DLM {
 	 * Redirect any page loaded with payment query parameters to the account dashboard
 	 */
 	public function handle_payment_status_redirect() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['payment'] ) ) {
-			$payment = sanitize_key( $_GET['payment'] );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$payment = sanitize_key( wp_unslash( $_GET['payment'] ) );
 			$valid_statuses = array( 'success', 'active', 'pending', 'cancelled', 'cancel', 'failed', 'faild' );
 			if ( in_array( $payment, $valid_statuses, true ) ) {
 				$account_page_id = dlm_get_page_id( 'account' );
@@ -579,8 +634,10 @@ class DLM {
 					$query_args = array(
 						'payment' => $payment,
 					);
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 					if ( isset( $_GET['session_id'] ) ) {
-						$query_args['session_id'] = sanitize_text_field( $_GET['session_id'] );
+						// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+						$query_args['session_id'] = sanitize_text_field( wp_unslash( $_GET['session_id'] ) );
 					}
 					
 					$redirect_url = add_query_arg( $query_args, dlm_get_page_url( 'account' ) );
@@ -827,5 +884,119 @@ function dlm_get_recaptcha_connection_status() {
 function dlm_clear_recaptcha_conn_transient() {
 	delete_transient( 'dlm_recaptcha_conn_status' );
 }
+
+/**
+ * Get active payment engine ('default' or 'woocommerce')
+ */
+function dlm_get_payment_engine() {
+	return get_option( 'dlm_payment_engine', 'default' );
+}
+
+/**
+ * Central Permission Check: Determine user access level to a specific book
+ *
+ * @param int|WP_User $user_id Optional. User ID or object. Defaults to current user.
+ * @param int|object  $book_id Book ID or Book database object.
+ * @return string 'locked' | 'read_only' | 'read_download'
+ */
+function dlm_user_can_access_book( $user_id = 0, $book_id = 0 ) {
+	if ( ! $user_id ) {
+		$user_id = get_current_user_id();
+	}
+
+	// Administrators with manage_options always get full read + download access
+	if ( $user_id && user_can( $user_id, 'manage_options' ) ) {
+		return 'read_download';
+	}
+
+	$db = new DLM_DB();
+	$book = is_object( $book_id ) ? $book_id : $db->get_book( intval( $book_id ) );
+
+	if ( ! $book ) {
+		return 'locked';
+	}
+
+	// Check if book is scheduled for future publish
+	if ( $book->status === 'future' || ( ! empty( $book->publish_date ) && strtotime( $book->publish_date ) > current_time( 'timestamp' ) ) ) {
+		return 'locked';
+	}
+
+	$access_type    = ! empty( $book->access_type ) ? $book->access_type : 'subscription_only';
+	$has_active_sub = $user_id ? $db->has_active_membership( $user_id ) : false;
+	$has_purchased  = $user_id ? $db->has_purchased_book( $user_id, $book->id ) : false;
+
+	switch ( $access_type ) {
+		case 'subscription_only':
+			if ( $has_active_sub ) {
+				return 'read_only';
+			}
+			return 'locked';
+
+		case 'purchase_only':
+			if ( $has_purchased ) {
+				return 'read_download';
+			}
+			return 'locked';
+
+		case 'hybrid':
+			if ( $has_active_sub || $has_purchased ) {
+				return 'read_download';
+			}
+			return 'locked';
+
+		default:
+			return 'locked';
+	}
+}
+
+/**
+ * Generate a signed, time-limited token for secure PDF download
+ *
+ * @param int $user_id
+ * @param int $book_id
+ * @param int $expires_in Expiry in seconds (Default 2 hours)
+ * @return array
+ */
+function dlm_generate_download_token( $user_id, $book_id, $expires_in = 7200 ) {
+	$expires = time() + $expires_in;
+	$token   = hash_hmac( 'sha256', $user_id . '|' . $book_id . '|' . $expires, wp_salt( 'nonce' ) );
+
+	return array(
+		'token'   => $token,
+		'expires' => $expires,
+		'user_id' => $user_id,
+		'url'     => add_query_arg(
+			array(
+				'token'   => $token,
+				'expires' => $expires,
+				'uid'     => $user_id,
+			),
+			rest_url( "dlm/v1/book/{$book_id}/download" )
+		),
+	);
+}
+
+/**
+ * Verify signed, time-limited download token
+ *
+ * @param int    $user_id
+ * @param int    $book_id
+ * @param string $token
+ * @param int    $expires
+ * @return bool
+ */
+function dlm_verify_download_token( $user_id, $book_id, $token, $expires ) {
+	if ( empty( $token ) || empty( $expires ) || ! $user_id || ! $book_id ) {
+		return false;
+	}
+
+	if ( intval( $expires ) < time() ) {
+		return false; // Token has expired
+	}
+
+	$expected = hash_hmac( 'sha256', $user_id . '|' . $book_id . '|' . $expires, wp_salt( 'nonce' ) );
+	return hash_equals( $expected, $token );
+}
+
 
 

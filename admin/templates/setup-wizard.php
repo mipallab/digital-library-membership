@@ -148,8 +148,53 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 				</div>
 
 				<div class="setup-form-group">
-					<label for="setup-recaptcha-secret-key">Secret Key</label>
+					<label for="setup-recaptcha-secret-key"><?php esc_html_e( 'Secret Key', 'digital-library-membership' ); ?></label>
 					<input type="password" id="setup-recaptcha-secret-key" class="dlm-input" placeholder="e.g. 6LdK_secret..." value="<?php echo esc_attr( get_option( 'dlm_recaptcha_secret_key' ) ); ?>">
+				</div>
+
+				<!-- Social Sign-In Optional Card -->
+				<div class="setup-demo-toggle-card" style="flex-direction: column; align-items: stretch; gap: 12px;">
+					<div style="display: flex; align-items: center; justify-content: space-between;">
+						<div class="demo-toggle-info">
+							<div class="demo-toggle-title">
+								<i class="fa-solid fa-share-nodes" style="color: #855300;"></i>
+								<strong><?php esc_html_e( 'Social Sign-In (Optional)', 'digital-library-membership' ); ?></strong>
+							</div>
+							<p class="demo-toggle-desc"><?php esc_html_e( 'Allow one-click sign in with Google or Apple. You can configure now or later from Settings.', 'digital-library-membership' ); ?></p>
+						</div>
+						<button type="button" class="dlm-wizard-btn btn-outline" style="padding: 6px 12px; font-size: 12px;" onclick="$('#setup-social-fields').slideToggle();">
+							<?php esc_html_e( 'Configure', 'digital-library-membership' ); ?>
+						</button>
+					</div>
+
+					<div id="setup-social-fields" style="display: none; padding-top: 10px; border-top: 1px solid #eadecc;">
+						<div class="setup-form-group">
+							<label for="setup-google-client-id"><?php esc_html_e( 'Google Client ID', 'digital-library-membership' ); ?></label>
+							<input type="text" id="setup-google-client-id" class="dlm-input" placeholder="e.g. 123456789-xxx.apps.googleusercontent.com" value="<?php echo esc_attr( get_option( 'dlm_google_client_id' ) ); ?>">
+						</div>
+						<div class="setup-form-group">
+							<label for="setup-google-client-secret"><?php esc_html_e( 'Google Client Secret', 'digital-library-membership' ); ?></label>
+							<input type="password" id="setup-google-client-secret" class="dlm-input" placeholder="e.g. GOCSPX-xxxx..." value="<?php echo esc_attr( get_option( 'dlm_google_client_secret' ) ); ?>">
+						</div>
+						<div style="margin-top: 12px;">
+							<?php require DLM_PATH . 'admin/templates/partials/social-login-guide.php'; ?>
+						</div>
+					</div>
+				</div>
+
+				<!-- Demo Data Import Toggle Card -->
+				<div class="setup-demo-toggle-card">
+					<div class="demo-toggle-info">
+						<div class="demo-toggle-title">
+							<i class="fa-solid fa-wand-magic-sparkles" style="color: #855300;"></i>
+							<strong><?php esc_html_e( 'Import Demo Data (Recommended for Testing)', 'digital-library-membership' ); ?></strong>
+						</div>
+						<p class="demo-toggle-desc"><?php esc_html_e( 'Automatically populate realistic books (covering all 3 access models), member accounts, categories, tags, and sample orders to test immediately.', 'digital-library-membership' ); ?></p>
+					</div>
+					<label class="dlm-switch">
+						<input type="checkbox" id="setup-import-demo-toggle" checked>
+						<span class="dlm-slider"></span>
+					</label>
 				</div>
 
 				<div class="pane-actions flex-between">
@@ -479,11 +524,91 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 .btn-primary:active, .btn-outline:active {
 	transform: scale(0.98);
 }
+
+.setup-demo-toggle-card {
+	background: #fdfbf7;
+	border: 1px solid #eadecc;
+	border-radius: 16px;
+	padding: 16px 20px;
+	margin-top: 24px;
+	margin-bottom: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.demo-toggle-info {
+	flex: 1;
+}
+
+.demo-toggle-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	color: #2b1a00;
+	margin-bottom: 4px;
+}
+
+.demo-toggle-desc {
+	font-size: 12px;
+	color: #72604d;
+	margin: 0;
+	line-height: 1.4;
+}
+
+.dlm-switch {
+	position: relative;
+	display: inline-block;
+	width: 48px;
+	height: 26px;
+	flex-shrink: 0;
+}
+
+.dlm-switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.dlm-slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #d1c7b8;
+	transition: .3s;
+	border-radius: 26px;
+}
+
+.dlm-slider:before {
+	position: absolute;
+	content: "";
+	height: 20px;
+	width: 20px;
+	left: 3px;
+	bottom: 3px;
+	background-color: white;
+	transition: .3s;
+	border-radius: 50%;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.dlm-switch input:checked + .dlm-slider {
+	background-color: #855300;
+}
+
+.dlm-switch input:checked + .dlm-slider:before {
+	transform: translateX(22px);
+}
 </style>
 
 <script>
 jQuery(document).ready(function($) {
-	const ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+	const ajaxurl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
 	const nonce = '<?php echo esc_attr( $public_nonce ); ?>';
 
 	// Step 1 Click
@@ -556,8 +681,11 @@ jQuery(document).ready(function($) {
 		const recaptchaVer = $('#setup-recaptcha-version').val();
 		const siteKey = $('#setup-recaptcha-site-key').val();
 		const secretKey = $('#setup-recaptcha-secret-key').val();
+		const googleClientId = $('#setup-google-client-id').val();
+		const googleClientSecret = $('#setup-google-client-secret').val();
+		const importDemo = $('#setup-import-demo-toggle').is(':checked') ? 1 : 0;
 		
-		btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Completing...');
+		btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> ' + (importDemo ? 'Importing demo & completing...' : 'Completing...'));
 		
 		$.post(ajaxurl, {
 			action: 'dlm_save_setup_wizard',
@@ -565,12 +693,15 @@ jQuery(document).ready(function($) {
 			step: 'recaptcha',
 			recaptcha_version: recaptchaVer,
 			recaptcha_site_key: siteKey,
-			recaptcha_secret_key: secretKey
+			recaptcha_secret_key: secretKey,
+			google_client_id: googleClientId,
+			google_client_secret: googleClientSecret,
+			import_demo: importDemo
 		}, function(res) {
 			if (res.success) {
 				finishSetup();
 			} else {
-				alert(res.data.message || 'Error saving recaptcha credentials.');
+				alert(res.data.message || 'Error saving credentials.');
 				btn.prop('disabled', false).html('Complete Setup <i class="fa-solid fa-circle-check"></i>');
 			}
 		});
@@ -579,7 +710,9 @@ jQuery(document).ready(function($) {
 	// Step 3 Skip & Finish
 	$('#btn-skip-step-3').on('click', function() {
 		const btn = $(this);
-		btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Completing...');
+		const importDemo = $('#setup-import-demo-toggle').is(':checked') ? 1 : 0;
+
+		btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> ' + (importDemo ? 'Importing demo & completing...' : 'Completing...'));
 		
 		$.post(ajaxurl, {
 			action: 'dlm_save_setup_wizard',
@@ -587,7 +720,8 @@ jQuery(document).ready(function($) {
 			step: 'recaptcha',
 			recaptcha_version: 'v2',
 			recaptcha_site_key: '',
-			recaptcha_secret_key: ''
+			recaptcha_secret_key: '',
+			import_demo: importDemo
 		}, function(res) {
 			if (res.success) {
 				finishSetup();
@@ -599,7 +733,7 @@ jQuery(document).ready(function($) {
 
 	function finishSetup() {
 		$('.step-node[data-step="3"]').removeClass('active').addClass('completed');
-		window.location.href = '<?php echo admin_url("admin.php?page=dlm-library"); ?>';
+		window.location.href = '<?php echo esc_url( admin_url( 'admin.php?page=dlm-library' ) ); ?>';
 	}
 });
 </script>

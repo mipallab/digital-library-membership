@@ -60,16 +60,27 @@ class DLM_Public {
 					$categories_set[] = $category;
 				}
 
+				$access_type = ! empty( $b->access_type ) ? $b->access_type : 'subscription_only';
+				$price       = isset( $b->price ) ? floatval( $b->price ) : 0.00;
+				$currency    = get_option( 'dlm_currency', 'USD' );
+				$user_access = dlm_user_can_access_book( $user_id, $b->id );
+				$has_bought  = ( $is_logged_in && $user_id ) ? $this->db->has_purchased_book( $user_id, $b->id ) : false;
+
 				$books_data[] = array(
-					'id'          => $b->id,
-					'title'       => $b->title,
-					'author'      => $b->author,
-					'description' => ! empty( $b->description ) ? wp_strip_all_tags( $b->description ) : '',
-					'category'    => $category,
-					'progress'    => $progress_percent,
-					'cover'       => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
-					'date'        => ! empty( $b->created_at ) ? date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) : '',
-					'read_url'    => home_url( '/read/' . $b->id . '/' ),
+					'id'              => $b->id,
+					'title'           => $b->title,
+					'author'          => $b->author,
+					'description'     => ! empty( $b->description ) ? wp_strip_all_tags( $b->description ) : '',
+					'category'        => $category,
+					'progress'        => $progress_percent,
+					'cover'           => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
+					'date'            => ! empty( $b->created_at ) ? date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) : '',
+					'read_url'        => home_url( '/read/' . $b->id . '/' ),
+					'access_type'     => $access_type,
+					'price'           => $price,
+					'price_formatted' => number_format( $price, 2 ) . ' ' . $currency,
+					'user_access'     => $user_access, // 'locked' | 'read_only' | 'read_download'
+					'has_purchased'   => $has_bought,
 				);
 			}
 		}
@@ -356,6 +367,12 @@ class DLM_Public {
 				isLoggedIn: <?php echo json_encode( $is_logged_in ); ?>,
 				isActive: <?php echo json_encode( $is_active ); ?>,
 				pricingUrl: <?php echo json_encode( $pricing_url ); ?>,
+				currency: <?php echo json_encode( $currency ); ?>,
+				paymentEngine: <?php echo json_encode( dlm_get_payment_engine() ); ?>,
+				ajaxUrl: <?php echo json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
+				nonce: <?php echo json_encode( wp_create_nonce( 'dlm_public_nonce' ) ); ?>,
+				restNonce: <?php echo json_encode( wp_create_nonce( 'wp_rest' ) ); ?>,
+				restBase: <?php echo json_encode( esc_url_raw( rest_url( 'dlm/v1' ) ) ); ?>,
 				books: <?php echo json_encode( $books_data ); ?>
 			};
 		</script>
@@ -583,7 +600,10 @@ class DLM_Public {
 				<div class="dlm-msg-box info" style="background:#f0f7ff; border:1px solid #cce5ff; color:#004085; padding:15px 20px; border-radius:12px; margin-bottom:20px; text-align:center;">
 					<p style="margin:0; font-size:14px;"><?php esc_html_e( 'Please sign in or create an account to complete your checkout.', 'digital-library-membership' ); ?></p>
 				</div>
-				<?php echo $this->get_login_prompt_html(); ?>
+				<?php 
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Pre-escaped HTML auth template.
+				echo $this->get_login_prompt_html(); 
+				?>
 			<?php else : ?>
 				<!-- Payment Methods Container for Logged-In Users -->
 				<div class="dlm-payment-box" style="background:#fff; border:1px solid #d2d2d7; border-radius:20px; padding:30px; box-shadow:0 4px 20px rgba(0,0,0,0.03);">
@@ -764,6 +784,56 @@ class DLM_Public {
 						<p class="text-[15px] text-[#5f5e60] leading-relaxed"><?php esc_html_e( 'Continue your journey through the curated archives.', 'digital-library-membership' ); ?></p>
 					</header>
 
+					<?php 
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+					if ( isset( $_GET['social_error'] ) ) : 
+						// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+						$social_err = sanitize_key( wp_unslash( $_GET['social_error'] ) );
+						$err_msg = __( 'Social authentication could not be completed. Please try again or use your password.', 'digital-library-membership' );
+						if ( 'google_access_denied' === $social_err || 'apple_access_denied' === $social_err ) {
+							$err_msg = __( 'Sign-in was cancelled by the provider.', 'digital-library-membership' );
+						} elseif ( 'unverified_email' === $social_err ) {
+							$err_msg = __( 'Your social account email is not verified.', 'digital-library-membership' );
+						}
+					?>
+						<div class="dlm-auth-alert text-xs p-3 rounded-xl mb-4 font-medium bg-red-50 text-red-700 border border-red-200 block">
+							<i class="fa-solid fa-circle-exclamation mr-1.5"></i><?php echo esc_html( $err_msg ); ?>
+						</div>
+					<?php endif; ?>
+
+					<?php 
+					$enable_google = get_option( 'dlm_enable_google_login', '0' );
+					$enable_apple  = get_option( 'dlm_enable_apple_login', '0' );
+					$has_social    = ( '1' === $enable_google || '1' === $enable_apple );
+					if ( $has_social ) : ?>
+						<div class="dlm-social-buttons space-y-2.5 mb-5">
+							<?php if ( '1' === $enable_google ) : ?>
+								<a href="<?php echo esc_url( DLM_Social_Auth::get_auth_url( 'google' ) ); ?>" class="w-full h-12 bg-white hover:bg-gray-50 border border-[#d8c3ad] text-[#1a1c1c] font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm hover:shadow hover:border-gray-400 no-underline cursor-pointer">
+									<svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+										<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+										<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+										<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+										<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+									</svg>
+									<span><?php esc_html_e( 'Continue with Google', 'digital-library-membership' ); ?></span>
+								</a>
+							<?php endif; ?>
+
+							<?php if ( '1' === $enable_apple ) : ?>
+								<a href="<?php echo esc_url( DLM_Social_Auth::get_auth_url( 'apple' ) ); ?>" class="w-full h-12 bg-black hover:bg-neutral-800 text-white font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-2.5 shadow-sm hover:shadow no-underline cursor-pointer">
+									<i class="fa-brands fa-apple text-lg leading-none"></i>
+									<span><?php esc_html_e( 'Continue with Apple', 'digital-library-membership' ); ?></span>
+								</a>
+							<?php endif; ?>
+
+							<div class="relative flex py-1.5 items-center">
+								<div class="flex-grow border-t border-[#d8c3ad]/50"></div>
+								<span class="flex-shrink mx-3 text-[11px] uppercase font-bold text-[#867461] tracking-wider"><?php esc_html_e( 'Or with email', 'digital-library-membership' ); ?></span>
+								<div class="flex-grow border-t border-[#d8c3ad]/50"></div>
+							</div>
+						</div>
+					<?php endif; ?>
+
 					<form id="dlm-login-form" class="space-y-4">
 						<div class="dlm-auth-alert text-xs p-3 rounded-xl mb-3 font-medium" style="display:none;"></div>
 
@@ -827,6 +897,35 @@ class DLM_Public {
 						<h1 class="text-[28px] md:text-[34px] font-bold text-[#1a1c1c] mb-2 leading-tight tracking-tight"><?php esc_html_e( 'Create Account', 'digital-library-membership' ); ?></h1>
 						<p class="text-[15px] text-[#5f5e60] leading-relaxed"><?php esc_html_e( 'Join our digital library and unlock unlimited access.', 'digital-library-membership' ); ?></p>
 					</header>
+
+					<?php if ( $has_social ) : ?>
+						<div class="dlm-social-buttons space-y-2.5 mb-5">
+							<?php if ( '1' === $enable_google ) : ?>
+								<a href="<?php echo esc_url( DLM_Social_Auth::get_auth_url( 'google' ) ); ?>" class="w-full h-12 bg-white hover:bg-gray-50 border border-[#d8c3ad] text-[#1a1c1c] font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-3 shadow-sm hover:shadow hover:border-gray-400 no-underline cursor-pointer">
+									<svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+										<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+										<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+										<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+										<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+									</svg>
+									<span><?php esc_html_e( 'Continue with Google', 'digital-library-membership' ); ?></span>
+								</a>
+							<?php endif; ?>
+
+							<?php if ( '1' === $enable_apple ) : ?>
+								<a href="<?php echo esc_url( DLM_Social_Auth::get_auth_url( 'apple' ) ); ?>" class="w-full h-12 bg-black hover:bg-neutral-800 text-white font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-2.5 shadow-sm hover:shadow no-underline cursor-pointer">
+									<i class="fa-brands fa-apple text-lg leading-none"></i>
+									<span><?php esc_html_e( 'Continue with Apple', 'digital-library-membership' ); ?></span>
+								</a>
+							<?php endif; ?>
+
+							<div class="relative flex py-1.5 items-center">
+								<div class="flex-grow border-t border-[#d8c3ad]/50"></div>
+								<span class="flex-shrink mx-3 text-[11px] uppercase font-bold text-[#867461] tracking-wider"><?php esc_html_e( 'Or with email', 'digital-library-membership' ); ?></span>
+								<div class="flex-grow border-t border-[#d8c3ad]/50"></div>
+							</div>
+						</div>
+					<?php endif; ?>
 
 					<form id="dlm-register-form" class="space-y-4">
 						<div class="dlm-auth-alert text-xs p-3 rounded-xl mb-3 font-medium" style="display:none;"></div>

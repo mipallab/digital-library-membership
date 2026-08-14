@@ -82,21 +82,24 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         selectedInterval = $(this).data('interval');
         
-        // If WooCommerce integration is active, redirect to WC checkout
-        if (dlmParams.useWooCommerce) {
+        // If WooCommerce integration is active, redirect to WC headless checkout
+        if (dlmParams.useWooCommerce || (window.dlmLibraryData && window.dlmLibraryData.paymentEngine === 'woocommerce')) {
             var $btn = $(this);
             var originalText = $btn.text();
             $btn.prop('disabled', true).text('Redirecting to checkout...');
 
-            $.post(dlmParams.ajaxUrl, {
-                action: 'dlm_wc_add_to_cart_redirect',
-                nonce: dlmParams.nonce,
+            var ajaxUrl = (window.dlmLibraryData && window.dlmLibraryData.ajaxUrl) || dlmParams.ajaxUrl;
+            var nonce = (window.dlmLibraryData && window.dlmLibraryData.nonce) || dlmParams.nonce;
+
+            $.post(ajaxUrl, {
+                action: 'dlm_wc_create_subscription_order',
+                nonce: nonce,
                 interval: selectedInterval
             }, function(res) {
-                if (res.success && res.data.redirect) {
+                if (res.success && res.data && res.data.redirect) {
                     window.location.href = res.data.redirect;
                 } else {
-                    alert(res.data.message || 'An error occurred during WooCommerce redirect.');
+                    alert((res.data && res.data.message) || 'An error occurred during WooCommerce redirect.');
                     $btn.prop('disabled', false).text(originalText);
                 }
             }).fail(function() {
@@ -165,14 +168,14 @@ jQuery(document).ready(function($) {
         $btn.prop('disabled', true).text('Redirecting to WooCommerce checkout...');
 
         $.post(dlmParams.ajaxUrl, {
-            action: 'dlm_wc_add_to_cart_redirect',
+            action: 'dlm_wc_create_subscription_order',
             nonce: dlmParams.nonce,
             interval: planInterval
         }, function(res) {
-            if (res.success && res.data.redirect) {
+            if (res.success && res.data && res.data.redirect) {
                 window.location.href = res.data.redirect;
             } else {
-                alert(res.data.message || 'An error occurred during WooCommerce redirect.');
+                alert((res.data && res.data.message) || 'An error occurred during WooCommerce redirect.');
                 $btn.prop('disabled', false).text(originalText);
             }
         }).fail(function() {
@@ -468,13 +471,23 @@ jQuery(document).ready(function($) {
                     : '<div class="w-full h-full bg-surface-container flex items-center justify-center text-center p-4"><span class="font-bold text-xs">' + book.title + '</span></div>';
 
                 var actionButton = '';
-                if (isActive) {
-                    var btnText = book.progress > 0 ? 'Continue Reading' : 'Read Now';
+                var userAccess = book.user_access || (isActive ? 'read_only' : 'locked');
+                
+                if (userAccess === 'read_download') {
+                    var btnText = book.progress > 0 ? 'Continue' : 'Read';
+                    actionButton = '<span class="px-3 py-1.5 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform mr-1.5">' + btnText + '</span>' +
+                                   '<button class="p-1.5 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform dlm-btn-download" data-book-id="' + book.id + '" title="Download PDF">⬇</button>';
+                } else if (userAccess === 'read_only') {
+                    var btnText = book.progress > 0 ? 'Continue Reading' : 'Read Online';
                     actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">' + btnText + '</span>';
-                } else if (isLoggedIn) {
-                    actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Subscribe to Read</span>';
                 } else {
-                    actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Sign In to Read</span>';
+                    if (book.access_type === 'purchase_only' || book.access_type === 'hybrid') {
+                        actionButton = '<button class="px-3 py-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform dlm-btn-buy" data-book-id="' + book.id + '">Buy (' + (book.price_formatted || '$' + book.price) + ')</button>';
+                    } else if (isLoggedIn) {
+                        actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Subscribe to Read</span>';
+                    } else {
+                        actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Sign In to Read</span>';
+                    }
                 }
 
                 var progressBarHtml = book.progress > 0 
@@ -586,7 +599,7 @@ jQuery(document).ready(function($) {
         var selectedBookForModal = null;
 
         $('body').on('click', '.dlm-book-card-item', function(e) {
-            if ($(e.target).closest('a').length) return; // Allow direct link clicks on overlay buttons
+            if ($(e.target).closest('button, .dlm-btn-buy, .dlm-btn-download').length) return; // Allow button clicks directly
 
             var bookId = $(this).data('book-id');
             var book = allBooks.find(function(b) { return b.id == bookId; });
@@ -608,12 +621,18 @@ jQuery(document).ready(function($) {
             $('#modal-description').text(book.description || 'No synopsis available for this book.');
 
             var $actionBtn = $('#modal-action-btn');
-            if (isActive) {
-                $actionBtn.text('Start Reading').attr('href', book.read_url);
-            } else if (isLoggedIn) {
-                $actionBtn.text('Unlock Access').attr('href', pricingUrl);
+            var userAccess = book.user_access || (isActive ? 'read_only' : 'locked');
+            
+            if (userAccess === 'read_download' || userAccess === 'read_only') {
+                $actionBtn.text('Start Reading').attr('href', book.read_url).removeClass('dlm-btn-buy').removeAttr('data-book-id');
             } else {
-                $actionBtn.text('Sign Up to Read').attr('href', pricingUrl);
+                if (book.access_type === 'purchase_only' || book.access_type === 'hybrid') {
+                    $actionBtn.text('Buy Book (' + (book.price_formatted || '$' + book.price) + ')').attr('href', '#').addClass('dlm-btn-buy').attr('data-book-id', book.id);
+                } else if (isLoggedIn) {
+                    $actionBtn.text('Unlock Membership').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                } else {
+                    $actionBtn.text('Sign Up to Read').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                }
             }
 
             $('#reader-modal').removeClass('hidden').addClass('flex');
@@ -646,4 +665,79 @@ jQuery(document).ready(function($) {
         // Initial Grid Render
         renderLibraryGrid();
     }
+
+    // ------------------------------------------------------------------------
+    // HEADLESS WOOCOMMERCE BOOK PURCHASE & SECURE DOWNLOAD HANDLERS
+    // ------------------------------------------------------------------------
+
+    // Buy Individual Book via Headless WooCommerce
+    $('body').on('click', '.dlm-btn-buy', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var bookId = $(this).data('book-id');
+        if (!bookId) return;
+
+        var $btn = $(this);
+        var originalText = $btn.text();
+        $btn.prop('disabled', true).text('Opening Checkout...');
+
+        var ajaxUrl = (window.dlmLibraryData && window.dlmLibraryData.ajaxUrl) || (window.dlmParams && window.dlmParams.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var nonce = (window.dlmLibraryData && window.dlmLibraryData.nonce) || (window.dlmParams && window.dlmParams.nonce) || '';
+
+        $.post(ajaxUrl, {
+            action: 'dlm_wc_create_book_order',
+            nonce: nonce,
+            book_id: bookId
+        }, function(res) {
+            if (res.success && res.data && res.data.payment_url) {
+                window.location.href = res.data.payment_url;
+            } else {
+                var msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to proceed to checkout.';
+                alert(msg);
+                $btn.prop('disabled', false).text(originalText);
+            }
+        }).fail(function() {
+            alert('Connection timeout during checkout.');
+            $btn.prop('disabled', false).text(originalText);
+        });
+    });
+
+    // Secure Signed Token Download for Book PDFs
+    $('body').on('click', '.dlm-btn-download, #dlm-download-doc-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var bookId = $(this).data('book-id') || $('body').data('book-id');
+        if (!bookId) return;
+
+        var restBase = (window.dlmLibraryData && window.dlmLibraryData.restBase) || '/wp-json/dlm/v1';
+        var restNonce = (window.dlmLibraryData && window.dlmLibraryData.restNonce) || '';
+
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+
+        $.ajax({
+            url: restBase + '/book/' + bookId + '/download-token',
+            method: 'GET',
+            beforeSend: function(xhr) {
+                if (restNonce) {
+                    xhr.setRequestHeader('X-WP-Nonce', restNonce);
+                }
+            },
+            success: function(res) {
+                $btn.prop('disabled', false);
+                if (res && res.download_url) {
+                    window.location.href = res.download_url;
+                } else {
+                    alert('Could not generate secure download token.');
+                }
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false);
+                var err = xhr.responseJSON ? xhr.responseJSON.message : 'Permission denied for download.';
+                alert(err);
+            }
+        });
+    });
 });

@@ -100,6 +100,8 @@ if ( $is_logged_in ) {
 }
 
 // Pricing options
+$currency = get_option( 'dlm_currency', 'USD' );
+$payment_engine = dlm_get_payment_engine();
 $price_monthly = get_option( 'dlm_pricing_monthly', '12.00' );
 $price_yearly = get_option( 'dlm_pricing_yearly', '99.00' );
 $price_lifetime = get_option( 'dlm_pricing_lifetime', '199.00' );
@@ -507,6 +509,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		<main class="relative z-10 w-full max-w-[480px] py-8">
 			<?php
 			$dlm_public = new DLM_Public( $dlm_db, new DLM_Checkout() );
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Pre-escaped HTML auth template.
 			echo $dlm_public->get_login_prompt_html();
 			?>
 		</main>
@@ -740,6 +743,11 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						$progress = $dlm_db->get_reading_progress( $user_id, $book->id );
 						$pct = $progress ? intval( $progress->progress_percent ) : 0;
 						
+						// Access calculation
+						$user_access = dlm_user_can_access_book( $user_id, $book->id );
+						$access_type = ! empty( $book->access_type ) ? $book->access_type : 'subscription_only';
+						$price       = isset( $book->price ) ? floatval( $book->price ) : 0.00;
+
 						// Get categories for filtering (rolling up child terms to parent category slugs)
 						$cats_raw = wp_get_post_terms( $book->id, 'dlm_book_category' );
 						$slugs = array();
@@ -761,7 +769,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						// Is favorited
 						$is_fav = in_array( $book->id, $fav_books );
 						?>
-						<div class="group cursor-pointer book-card-el" data-book-id="<?php echo intval( $book->id ); ?>" data-title="<?php echo esc_attr( strtolower( $book->title ) ); ?>" data-author="<?php echo esc_attr( strtolower( $book->author ) ); ?>" data-categories="<?php echo esc_attr( $cat_slugs_str ); ?>" data-pct="<?php echo intval($pct); ?>">
+						<div class="group cursor-pointer book-card-el" data-book-id="<?php echo intval( $book->id ); ?>" data-title="<?php echo esc_attr( strtolower( $book->title ) ); ?>" data-author="<?php echo esc_attr( strtolower( $book->author ) ); ?>" data-categories="<?php echo esc_attr( $cat_slugs_str ); ?>" data-pct="<?php echo intval($pct); ?>" data-user-access="<?php echo esc_attr($user_access); ?>" data-access-type="<?php echo esc_attr($access_type); ?>" data-price="<?php echo esc_attr($price); ?>">
 							<div class="aspect-[3/4] rounded-2xl overflow-hidden mb-4 book-card-shadow relative">
 								<?php if ( $book->cover_image_url ) : ?>
 									<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="<?php echo esc_url( $book->cover_image_url ); ?>" loading="lazy">
@@ -778,11 +786,34 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 									</button>
 								</div>
 
-								<!-- Reading Trigger overlay -->
-								<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity" onclick="Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
-									<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">
-										<?php echo $has_active_sub ? 'Read Now' : 'Subscribe to Read'; ?>
-									</span>
+								<!-- Reading & Download Trigger overlay -->
+								<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity px-2">
+									<?php if ( $user_access === 'read_download' ) : ?>
+										<button class="px-3 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform flex items-center gap-1.5" onclick="event.stopPropagation(); Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
+											<i class="fa-solid fa-book-open"></i> Read
+										</button>
+										<button class="p-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform" onclick="event.stopPropagation(); Aurelian.downloadBook(<?php echo intval($book->id); ?>)" title="Download PDF">
+											<i class="fa-solid fa-download"></i>
+										</button>
+									<?php elseif ( $user_access === 'read_only' ) : ?>
+										<button class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform" onclick="event.stopPropagation(); Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
+											Read Online
+										</button>
+									<?php else : ?>
+										<?php if ( $access_type === 'purchase_only' ) : ?>
+											<button class="px-3 py-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform text-center" onclick="event.stopPropagation(); Aurelian.buyBook(<?php echo intval($book->id); ?>)">
+												Buy <?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>
+											</button>
+										<?php elseif ( $access_type === 'hybrid' ) : ?>
+											<button class="px-3 py-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform text-center" onclick="event.stopPropagation(); Aurelian.buyBook(<?php echo intval($book->id); ?>)">
+												Buy <?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>
+											</button>
+										<?php else : ?>
+											<button class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform" onclick="event.stopPropagation(); showTab('membership')">
+												Subscribe to Read
+											</button>
+										<?php endif; ?>
+									<?php endif; ?>
 								</div>
 							</div>
 							<h5 class="font-bold text-on-surface leading-snug mb-1 group-hover:text-primary transition-colors line-clamp-1"><?php echo esc_html( $book->title ); ?></h5>
@@ -1915,6 +1946,25 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			checkoutInterval = interval;
 			checkoutPrice = price;
 
+			if ('<?php echo esc_js($payment_engine); ?>' === 'woocommerce') {
+				Aurelian.toast('Initializing secure checkout...', { accent: true });
+				jQuery.post(dlmParams.ajaxUrl, {
+					action: 'dlm_wc_create_subscription_order',
+					nonce: dlmParams.nonce,
+					interval: interval
+				}, function(res) {
+					if (res.success && res.data && res.data.redirect) {
+						window.location.href = res.data.redirect;
+					} else {
+						const msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to proceed to checkout.';
+						Aurelian.toast(msg);
+					}
+				}).fail(function() {
+					Aurelian.toast('Checkout connection timeout.');
+				});
+				return;
+			}
+
 			let planLabel = 'Monthly Plan';
 			let sumTitle = 'Monthly Subscription';
 			if (interval === 'yearly') {
@@ -2310,8 +2360,57 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				jQuery('#xp-fraction').text(`${state.xp} / ${nextLevelXP} XP`);
 			}
 
+			function downloadBook(bookId) {
+				toast('Requesting secure download token...', { accent: true });
+				jQuery.ajax({
+					url: '<?php echo esc_js( esc_url_raw( rest_url( 'dlm/v1/book/' ) ) ); ?>' + bookId + '/download-token',
+					method: 'GET',
+					beforeSend: function(xhr) {
+						xhr.setRequestHeader('X-WP-Nonce', '<?php echo esc_js( wp_create_nonce( 'wp_rest' ) ); ?>');
+					},
+					success: function(res) {
+						if (res && res.download_url) {
+							toast('Starting secure download...', { accent: true });
+							window.location.href = res.download_url;
+						} else {
+							toast('Failed to generate download token.');
+						}
+					},
+					error: function(xhr) {
+						const err = xhr.responseJSON ? xhr.responseJSON.message : 'Download permission denied.';
+						toast(err);
+					}
+				});
+			}
+
+			function buyBook(bookId) {
+				toast('Preparing direct checkout...', { accent: true });
+				jQuery.post('<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>', {
+					action: 'dlm_wc_create_book_order',
+					nonce: '<?php echo esc_js( $dlm_public_nonce ); ?>',
+					book_id: bookId
+				}, function(res) {
+					if (res.success && res.data && res.data.payment_url) {
+						window.location.href = res.data.payment_url;
+					} else {
+						const msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to initiate purchase.';
+						toast(msg);
+					}
+				}).fail(function() {
+					toast('Connection timeout. Please try again.');
+				});
+			}
+
 			function openBook(bookId, title) {
-				if (!dlmParams.hasActiveSub) {
+				const card = jQuery(`.book-card-el[data-book-id="${bookId}"]`);
+				const access = card.length ? card.attr('data-user-access') : null;
+				const accessType = card.length ? card.attr('data-access-type') : 'subscription_only';
+
+				if (access === 'locked') {
+					if (accessType === 'purchase_only' || accessType === 'hybrid') {
+						buyBook(bookId);
+						return;
+					}
 					Aurelian.toast('Access locked. Select a membership plan first', { duration: 4000 });
 					showTab('membership');
 					return;
@@ -2421,7 +2520,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			jQuery(document).ready(init);
 
 			global.Aurelian = {
-				loadState, saveState, addXP, awardBadge, toast, openBook, surpriseMe,
+				loadState, saveState, addXP, awardBadge, toast, openBook, downloadBook, buyBook, surpriseMe,
 				syncStreakBadges, xpForNextLevel
 			};
 		})(window);

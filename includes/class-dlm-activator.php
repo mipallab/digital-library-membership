@@ -32,6 +32,11 @@ class DLM_Activator {
 			file_path varchar(255) NOT NULL,
 			file_type varchar(50) NOT NULL,
 			status varchar(20) DEFAULT 'publish',
+			access_type varchar(30) DEFAULT 'subscription_only',
+			price decimal(10,2) DEFAULT '0.00',
+			publish_date datetime DEFAULT NULL,
+			wc_product_id bigint(20) DEFAULT 0,
+			is_demo tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id)
 		) $charset_collate;";
@@ -47,6 +52,7 @@ class DLM_Activator {
 			status varchar(50) NOT NULL,
 			plan_interval varchar(20) NOT NULL,
 			expires_at datetime NOT NULL,
+			is_demo tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
@@ -65,6 +71,7 @@ class DLM_Activator {
 			amount decimal(10,2) NOT NULL,
 			currency varchar(10) NOT NULL,
 			status varchar(50) NOT NULL,
+			is_demo tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY user_id (user_id)
@@ -98,12 +105,36 @@ class DLM_Activator {
 			KEY user_id (user_id)
 		) $charset_collate;";
 
+		// Table 6: Book Purchases Log
+		$table_purchases = $wpdb->prefix . 'dlm_book_purchases';
+		$sql_purchases = "CREATE TABLE $table_purchases (
+			id bigint(20) NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) NOT NULL,
+			book_id bigint(20) NOT NULL,
+			order_id varchar(255) NOT NULL,
+			amount decimal(10,2) NOT NULL DEFAULT '0.00',
+			currency varchar(10) NOT NULL DEFAULT 'USD',
+			payment_engine varchar(50) NOT NULL DEFAULT 'default',
+			status varchar(50) NOT NULL DEFAULT 'completed',
+			is_demo tinyint(1) DEFAULT 0,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY user_id (user_id),
+			KEY book_id (book_id),
+			KEY order_id (order_id)
+		) $charset_collate;";
+
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql_books );
 		dbDelta( $sql_subscriptions );
 		dbDelta( $sql_transactions );
 		dbDelta( $sql_progress );
 		dbDelta( $sql_analytics );
+		dbDelta( $sql_purchases );
+
+		// Update DB version tracking
+		update_option( 'dlm_db_version', '2.1.0' );
 
 		// Setup secure storage directory
 		self::setup_secure_directory();
@@ -206,5 +237,15 @@ class DLM_Activator {
 		}
 
 		// Note: read_dlm_library capability is granted dynamically per-user upon valid active subscription.
+	}
+
+	/**
+	 * Check and execute DB schema migration if version mismatch
+	 */
+	public static function check_and_upgrade_db() {
+		$installed_ver = get_option( 'dlm_db_version', '1.0.0' );
+		if ( version_compare( $installed_ver, '2.1.0', '<' ) ) {
+			self::activate();
+		}
 	}
 }

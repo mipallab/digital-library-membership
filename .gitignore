@@ -1,2 +1,9 @@
-digital-library-membership.zip
-tmp-dist/
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*.log
+*.zip
+*.tar.gz
+*.crdownload
+.idea/
+.vscode/

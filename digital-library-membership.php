@@ -8,14 +8,14 @@
  * that starts the plugin.
  *
  * @link              https://profiles.wordpress.org/mipallab123
- * @since             1.9.11
+ * @since             1.0.0
  * @package           DLM
  *
  * @wordpress-plugin
  * Plugin Name:       Digital Library Membership
  * Plugin URI:        https://profiles.wordpress.org/mipallab123/digital-library-membership
  * Description:       A premium, secure subscription membership plugin to read digital books frontend with a physical page-flip feel.
- * Version:           1.9.12
+ * Version:           2.2.0
  * Author:            Majadul Islam Pallab
  * Author URI:        https://profiles.wordpress.org/mipallab123
  * License:           GPL-2.0+
@@ -23,7 +23,8 @@
  * Domain Path:       /languages
  * Requires at least: 6.2
  * Requires PHP:      8.1
- * Tested up to:      7.0
+ * Tested up to:      7.0.4
+ * Elementor tested up to: 3.25.0
  */
 
 // If this file is called directly, abort.
@@ -34,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Define Plugin Constants
  */
-define( 'DLM_VERSION', '1.9.12' );
+define( 'DLM_VERSION', '2.2.0' );
 define( 'DLM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DLM_URL', plugin_dir_url( __FILE__ ) );
 
@@ -81,6 +82,16 @@ function activate_digital_library_membership() {
 	// Schedule daily subscription expiry warning
 	if ( ! wp_next_scheduled( 'dlm_daily_subscription_check' ) ) {
 		wp_schedule_event( time(), 'daily', 'dlm_daily_subscription_check' );
+	}
+
+	// Schedule hourly check for scheduled books
+	if ( ! wp_next_scheduled( 'dlm_check_scheduled_books' ) ) {
+		wp_schedule_event( time(), 'hourly', 'dlm_check_scheduled_books' );
+	}
+
+	// Schedule daily cleanup for stale pending orders (24 hours)
+	if ( ! wp_next_scheduled( 'dlm_cleanup_stale_orders' ) ) {
+		wp_schedule_event( time(), 'daily', 'dlm_cleanup_stale_orders' );
 	}
 }
 

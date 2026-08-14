@@ -7,7 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initSidebarCollapse();
     initMediaUploaders();
     initCatalogSearch();
+    initPurchasesFilter();
     initSettingsTabs();
+    initDemoDataActions();
     initCharts();
     initCustomScrollbars();
     handleInitialNavigation();
@@ -115,6 +117,26 @@ function initModalSystem() {
         }
     });
 
+    // Handle Access Type Price input visibility on Add Book Modal
+    jQuery(document).on('change', '#add-book-access-type', function() {
+        const val = jQuery(this).val();
+        if (val === 'purchase_only' || val === 'hybrid') {
+            jQuery('#add-book-price-container').slideDown(150);
+        } else {
+            jQuery('#add-book-price-container').slideUp(150);
+        }
+    });
+
+    // Handle Access Type Price input visibility on Edit Book Modal
+    jQuery(document).on('change', '#edit-book-access-type', function() {
+        const val = jQuery(this).val();
+        if (val === 'purchase_only' || val === 'hybrid') {
+            jQuery('#edit-book-price-container').slideDown(150);
+        } else {
+            jQuery('#edit-book-price-container').slideUp(150);
+        }
+    });
+
     // Populate Edit Book Modal from Row attributes
     jQuery(document).on('click', '.btn-edit-book', function() {
         const tr = jQuery(this).closest('tr');
@@ -126,6 +148,9 @@ function initModalSystem() {
         const status = tr.attr('data-status');
         const category = tr.attr('data-category');
         const tags = tr.attr('data-tags');
+        const accessType = tr.attr('data-access-type') || 'subscription_only';
+        const price = tr.attr('data-price') || '0.00';
+        const publishDate = tr.attr('data-publish-date') || '';
 
         jQuery('#edit-book-id').val(id);
         jQuery('#edit-book-title').val(title);
@@ -135,6 +160,15 @@ function initModalSystem() {
         jQuery('#edit-book-status').val(status);
         jQuery('#edit-book-category').val(category);
         jQuery('#edit-book-tags').val(tags);
+        jQuery('#edit-book-access-type').val(accessType);
+        jQuery('#edit-book-price').val(price);
+        jQuery('#edit-book-publish-date').val(publishDate);
+
+        if (accessType === 'purchase_only' || accessType === 'hybrid') {
+            jQuery('#edit-book-price-container').show();
+        } else {
+            jQuery('#edit-book-price-container').hide();
+        }
 
         if (cover) {
             jQuery('#edit-cover-preview').attr('src', cover).removeClass('hidden');
@@ -316,7 +350,7 @@ function initWPBooksMediaUploader(btnId, inputId, previewId, placeholderId) {
 function initSettingsTabs() {
     window.switchSettingsTab = function(tabName) {
         // Toggle tab highlights
-        const tabIds = ['general', 'stripe', 'paypal', 'woocommerce', 'security'];
+        const tabIds = ['general', 'stripe', 'paypal', 'woocommerce', 'social', 'security', 'demo'];
         tabIds.forEach(id => {
             const btn = document.getElementById('tab-settings-' + id);
             const panel = document.getElementById('panel-settings-' + id);
@@ -662,11 +696,115 @@ function initCatalogSearch() {
     }
 }
 
+/* 8B. PURCHASES REAL-TIME FILTERING */
+function initPurchasesFilter() {
+    const searchInput = document.getElementById('purchases-search-input');
+    const accessFilter = document.getElementById('purchases-filter-access');
+    const statusFilter = document.getElementById('purchases-filter-status');
+
+    function applyPurchasesFilters() {
+        const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+        const access = (accessFilter ? accessFilter.value : 'all');
+        const status = (statusFilter ? statusFilter.value : 'all');
+
+        const rows = document.querySelectorAll('#purchases-table tbody tr.purchase-row');
+        rows.forEach(row => {
+            const buyer = (row.getAttribute('data-buyer') || '').toLowerCase();
+            const bookTitle = (row.getAttribute('data-book-title') || '').toLowerCase();
+            const rowAccess = row.getAttribute('data-access-type') || 'subscription_only';
+            const rowStatus = row.getAttribute('data-status') || '';
+
+            const matchesQuery = !query || buyer.includes(query) || bookTitle.includes(query);
+            const matchesAccess = (access === 'all') || (rowAccess === access);
+            const matchesStatus = (status === 'all') || (rowStatus === status);
+
+            if (matchesQuery && matchesAccess && matchesStatus) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyPurchasesFilters);
+    }
+    if (accessFilter) {
+        accessFilter.addEventListener('change', applyPurchasesFilters);
+    }
+    if (statusFilter) {
+        statusFilter.addEventListener('change', applyPurchasesFilters);
+    }
+}
+
 function initCustomScrollbars() {
     jQuery(document).on('mouseenter', '.dlm-hover-scrollbar', function() {
         jQuery(this).addClass('firefox-hover');
     }).on('mouseleave', '.dlm-hover-scrollbar', function() {
         jQuery(this).removeClass('firefox-hover');
+    });
+}
+
+/* 12. DEMO DATA IMPORT & REMOVAL ACTIONS */
+function initDemoDataActions() {
+    jQuery(document).on('click', '#dlm-btn-import-demo', function(e) {
+        e.preventDefault();
+        const $btn = jQuery(this);
+        const originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Importing Demo Data...');
+
+        const ajaxUrl = window.ajaxurl || 'admin-ajax.php';
+        const nonce = (window.dlmLibraryData && window.dlmLibraryData.nonce) || jQuery('input[name="dlm_nonce"]').val() || jQuery('#dlm_public_nonce').val() || jQuery('input[name="_wpnonce"]').val();
+
+        jQuery.post(ajaxUrl, {
+            action: 'dlm_import_demo_data',
+            nonce: nonce
+        }, function(res) {
+            if (res.success) {
+                window.showAlertModal('Demo Data Imported', res.data.message || 'Demo data imported successfully!', 'success');
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                window.showAlertModal('Import Failed', (res.data && res.data.message) || 'An error occurred during demo data import.', 'error');
+                $btn.prop('disabled', false).html(originalHtml);
+            }
+        }).fail(function() {
+            window.showAlertModal('Connection Timeout', 'Failed to connect to server. Please try again.', 'error');
+            $btn.prop('disabled', false).html(originalHtml);
+        });
+    });
+
+    jQuery(document).on('click', '#dlm-btn-remove-demo', function(e) {
+        e.preventDefault();
+        if (!confirm('This will permanently remove all demo books, sample members, demo transactions, and associated demo products. Are you sure you want to proceed?')) {
+            return;
+        }
+
+        const $btn = jQuery(this);
+        const originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Removing Demo Data...');
+
+        const ajaxUrl = window.ajaxurl || 'admin-ajax.php';
+        const nonce = (window.dlmLibraryData && window.dlmLibraryData.nonce) || jQuery('input[name="dlm_nonce"]').val() || jQuery('#dlm_public_nonce').val() || jQuery('input[name="_wpnonce"]').val();
+
+        jQuery.post(ajaxUrl, {
+            action: 'dlm_remove_demo_data',
+            nonce: nonce
+        }, function(res) {
+            if (res.success) {
+                window.showAlertModal('Demo Data Removed', res.data.message || 'Demo data removed successfully.', 'info');
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                window.showAlertModal('Removal Failed', (res.data && res.data.message) || 'An error occurred during demo data removal.', 'error');
+                $btn.prop('disabled', false).html(originalHtml);
+            }
+        }).fail(function() {
+            window.showAlertModal('Connection Timeout', 'Failed to connect to server. Please try again.', 'error');
+            $btn.prop('disabled', false).html(originalHtml);
+        });
     });
 }
 

@@ -46,19 +46,53 @@ class DLM_API {
 			'callback'            => array( $this, 'log_analytics_event' ),
 			'permission_callback' => array( $this, 'check_read_permission' ),
 		) );
+
+		register_rest_route( 'dlm/v1', '/book/(?P<id>\d+)/download-token', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'get_download_token' ),
+			'permission_callback' => array( $this, 'check_download_permission' ),
+		) );
+
+		register_rest_route( 'dlm/v1', '/book/(?P<id>\d+)/download', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( $this, 'download_book_file' ),
+			'permission_callback' => '__return_true', // Validated via signed token inside callback
+		) );
 	}
 
 	/**
-	 * Validate REST request reader capabilities
+	 * Validate REST request reader capabilities using the central access matrix
 	 */
 	public function check_read_permission( $request ) {
 		$user_id = get_current_user_id();
 		if ( ! $user_id ) {
 			return new WP_Error( 'dlm_unauthorized', __( 'You must be logged in.', 'digital-library-membership' ), array( 'status' => 401 ) );
 		}
-		
-		if ( ! $this->db->has_active_membership( $user_id ) ) {
-			return new WP_Error( 'dlm_no_subscription', __( 'Active subscription required.', 'digital-library-membership' ), array( 'status' => 403 ) );
+
+		$book_id = intval( $request['id'] );
+		$access  = dlm_user_can_access_book( $user_id, $book_id );
+
+		if ( 'locked' === $access ) {
+			return new WP_Error( 'dlm_access_locked', __( 'Active subscription or book purchase required to access this title.', 'digital-library-membership' ), array( 'status' => 403 ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Validate REST request download token generation permissions
+	 */
+	public function check_download_permission( $request ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return new WP_Error( 'dlm_unauthorized', __( 'You must be logged in.', 'digital-library-membership' ), array( 'status' => 401 ) );
+		}
+
+		$book_id = intval( $request['id'] );
+		$access  = dlm_user_can_access_book( $user_id, $book_id );
+
+		if ( 'read_download' !== $access ) {
+			return new WP_Error( 'dlm_download_forbidden', __( 'Download access is not available for this title with your current access level.', 'digital-library-membership' ), array( 'status' => 403 ) );
 		}
 
 		return true;
@@ -201,6 +235,73 @@ class DLM_API {
 		}
 
 		return rest_ensure_response( array( 'success' => true ) );
+	}
+
+	/**
+	 * Get a signed, time-limited download token URL for authorized user
+	 */
+	public function get_download_token( $request ) {
+		$book_id = intval( $request['id'] );
+		$user_id = get_current_user_id();
+
+		$token_data = dlm_generate_download_token( $user_id, $book_id );
+
+		return rest_ensure_response( array(
+			'success'      => true,
+			'download_url' => $token_data['url'],
+			'expires'      => $token_data['expires'],
+		) );
+	}
+
+	/**
+	 * Securely stream and force file download using validated time-limited signed token
+	 */
+	public function download_book_file( $request ) {
+		$book_id = intval( $request['id'] );
+		
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token   = isset( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$expires = isset( $_GET['expires'] ) ? intval( $_GET['expires'] ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$uid     = isset( $_GET['uid'] ) ? intval( $_GET['uid'] ) : get_current_user_id();
+
+		if ( ! dlm_verify_download_token( $uid, $book_id, $token, $expires ) ) {
+			wp_die( esc_html__( 'Invalid, expired, or tampered download token. Please request a new download link from your member library.', 'digital-library-membership' ), 403 );
+		}
+
+		if ( dlm_user_can_access_book( $uid, $book_id ) !== 'read_download' ) {
+			wp_die( esc_html__( 'You do not have permission to download this title.', 'digital-library-membership' ), 403 );
+		}
+
+		$book = $this->db->get_book( $book_id );
+		if ( ! $book || ! file_exists( $book->file_path ) ) {
+			wp_die( esc_html__( 'The requested book file does not exist on this server.', 'digital-library-membership' ), 404 );
+		}
+
+		// Clean filename for attachment
+		$file_ext       = pathinfo( $book->file_path, PATHINFO_EXTENSION ) ?: 'pdf';
+		$clean_filename = sanitize_file_name( $book->title ) . '.' . $file_ext;
+
+		// Clean all output buffers
+		while ( ob_get_level() ) {
+			ob_end_clean();
+		}
+
+		// Security & caching headers
+		header( 'Content-Description: File Transfer' );
+		header( 'Content-Type: application/octet-stream' );
+		header( 'Content-Disposition: attachment; filename="' . $clean_filename . '"' );
+		header( 'Content-Transfer-Encoding: binary' );
+		header( 'Expires: 0' );
+		header( 'Cache-Control: private, must-revalidate, post-check=0, pre-check=0' );
+		header( 'Pragma: public' );
+		header( 'Content-Length: ' . filesize( $book->file_path ) );
+
+		// Stream file out
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
+		readfile( $book->file_path );
+		exit;
 	}
 }
 

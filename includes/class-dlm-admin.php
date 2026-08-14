@@ -133,11 +133,24 @@ class DLM_Admin {
 			'dlm_recaptcha_mode',
 			'dlm_setup_completed',
 			'dlm_github_token',
+			'dlm_payment_engine',
+			'dlm_enable_google_login',
+			'dlm_google_client_id',
+			'dlm_google_client_secret',
+			'dlm_enable_apple_login',
+			'dlm_apple_services_id',
+			'dlm_apple_team_id',
+			'dlm_apple_key_id',
+			'dlm_delete_data_on_uninstall',
 		);
 
 		foreach ( $settings as $opt ) {
 			register_setting( 'dlm_settings_group', $opt, array( 'sanitize_callback' => 'sanitize_text_field' ) );
 		}
+
+		register_setting( 'dlm_settings_group', 'dlm_apple_private_key', array(
+			'sanitize_callback' => 'sanitize_textarea_field',
+		) );
 
 		register_setting( 'dlm_settings_group', 'dlm_currency', array(
 			'default'           => 'USD',
@@ -172,7 +185,8 @@ class DLM_Admin {
 				'dlm_max_upload_size',
 				'dlm_max_upload_size_error',
 				sprintf(
-					__( 'Cannot set max upload size (%d MB) greater than the server limit (%d MB). Reverted to default value of 50 MB.', 'digital-library-membership' ),
+					/* translators: 1: Requested upload size in MB, 2: Server max upload size in MB */
+					__( 'Cannot set max upload size (%1$d MB) greater than the server limit (%2$d MB). Reverted to default value of 50 MB.', 'digital-library-membership' ),
 					$value,
 					$server_max
 				),
@@ -233,18 +247,74 @@ class DLM_Admin {
 			$recaptcha_version = isset( $_POST['recaptcha_version'] ) ? sanitize_key( $_POST['recaptcha_version'] ) : 'v2';
 			$recaptcha_site    = isset( $_POST['recaptcha_site_key'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_site_key'] ) ) : '';
 			$recaptcha_secret  = isset( $_POST['recaptcha_secret_key'] ) ? sanitize_text_field( wp_unslash( $_POST['recaptcha_secret_key'] ) ) : '';
+			$import_demo       = ! empty( $_POST['import_demo'] ) && ( $_POST['import_demo'] === '1' || $_POST['import_demo'] === 'true' );
 
 			update_option( 'dlm_recaptcha_version', $recaptcha_version );
 			update_option( 'dlm_recaptcha_site_key', $recaptcha_site );
 			update_option( 'dlm_recaptcha_secret_key', $recaptcha_secret );
 
+			// Save Social Login if provided
+			if ( ! empty( $_POST['google_client_id'] ) ) {
+				update_option( 'dlm_google_client_id', sanitize_text_field( wp_unslash( $_POST['google_client_id'] ) ) );
+				if ( ! empty( $_POST['google_client_secret'] ) ) {
+					update_option( 'dlm_google_client_secret', sanitize_text_field( wp_unslash( $_POST['google_client_secret'] ) ) );
+				}
+				update_option( 'dlm_enable_google_login', '1' );
+			}
+
 			// Mark setup as completed!
 			update_option( 'dlm_setup_completed', 'yes' );
 
-			wp_send_json_success( array( 'message' => __( 'Google ReCAPTCHA configured. Setup completed!', 'digital-library-membership' ) ) );
+			// If admin opted to import demo data during wizard setup
+			if ( $import_demo ) {
+				$demo_mgr = new DLM_Demo_Data( $this->db, $this->checkout );
+				$demo_mgr->import();
+			}
+
+			wp_send_json_success( array( 'message' => __( 'Configuration saved. Setup completed!', 'digital-library-membership' ) ) );
 		}
 
 		wp_send_json_error( array( 'message' => __( 'Invalid setup step.', 'digital-library-membership' ) ) );
+	}
+
+	/**
+	 * AJAX handler: Import demo data
+	 */
+	public function ajax_import_demo_data() {
+		if ( ! current_user_can( 'manage_dlm_library' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-library-membership' ) ) );
+		}
+
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+
+		$demo_mgr = new DLM_Demo_Data( $this->db, $this->checkout );
+		$result   = $demo_mgr->import();
+
+		if ( $result['success'] ) {
+			wp_send_json_success( $result );
+		} else {
+			wp_send_json_error( $result );
+		}
+	}
+
+	/**
+	 * AJAX handler: Remove demo data
+	 */
+	public function ajax_remove_demo_data() {
+		if ( ! current_user_can( 'manage_dlm_library' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-library-membership' ) ) );
+		}
+
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+
+		$demo_mgr = new DLM_Demo_Data( $this->db, $this->checkout );
+		$result   = $demo_mgr->remove();
+
+		if ( $result['success'] ) {
+			wp_send_json_success( $result );
+		} else {
+			wp_send_json_error( $result );
+		}
 	}
 
 	/**
@@ -266,8 +336,14 @@ class DLM_Admin {
 			set_transient( 'dlm_trending_books', $trending_books, 15 * MINUTE_IN_SECONDS );
 		}
 
-		$currency = get_option( 'dlm_currency', 'USD' );
-		$books    = $this->db->get_books( 'all' );
+		$currency       = get_option( 'dlm_currency', 'USD' );
+		$books          = $this->db->get_books( 'all' );
+		$book_purchases = $this->db->get_book_purchases();
+
+		// Demo data statistics
+		$demo_mgr       = new DLM_Demo_Data( $this->db, $this->checkout );
+		$is_demo_active = $demo_mgr->is_demo_imported();
+		$demo_stats     = $demo_mgr->get_demo_stats();
 
 		// Compute metrics for the catalog views
 		$total_books     = count( $books );
@@ -354,6 +430,17 @@ class DLM_Admin {
 			wp_die( esc_html__( 'Failed to move uploaded document to secure repository.', 'digital-library-membership' ) );
 		}
 
+		$access_type  = isset( $_POST['access_type'] ) ? sanitize_text_field( wp_unslash( $_POST['access_type'] ) ) : 'subscription_only';
+		$price        = isset( $_POST['price'] ) ? floatval( $_POST['price'] ) : 0.00;
+		$publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : null;
+
+		$status = 'publish';
+		if ( isset( $_POST['status'] ) && sanitize_text_field( wp_unslash( $_POST['status'] ) ) === 'draft' ) {
+			$status = 'draft';
+		} elseif ( ! empty( $publish_date ) && strtotime( $publish_date ) > current_time( 'timestamp' ) ) {
+			$status = 'future';
+		}
+
 		// Insert DB entry
 		$book_data = array(
 			'title'           => sanitize_text_field( wp_unslash( $_POST['title'] ) ),
@@ -362,7 +449,10 @@ class DLM_Admin {
 			'cover_image_url' => esc_url_raw( wp_unslash( $_POST['cover_image_url'] ) ),
 			'file_path'       => $target_path,
 			'file_type'       => $file_ext,
-			'status'          => ( isset( $_POST['status'] ) && sanitize_text_field( wp_unslash( $_POST['status'] ) ) === 'draft' ) ? 'draft' : 'publish',
+			'status'          => $status,
+			'access_type'     => $access_type,
+			'price'           => $price,
+			'publish_date'    => $publish_date,
 		);
 
 		$book_id = $this->db->insert_book( $book_data );
@@ -380,6 +470,10 @@ class DLM_Admin {
 				$tag_names = array_filter( $tag_names );
 				wp_set_object_terms( $book_id, $tag_names, 'dlm_book_tag' );
 			}
+
+			// Synchronize with WooCommerce virtual product if purchase_only or hybrid
+			$wc_manager = new DLM_WooCommerce( $this->db, $this->checkout );
+			$wc_manager->sync_book_wc_product( $book_id, $book_data );
 
 			delete_transient( 'dlm_analytics_summary' );
 			delete_transient( 'dlm_trending_books' );
@@ -410,12 +504,26 @@ class DLM_Admin {
 			wp_die( esc_html__( 'Book not found.', 'digital-library-membership' ) );
 		}
 
+		$access_type  = isset( $_POST['access_type'] ) ? sanitize_text_field( wp_unslash( $_POST['access_type'] ) ) : 'subscription_only';
+		$price        = isset( $_POST['price'] ) ? floatval( $_POST['price'] ) : 0.00;
+		$publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : null;
+
+		$status = 'publish';
+		if ( isset( $_POST['status'] ) && $_POST['status'] === 'draft' ) {
+			$status = 'draft';
+		} elseif ( ! empty( $publish_date ) && strtotime( $publish_date ) > current_time( 'timestamp' ) ) {
+			$status = 'future';
+		}
+
 		$book_data = array(
 			'title'           => sanitize_text_field( $_POST['title'] ),
 			'author'          => sanitize_text_field( $_POST['author'] ),
 			'description'     => wp_kses_post( $_POST['description'] ),
 			'cover_image_url' => esc_url_raw( $_POST['cover_image_url'] ),
-			'status'          => ( isset( $_POST['status'] ) && $_POST['status'] === 'draft' ) ? 'draft' : 'publish',
+			'status'          => $status,
+			'access_type'     => $access_type,
+			'price'           => $price,
+			'publish_date'    => $publish_date,
 		);
 
 		// Check if a new file was uploaded
@@ -495,6 +603,10 @@ class DLM_Admin {
 			$tag_names = array_filter( $tag_names );
 			wp_set_object_terms( $book_id, $tag_names, 'dlm_book_tag' );
 		}
+
+		// Synchronize with WooCommerce virtual product if purchase_only or hybrid
+		$wc_manager = new DLM_WooCommerce( $this->db, $this->checkout );
+		$wc_manager->sync_book_wc_product( $book_id, $book_data );
 
 		delete_transient( 'dlm_analytics_summary' );
 		delete_transient( 'dlm_trending_books' );
@@ -1082,6 +1194,11 @@ class DLM_Admin {
 				wp_mail( $admin_email, $admin_subject, $admin_body );
 
 			} elseif ( $status === 'refunded' ) {
+				// If transaction is for a book, refund and revoke access
+				if ( strpos( $tx->subscription_id, 'BOOK-' ) === 0 ) {
+					$this->db->refund_book_purchase( $tx->transaction_id );
+				}
+
 				// Deactivate user subscription
 				if ( $sub ) {
 					$this->db->update_subscription( $tx->subscription_id, array(
@@ -1096,10 +1213,10 @@ class DLM_Admin {
 
 				// Send email to user
 				if ( $user_data ) {
-					$user_subject = __( 'Your Subscription has been Refunded', 'digital-library-membership' );
+					$user_subject = __( 'Your Subscription / Book Access has been Refunded', 'digital-library-membership' );
 					/* translators: 1: User display name, 2: Transaction amount, 3: Currency */
 					$user_body    = sprintf(
-						__( "Hello %1\$s,\n\nWe would like to inform you that your order transaction of %2\$s %3\$s has been marked as refunded/cancelled.\n\nYour access to the digital library has been suspended.\n\nBest regards,\nDigital Library", 'digital-library-membership' ),
+						__( "Hello %1\$s,\n\nWe would like to inform you that your order transaction of %2\$s %3\$s has been marked as refunded/cancelled.\n\nYour digital access has been revoked.\n\nBest regards,\nDigital Library", 'digital-library-membership' ),
 						$user_data->display_name,
 						number_format( $tx->amount, 2 ),
 						$tx->currency
@@ -1111,7 +1228,7 @@ class DLM_Admin {
 				$admin_subject = __( 'Order Transaction Refunded', 'digital-library-membership' );
 				$admin_body    = sprintf(
 					// translators: %s is the transaction ID
-					__( "Transaction ID: %s has been marked as refunded and subscription suspended.", 'digital-library-membership' ),
+					__( "Transaction ID: %s has been marked as refunded and access suspended.", 'digital-library-membership' ),
 					$tx->transaction_id
 				);
 				wp_mail( $admin_email, $admin_subject, $admin_body );

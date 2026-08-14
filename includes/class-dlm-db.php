@@ -34,12 +34,25 @@ class DLM_DB {
 	/**
 	 * Get list of books
 	 */
-	public function get_books( $status = 'publish' ) {
+	public function get_books( $status = 'publish', $include_future = false ) {
 		global $wpdb;
 		$table = $this->get_table_name( 'books' );
 		if ( $status === 'all' ) {
 			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i ORDER BY created_at DESC", $table ) );
 		}
+		
+		if ( $status === 'publish' && ! $include_future ) {
+			$now = current_time( 'mysql' );
+			return $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM %i WHERE status = %s AND (publish_date IS NULL OR publish_date <= %s) ORDER BY created_at DESC",
+					$table,
+					'publish',
+					$now
+				)
+			);
+		}
+
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status = %s ORDER BY created_at DESC", $table, $status ) );
 	}
 
@@ -49,19 +62,23 @@ class DLM_DB {
 	public function insert_book( $data ) {
 		global $wpdb;
 		$table = $this->get_table_name( 'books' );
-		$wpdb->insert(
-			$table,
-			array(
-				'title'           => sanitize_text_field( $data['title'] ),
-				'author'          => sanitize_text_field( $data['author'] ),
-				'description'     => wp_kses_post( $data['description'] ),
-				'cover_image_url' => esc_url_raw( $data['cover_image_url'] ),
-				'file_path'       => sanitize_text_field( $data['file_path'] ),
-				'file_type'       => sanitize_text_field( $data['file_type'] ),
-				'status'          => sanitize_text_field( $data['status'] ),
-				'created_at'      => current_time( 'mysql' ),
-			)
+		
+		$insert_data = array(
+			'title'           => sanitize_text_field( $data['title'] ),
+			'author'          => sanitize_text_field( $data['author'] ),
+			'description'     => wp_kses_post( $data['description'] ),
+			'cover_image_url' => esc_url_raw( $data['cover_image_url'] ),
+			'file_path'       => sanitize_text_field( $data['file_path'] ),
+			'file_type'       => sanitize_text_field( $data['file_type'] ),
+			'status'          => sanitize_text_field( $data['status'] ),
+			'access_type'     => isset( $data['access_type'] ) ? sanitize_text_field( $data['access_type'] ) : 'subscription_only',
+			'price'           => isset( $data['price'] ) ? floatval( $data['price'] ) : 0.00,
+			'publish_date'    => ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null,
+			'wc_product_id'   => isset( $data['wc_product_id'] ) ? intval( $data['wc_product_id'] ) : 0,
+			'created_at'      => current_time( 'mysql' ),
 		);
+
+		$wpdb->insert( $table, $insert_data );
 		return $wpdb->insert_id;
 	}
 
@@ -426,6 +443,19 @@ class DLM_DB {
 			'status'          => sanitize_text_field( $data['status'] ),
 		);
 
+		if ( isset( $data['access_type'] ) ) {
+			$fields['access_type'] = sanitize_text_field( $data['access_type'] );
+		}
+		if ( isset( $data['price'] ) ) {
+			$fields['price'] = floatval( $data['price'] );
+		}
+		if ( array_key_exists( 'publish_date', $data ) ) {
+			$fields['publish_date'] = ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null;
+		}
+		if ( isset( $data['wc_product_id'] ) ) {
+			$fields['wc_product_id'] = intval( $data['wc_product_id'] );
+		}
+
 		if ( ! empty( $data['file_path'] ) ) {
 			$fields['file_path'] = sanitize_text_field( $data['file_path'] );
 		}
@@ -434,6 +464,252 @@ class DLM_DB {
 		}
 
 		return $wpdb->update( $table, $fields, array( 'id' => intval( $id ) ) );
+	}
+
+	/**
+	 * Check if user has completed a purchase for a specific book
+	 */
+	public function has_purchased_book( $user_id, $book_id ) {
+		if ( ! $user_id || ! $book_id ) {
+			return false;
+		}
+
+		// Admin override
+		if ( user_can( $user_id, 'manage_options' ) ) {
+			return true;
+		}
+
+		global $wpdb;
+		$table = $this->get_table_name( 'book_purchases' );
+		
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			return false;
+		}
+
+		$purchase = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id FROM %i WHERE user_id = %d AND book_id = %d AND status = %s LIMIT 1",
+				$table,
+				$user_id,
+				$book_id,
+				'completed'
+			)
+		);
+
+		return ! empty( $purchase );
+	}
+
+	/**
+	 * Get array of book IDs purchased by user
+	 */
+	public function get_user_purchased_book_ids( $user_id ) {
+		if ( ! $user_id ) {
+			return array();
+		}
+
+		global $wpdb;
+		$table = $this->get_table_name( 'book_purchases' );
+		
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			return array();
+		}
+
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT book_id FROM %i WHERE user_id = %d AND status = %s",
+				$table,
+				$user_id,
+				'completed'
+			)
+		);
+
+		return ! empty( $ids ) ? array_map( 'intval', $ids ) : array();
+	}
+
+	/**
+	 * Insert a book purchase record
+	 */
+	public function insert_book_purchase( $data ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'book_purchases' );
+
+		// Check if record already exists for this order
+		$existing = $wpdb->get_row(
+			$wpdb->prepare( "SELECT id FROM %i WHERE order_id = %s", $table, $data['order_id'] )
+		);
+
+		if ( $existing ) {
+			$wpdb->update(
+				$table,
+				array(
+					'status'     => sanitize_text_field( $data['status'] ),
+					'updated_at' => current_time( 'mysql' ),
+				),
+				array( 'id' => $existing->id )
+			);
+			return $existing->id;
+		}
+
+		$wpdb->insert(
+			$table,
+			array(
+				'user_id'        => intval( $data['user_id'] ),
+				'book_id'        => intval( $data['book_id'] ),
+				'order_id'       => sanitize_text_field( $data['order_id'] ),
+				'amount'         => floatval( $data['amount'] ),
+				'currency'       => sanitize_text_field( $data['currency'] ),
+				'payment_engine' => sanitize_text_field( $data['payment_engine'] ),
+				'status'         => sanitize_text_field( $data['status'] ),
+				'created_at'     => current_time( 'mysql' ),
+				'updated_at'     => current_time( 'mysql' ),
+			)
+		);
+
+		return $wpdb->insert_id;
+	}
+
+	/**
+	 * Update book purchase by order ID
+	 */
+	public function update_book_purchase( $order_id, $data ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'book_purchases' );
+		$data['updated_at'] = current_time( 'mysql' );
+		return $wpdb->update(
+			$table,
+			$data,
+			array( 'order_id' => sanitize_text_field( $order_id ) )
+		);
+	}
+
+	/**
+	 * Refund a book purchase and immediately revoke access
+	 */
+	public function refund_book_purchase( $order_id ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'book_purchases' );
+		return $wpdb->update(
+			$table,
+			array(
+				'status'     => 'refunded',
+				'updated_at' => current_time( 'mysql' ),
+			),
+			array( 'order_id' => sanitize_text_field( $order_id ) )
+		);
+	}
+
+	/**
+	 * Get book purchases with optional filtering for admin dashboard
+	 */
+	public function get_book_purchases( $filters = array() ) {
+		global $wpdb;
+		$t_pur = $this->get_table_name( 'book_purchases' );
+		$t_bks = $this->get_table_name( 'books' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_pur ) ) !== $t_pur ) {
+			return array();
+		}
+
+		$where = array( '1=1' );
+		$args  = array();
+
+		if ( ! empty( $filters['access_type'] ) && $filters['access_type'] !== 'all' ) {
+			$where[] = 'b.access_type = %s';
+			$args[]  = $filters['access_type'];
+		}
+
+		if ( ! empty( $filters['book_id'] ) ) {
+			$where[] = 'p.book_id = %d';
+			$args[]  = intval( $filters['book_id'] );
+		}
+
+		if ( ! empty( $filters['status'] ) && $filters['status'] !== 'all' ) {
+			$where[] = 'p.status = %s';
+			$args[]  = $filters['status'];
+		}
+
+		$where_clause = implode( ' AND ', $where );
+
+		$query = "SELECT p.*, b.title as book_title, b.access_type, b.cover_image_url, u.display_name, u.user_email 
+			FROM {$t_pur} p
+			LEFT JOIN {$t_bks} b ON p.book_id = b.id
+			LEFT JOIN {$wpdb->users} u ON p.user_id = u.ID
+			WHERE {$where_clause}
+			ORDER BY p.created_at DESC";
+
+		if ( ! empty( $args ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_results( $wpdb->prepare( $query, $args ) );
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_results( $query );
+	}
+
+	/**
+	 * Auto-cancel stale pending orders older than 24 hours (Cron job)
+	 */
+	public function cleanup_stale_orders() {
+		global $wpdb;
+		$t_pur  = $this->get_table_name( 'book_purchases' );
+		$t_subs = $this->get_table_name( 'subscriptions' );
+		$t_tx   = $this->get_table_name( 'transactions' );
+		$cutoff = gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) );
+
+		// Clean up stale book purchases
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_pur ) ) === $t_pur ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE %i SET status = 'cancelled', updated_at = %s WHERE status = 'pending' AND created_at < %s",
+					$t_pur,
+					current_time( 'mysql' ),
+					$cutoff
+				)
+			);
+		}
+
+		// Clean up stale pending manual subscriptions older than 24 hours
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_subs ) ) === $t_subs ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE %i SET status = 'expired', updated_at = %s WHERE status = 'pending' AND created_at < %s",
+					$t_subs,
+					current_time( 'mysql' ),
+					$cutoff
+				)
+			);
+		}
+
+		// Clean up stale transactions
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_tx ) ) === $t_tx ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE %i SET status = 'cancelled' WHERE status IN ('pending', 'waiting_approval') AND created_at < %s",
+					$t_tx,
+					$cutoff
+				)
+			);
+		}
+	}
+
+	/**
+	 * Flip scheduled books with publish_date in past to 'publish' status (Cron job)
+	 */
+	public function publish_scheduled_books() {
+		global $wpdb;
+		$table = $this->get_table_name( 'books' );
+		$now   = current_time( 'mysql' );
+
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date <= %s",
+				$table,
+				$now
+			)
+		);
 	}
 
 	/**
