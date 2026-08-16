@@ -405,6 +405,14 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 									$price = isset( $bk->price ) ? floatval( $bk->price ) : 0.00;
 									$is_future = ! empty( $bk->publish_date ) && ( strtotime( $bk->publish_date ) > current_time( 'timestamp' ) );
 									$publish_date_formatted = ! empty( $bk->publish_date ) ? wp_date( 'Y-m-d\TH:i', strtotime( $bk->publish_date ) ) : '';
+									$is_featured = ! empty( $bk->is_featured );
+									$featured_title = ! empty( $bk->featured_title ) ? $bk->featured_title : '';
+									$featured_description = ! empty( $bk->featured_description ) ? $bk->featured_description : '';
+									$featured_banner_id = ! empty( $bk->featured_banner_id ) ? intval( $bk->featured_banner_id ) : 0;
+									$featured_banner_url = ! empty( $bk->featured_banner_url ) ? $bk->featured_banner_url : '';
+									$featured_btn1 = ! empty( $bk->featured_button_1_label ) ? $bk->featured_button_1_label : '';
+									$featured_btn2 = ! empty( $bk->featured_button_2_label ) ? $bk->featured_button_2_label : '';
+									$featured_order = isset( $bk->featured_order ) ? intval( $bk->featured_order ) : 0;
 								?>
 									<tr class="hover:bg-surface-container-low/30 transition-colors group" 
 										data-id="<?php echo intval( $bk->id ); ?>"
@@ -418,6 +426,14 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 										data-access-type="<?php echo esc_attr( $access_type ); ?>"
 										data-price="<?php echo esc_attr( number_format( $price, 2, '.', '' ) ); ?>"
 										data-publish-date="<?php echo esc_attr( $publish_date_formatted ); ?>"
+										data-is-featured="<?php echo $is_featured ? '1' : '0'; ?>"
+										data-featured-title="<?php echo esc_attr( $featured_title ); ?>"
+										data-featured-description="<?php echo esc_attr( $featured_description ); ?>"
+										data-featured-banner-id="<?php echo esc_attr( $featured_banner_id ); ?>"
+										data-featured-banner-url="<?php echo esc_url( $featured_banner_url ); ?>"
+										data-featured-btn1="<?php echo esc_attr( $featured_btn1 ); ?>"
+										data-featured-btn2="<?php echo esc_attr( $featured_btn2 ); ?>"
+										data-featured-order="<?php echo esc_attr( $featured_order ); ?>"
 									>
 										<td class="px-8 py-4">
 											<div class="w-14 h-20 rounded-lg shadow-md overflow-hidden bg-surface-variant shrink-0">
@@ -430,7 +446,14 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 										</td>
 										<td class="px-6 py-4">
 											<div class="flex flex-col">
-												<span class="font-bold text-on-surface text-body-lg mb-0.5"><?php echo esc_html( $bk->title ); ?></span>
+												<div class="flex items-center gap-1.5 flex-wrap">
+													<span class="font-bold text-on-surface text-body-lg mb-0.5"><?php echo esc_html( $bk->title ); ?></span>
+													<?php if ( $is_featured ) : ?>
+														<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs" title="Featured in Hero Slider">
+															<i class="fa-solid fa-star text-amber-600 text-[9px]"></i> Featured
+														</span>
+													<?php endif; ?>
+												</div>
 												<span class="text-sm text-on-surface-variant"><?php echo esc_html( $bk->author ?: __( 'Unknown Author', 'digital-library-membership' ) ); ?></span>
 											</div>
 										</td>
@@ -1825,6 +1848,70 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							</div>
 						</div>
 					</div>
+					<!-- Featured Book Section -->
+					<div class="pt-4 border-t border-outline-variant/10 space-y-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-200/50">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2.5">
+								<div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+									<i class="fa-solid fa-star text-sm"></i>
+								</div>
+								<div>
+									<label for="add-book-is-featured" class="text-xs font-bold text-on-surface cursor-pointer">Mark as Featured Book</label>
+									<p class="text-[10px] text-secondary">Promote in Member Dashboard Hero Slider & Elementor widgets.</p>
+								</div>
+							</div>
+							<label class="relative inline-flex items-center cursor-pointer">
+								<input type="checkbox" name="is_featured" id="add-book-is-featured" value="1" class="sr-only peer dlm-featured-toggle" data-target="#add-featured-fields">
+								<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+							</label>
+						</div>
+
+						<div id="add-featured-fields" class="space-y-3 pt-3 border-t border-amber-200/40 hidden">
+							<div class="space-y-1">
+								<label class="text-xs font-bold text-on-surface-variant uppercase">Featured Title (Optional Override)</label>
+								<input name="featured_title" id="add-book-featured-title" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm bg-white" placeholder="Leave empty to use original book title" type="text">
+							</div>
+							<div class="space-y-1">
+								<div class="flex justify-between items-center">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">Featured Description / Blurb</label>
+									<span class="text-[10px] text-secondary char-count"><span class="char-count-num">0</span>/220</span>
+								</div>
+								<textarea name="featured_description" id="add-book-featured-desc" maxlength="220" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm resize-none bg-white dlm-char-counter" rows="2" placeholder="Short blurb for hero banner (max 220 characters)..."></textarea>
+							</div>
+							<div class="space-y-1">
+								<label class="text-xs font-bold text-on-surface-variant uppercase">Featured Banner Image (1600x600 px)</label>
+								<div class="flex items-center gap-3">
+									<div class="w-24 h-12 bg-slate-100 rounded-lg border border-outline-variant/20 flex items-center justify-center text-secondary/30 overflow-hidden shrink-0 relative">
+										<img id="add-banner-preview" class="w-full h-full object-cover hidden" alt="Banner Preview">
+										<i id="add-banner-placeholder" class="fa-regular fa-image text-xl"></i>
+									</div>
+									<div class="flex-grow flex gap-2">
+										<input type="text" name="featured_banner_url" id="add-book-banner-input" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="Banner Image URL">
+										<input type="hidden" name="featured_banner_id" id="add-book-banner-id" value="0">
+										<button type="button" id="add-book-select-banner-btn" class="bg-surface-container-high px-3 py-2 rounded-xl text-xs font-bold hover:bg-surface-container-highest border border-outline-variant/30 shrink-0">Upload</button>
+										<button type="button" id="add-book-clear-banner-btn" class="text-error hover:bg-error-container/20 px-2 py-2 rounded-xl text-xs font-bold border border-outline-variant/30 hidden shrink-0" title="Remove Banner"><i class="fa-solid fa-xmark"></i></button>
+									</div>
+								</div>
+								<p class="text-[10px] text-secondary">Falls back to book cover image if left empty.</p>
+							</div>
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<div class="space-y-1">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">CTA Button 1 Label</label>
+									<input name="featured_button_1_label" id="add-book-btn1" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="e.g. Read Now / Pre-Order" type="text">
+								</div>
+								<div class="space-y-1">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">CTA Button 2 Label</label>
+									<input name="featured_button_2_label" id="add-book-btn2" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="e.g. Add to Wishlist" type="text">
+								</div>
+							</div>
+							<div class="space-y-1">
+								<label class="text-xs font-bold text-on-surface-variant uppercase">Slide Order / Priority</label>
+								<input name="featured_order" id="add-book-featured-order" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="0" type="number" min="0" value="0">
+								<p class="text-[10px] text-secondary">Lower numbers appear first in the slider (0 = Highest priority).</p>
+							</div>
+						</div>
+					</div>
+
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Initial Status</label>
 						<select name="status" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
@@ -1933,6 +2020,70 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							</div>
 						</div>
 					</div>
+					<!-- Featured Book Section -->
+					<div class="pt-4 border-t border-outline-variant/10 space-y-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-200/50">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2.5">
+								<div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+									<i class="fa-solid fa-star text-sm"></i>
+								</div>
+								<div>
+									<label for="edit-book-is-featured" class="text-xs font-bold text-on-surface cursor-pointer">Mark as Featured Book</label>
+									<p class="text-[10px] text-secondary">Promote in Member Dashboard Hero Slider & Elementor widgets.</p>
+								</div>
+							</div>
+							<label class="relative inline-flex items-center cursor-pointer">
+								<input type="checkbox" name="is_featured" id="edit-book-is-featured" value="1" class="sr-only peer dlm-featured-toggle" data-target="#edit-featured-fields">
+								<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+							</label>
+						</div>
+
+						<div id="edit-featured-fields" class="space-y-3 pt-3 border-t border-amber-200/40 hidden">
+							<div class="space-y-1">
+								<label class="text-xs font-bold text-on-surface-variant uppercase">Featured Title (Optional Override)</label>
+								<input name="featured_title" id="edit-book-featured-title" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm bg-white" placeholder="Leave empty to use original book title" type="text">
+							</div>
+							<div class="space-y-1">
+								<div class="flex justify-between items-center">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">Featured Description / Blurb</label>
+									<span class="text-[10px] text-secondary char-count"><span class="char-count-num">0</span>/220</span>
+								</div>
+								<textarea name="featured_description" id="edit-book-featured-desc" maxlength="220" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm resize-none bg-white dlm-char-counter" rows="2" placeholder="Short blurb for hero banner (max 220 characters)..."></textarea>
+							</div>
+							<div class="space-y-1">
+								<label class="text-xs font-bold text-on-surface-variant uppercase">Featured Banner Image (1600x600 px)</label>
+								<div class="flex items-center gap-3">
+									<div class="w-24 h-12 bg-slate-100 rounded-lg border border-outline-variant/20 flex items-center justify-center text-secondary/30 overflow-hidden shrink-0 relative">
+										<img id="edit-banner-preview" class="w-full h-full object-cover hidden" alt="Banner Preview">
+										<i id="edit-banner-placeholder" class="fa-regular fa-image text-xl"></i>
+									</div>
+									<div class="flex-grow flex gap-2">
+										<input type="text" name="featured_banner_url" id="edit-book-banner-input" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="Banner Image URL">
+										<input type="hidden" name="featured_banner_id" id="edit-book-banner-id" value="0">
+										<button type="button" id="edit-book-select-banner-btn" class="bg-surface-container-high px-3 py-2 rounded-xl text-xs font-bold hover:bg-surface-container-highest border border-outline-variant/30 shrink-0">Upload</button>
+										<button type="button" id="edit-book-clear-banner-btn" class="text-error hover:bg-error-container/20 px-2 py-2 rounded-xl text-xs font-bold border border-outline-variant/30 hidden shrink-0" title="Remove Banner"><i class="fa-solid fa-xmark"></i></button>
+									</div>
+								</div>
+								<p class="text-[10px] text-secondary">Falls back to book cover image if left empty.</p>
+							</div>
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<div class="space-y-1">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">CTA Button 1 Label</label>
+									<input name="featured_button_1_label" id="edit-book-btn1" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="e.g. Read Now / Pre-Order" type="text">
+								</div>
+								<div class="space-y-1">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">CTA Button 2 Label</label>
+									<input name="featured_button_2_label" id="edit-book-btn2" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="e.g. Add to Wishlist" type="text">
+								</div>
+							</div>
+							<div class="space-y-1">
+								<label class="text-xs font-bold text-on-surface-variant uppercase">Slide Order / Priority</label>
+								<input name="featured_order" id="edit-book-featured-order" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs bg-white" placeholder="0" type="number" min="0" value="0">
+								<p class="text-[10px] text-secondary">Lower numbers appear first in the slider (0 = Highest priority).</p>
+							</div>
+						</div>
+					</div>
+
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Status</label>
 						<select name="status" id="edit-book-status" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">

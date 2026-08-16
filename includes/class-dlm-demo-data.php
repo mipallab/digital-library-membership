@@ -237,21 +237,11 @@ class DLM_Demo_Data {
 	}
 
 	/**
-	 * Import full realistic demo dataset
+	 * Step 1: Initialize schemas, pricing defaults, sample PDF, and taxonomies
 	 *
-	 * @return array Result summary
+	 * @return array
 	 */
-	public function import() {
-		// Prevent concurrent executions
-		if ( get_transient( 'dlm_importing_demo' ) ) {
-			return array(
-				'success' => false,
-				'message' => __( 'Import is currently in progress. Please wait a moment.', 'digital-library-membership' ),
-			);
-		}
-
-		set_transient( 'dlm_importing_demo', '1', 60 );
-
+	public function import_step_init() {
 		// 1. Ensure DB schemas have is_demo column
 		DLM_Activator::check_and_upgrade_db();
 
@@ -270,13 +260,23 @@ class DLM_Demo_Data {
 		}
 
 		// 3. Ensure sample PDF & Taxonomies
-		$pdf_path = $this->ensure_sample_pdf();
-		$tax = $this->setup_taxonomies();
+		$this->ensure_sample_pdf();
+		$this->setup_taxonomies();
 
-		$wc_manager = new DLM_WooCommerce( $this->db, $this->checkout );
+		return array(
+			'success' => true,
+			'step'    => 'init',
+			'message' => __( 'Schema, defaults, sample files, and taxonomies initialized.', 'digital-library-membership' ),
+		);
+	}
 
-		// 4. Create Demo Books
-		$books_definitions = array(
+	/**
+	 * Get predefined demo books definition array
+	 *
+	 * @return array
+	 */
+	private function get_books_definitions() {
+		return array(
 			// Subscription Only Books
 			array(
 				'title'           => 'The Architecture of Silence',
@@ -373,10 +373,22 @@ class DLM_Demo_Data {
 				'publish_date'    => gmdate( 'Y-m-d H:i:s', strtotime( '+7 days' ) ),
 			),
 		);
+	}
 
-		$created_book_ids = array();
+	/**
+	 * Step 2: Import demo books & sync WooCommerce products (Idempotent)
+	 *
+	 * @return array
+	 */
+	public function import_step_books() {
+		global $wpdb;
+		$table_books = $this->db->get_table_name( 'books' );
+		$pdf_path    = $this->ensure_sample_pdf();
+		$tax         = $this->setup_taxonomies();
+		$wc_manager  = new DLM_WooCommerce( $this->db, $this->checkout );
+		$books_defs  = $this->get_books_definitions();
 
-		foreach ( $books_definitions as $b_def ) {
+		foreach ( $books_defs as $b_def ) {
 			$book_data = array(
 				'title'           => $b_def['title'],
 				'author'          => $b_def['author'],
@@ -390,13 +402,20 @@ class DLM_Demo_Data {
 				'publish_date'    => $b_def['publish_date'],
 			);
 
-			$book_id = $this->db->insert_book( $book_data );
-			if ( $book_id ) {
-				// Mark as demo in database
-				global $wpdb;
-				$table_books = $this->db->get_table_name( 'books' );
-				$wpdb->update( $table_books, array( 'is_demo' => 1 ), array( 'id' => $book_id ) );
+			// Check if demo book already exists by title (Idempotent update/insert)
+			$existing_id = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE title = %s AND is_demo = 1", $table_books, $b_def['title'] ) );
 
+			if ( $existing_id ) {
+				$this->db->update_book( intval( $existing_id ), $book_data );
+				$book_id = intval( $existing_id );
+			} else {
+				$book_id = $this->db->insert_book( $book_data );
+				if ( $book_id ) {
+					$wpdb->update( $table_books, array( 'is_demo' => 1 ), array( 'id' => $book_id ) );
+				}
+			}
+
+			if ( $book_id ) {
 				// Assign taxonomy terms
 				if ( ! empty( $b_def['category'] ) && isset( $tax['categories'][ $b_def['category'] ] ) ) {
 					wp_set_object_terms( $book_id, array( $tax['categories'][ $b_def['category'] ] ), 'dlm_book_category' );
@@ -421,13 +440,23 @@ class DLM_Demo_Data {
 						update_post_meta( $wc_prod_id, '_dlm_is_demo', '1' );
 					}
 				}
-
-				$created_book_ids[] = $book_id;
 			}
 		}
 
-		// 5. Create Demo Users
-		$users_definitions = array(
+		return array(
+			'success' => true,
+			'step'    => 'books',
+			'message' => __( 'Demo books and WooCommerce products created successfully.', 'digital-library-membership' ),
+		);
+	}
+
+	/**
+	 * Get predefined demo users definition array
+	 *
+	 * @return array
+	 */
+	private function get_users_definitions() {
+		return array(
 			array(
 				'user_login'   => 'demo_sarah',
 				'user_email'   => 'demo_sarah@example.com',
@@ -473,10 +502,19 @@ class DLM_Demo_Data {
 				'sub_type'     => 'inactive',
 			),
 		);
+	}
 
+	/**
+	 * Step 3: Create demo members & subscriptions (Idempotent)
+	 *
+	 * @return array
+	 */
+	public function import_step_users() {
+		global $wpdb;
+		$users_defs    = $this->get_users_definitions();
 		$created_users = array();
 
-		foreach ( $users_definitions as $u_def ) {
+		foreach ( $users_defs as $u_def ) {
 			$user_id = email_exists( $u_def['user_email'] );
 			if ( ! $user_id ) {
 				$user_id = username_exists( $u_def['user_login'] );
@@ -494,7 +532,7 @@ class DLM_Demo_Data {
 				) );
 			}
 
-			if ( ! is_wp_error( $user_id ) ) {
+			if ( ! is_wp_error( $user_id ) && $user_id ) {
 				update_user_meta( $user_id, '_dlm_is_demo', '1' );
 				if ( ! empty( $u_def['avatar_url'] ) ) {
 					update_user_meta( $user_id, 'dlm_avatar_url', esc_url_raw( $u_def['avatar_url'] ) );
@@ -507,76 +545,106 @@ class DLM_Demo_Data {
 					$wp_user->remove_cap( 'read_dlm_library' );
 				}
 
-				$created_users[ $u_def['user_login'] ] = array(
-					'id'       => $user_id,
-					'def'      => $u_def,
-				);
+				$created_users[ $u_def['user_login'] ] = $user_id;
 			}
 		}
 
-		// 6. Create Demo Subscriptions
-		global $wpdb;
+		// Subscriptions
 		$table_subs = $this->db->get_table_name( 'subscriptions' );
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_subs ) ) ) {
+			// Clear existing demo subscriptions to avoid duplicates on retry
+			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE is_demo = 1 OR subscription_id LIKE %s", $table_subs, 'DEMO-%' ) );
 
-		// Sarah - Active Monthly
-		if ( isset( $created_users['demo_sarah'] ) ) {
-			$s_uid = $created_users['demo_sarah']['id'];
-			$wpdb->insert( $table_subs, array(
-				'user_id'         => $s_uid,
-				'provider'        => 'stripe',
-				'subscription_id' => 'DEMO-SUB-STRIPE-SARAH',
-				'customer_id'     => 'cus_demo_sarah',
-				'status'          => 'active',
-				'plan_interval'   => 'monthly',
-				'expires_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '+30 days' ) ),
-				'is_demo'         => 1,
-				'created_at'      => current_time( 'mysql' ),
-				'updated_at'      => current_time( 'mysql' ),
-			) );
+			// Sarah - Active Monthly
+			if ( isset( $created_users['demo_sarah'] ) ) {
+				$wpdb->insert( $table_subs, array(
+					'user_id'         => $created_users['demo_sarah'],
+					'provider'        => 'stripe',
+					'subscription_id' => 'DEMO-SUB-STRIPE-SARAH',
+					'customer_id'     => 'cus_demo_sarah',
+					'status'          => 'active',
+					'plan_interval'   => 'monthly',
+					'expires_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '+30 days' ) ),
+					'is_demo'         => 1,
+					'created_at'      => current_time( 'mysql' ),
+					'updated_at'      => current_time( 'mysql' ),
+				) );
+			}
+
+			// Alex - Active Yearly
+			if ( isset( $created_users['demo_alex'] ) ) {
+				$wpdb->insert( $table_subs, array(
+					'user_id'         => $created_users['demo_alex'],
+					'provider'        => 'paypal',
+					'subscription_id' => 'DEMO-SUB-PP-ALEX',
+					'customer_id'     => 'I-DEMO-ALEX-9988',
+					'status'          => 'active',
+					'plan_interval'   => 'yearly',
+					'expires_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '+365 days' ) ),
+					'is_demo'         => 1,
+					'created_at'      => current_time( 'mysql' ),
+					'updated_at'      => current_time( 'mysql' ),
+				) );
+			}
+
+			// Clara - Inactive / Lapsed
+			if ( isset( $created_users['demo_clara'] ) ) {
+				$wpdb->insert( $table_subs, array(
+					'user_id'         => $created_users['demo_clara'],
+					'provider'        => 'manual',
+					'subscription_id' => 'DEMO-SUB-MAN-CLARA',
+					'customer_id'     => 'cust_demo_clara',
+					'status'          => 'inactive',
+					'plan_interval'   => 'monthly',
+					'expires_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-15 days' ) ),
+					'is_demo'         => 1,
+					'created_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-45 days' ) ),
+					'updated_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-15 days' ) ),
+				) );
+			}
 		}
 
-		// Alex - Active Yearly
-		if ( isset( $created_users['demo_alex'] ) ) {
-			$a_uid = $created_users['demo_alex']['id'];
-			$wpdb->insert( $table_subs, array(
-				'user_id'         => $a_uid,
-				'provider'        => 'paypal',
-				'subscription_id' => 'DEMO-SUB-PP-ALEX',
-				'customer_id'     => 'I-DEMO-ALEX-9988',
-				'status'          => 'active',
-				'plan_interval'   => 'yearly',
-				'expires_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '+365 days' ) ),
-				'is_demo'         => 1,
-				'created_at'      => current_time( 'mysql' ),
-				'updated_at'      => current_time( 'mysql' ),
-			) );
-		}
+		return array(
+			'success' => true,
+			'step'    => 'users',
+			'message' => __( 'Demo members and subscriptions created successfully.', 'digital-library-membership' ),
+		);
+	}
 
-		// Clara - Lapsed / Inactive
-		if ( isset( $created_users['demo_clara'] ) ) {
-			$c_uid = $created_users['demo_clara']['id'];
-			$wpdb->insert( $table_subs, array(
-				'user_id'         => $c_uid,
-				'provider'        => 'manual',
-				'subscription_id' => 'DEMO-SUB-MAN-CLARA',
-				'customer_id'     => 'cust_demo_clara',
-				'status'          => 'inactive',
-				'plan_interval'   => 'monthly',
-				'expires_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-15 days' ) ),
-				'is_demo'         => 1,
-				'created_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-45 days' ) ),
-				'updated_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-15 days' ) ),
-			) );
-		}
-
-		// 7. Create Demo Purchases & Transactions
+	/**
+	 * Step 4: Create demo purchases & transactions (Idempotent)
+	 *
+	 * @return array
+	 */
+	public function import_step_orders() {
+		global $wpdb;
 		$table_purchases = $this->db->get_table_name( 'book_purchases' );
 		$table_txs       = $this->db->get_table_name( 'transactions' );
+		$table_books     = $this->db->get_table_name( 'books' );
+
+		// Clean previous demo purchases & transactions to guarantee idempotency
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_purchases ) ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE is_demo = 1 OR order_id LIKE %s", $table_purchases, 'DEMO-%' ) );
+		}
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_txs ) ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE is_demo = 1 OR transaction_id LIKE %s", $table_txs, 'DEMO-%' ) );
+		}
+
+		// User lookups
+		$user_sarah = get_user_by( 'login', 'demo_sarah' );
+		$user_alex  = get_user_by( 'login', 'demo_alex' );
+		$user_david = get_user_by( 'login', 'demo_david' );
+		$user_clara = get_user_by( 'login', 'demo_clara' );
+
+		$sarah_uid = $user_sarah ? $user_sarah->ID : 0;
+		$alex_uid  = $user_alex ? $user_alex->ID : 0;
+		$david_uid = $user_david ? $user_david->ID : 0;
+		$clara_uid = $user_clara ? $user_clara->ID : 0;
 
 		// Demo transactions for subscriptions
-		if ( isset( $created_users['demo_sarah'] ) ) {
+		if ( $sarah_uid ) {
 			$wpdb->insert( $table_txs, array(
-				'user_id'         => $created_users['demo_sarah']['id'],
+				'user_id'         => $sarah_uid,
 				'subscription_id' => 'DEMO-SUB-STRIPE-SARAH',
 				'transaction_id'  => 'DEMO-TX-STRIPE-101',
 				'provider'        => 'stripe',
@@ -588,9 +656,9 @@ class DLM_Demo_Data {
 			) );
 		}
 
-		if ( isset( $created_users['demo_alex'] ) ) {
+		if ( $alex_uid ) {
 			$wpdb->insert( $table_txs, array(
-				'user_id'         => $created_users['demo_alex']['id'],
+				'user_id'         => $alex_uid,
 				'subscription_id' => 'DEMO-SUB-PP-ALEX',
 				'transaction_id'  => 'DEMO-TX-PP-102',
 				'provider'        => 'paypal',
@@ -602,128 +670,137 @@ class DLM_Demo_Data {
 			) );
 		}
 
-		// Demo purchases on books
-		if ( count( $created_book_ids ) >= 7 ) {
-			$b4_id = $created_book_ids[3]; // Mastering Distributed Systems ($29.99)
-			$b5_id = $created_book_ids[4]; // The Visual Narrative ($19.99)
-			$b6_id = $created_book_ids[5]; // Algorithmic Geometry ($14.99)
-			$b7_id = $created_book_ids[6]; // Chronicles of the Deep Cosmos ($24.99)
+		// Book ID lookups
+		$b4_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE title = %s AND is_demo = 1", $table_books, 'Mastering Distributed Systems' ) );
+		$b5_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE title = %s AND is_demo = 1", $table_books, 'The Visual Narrative: Film Composition' ) );
+		$b6_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE title = %s AND is_demo = 1", $table_books, 'Algorithmic Geometry in Modern Typography' ) );
+		$b7_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE title = %s AND is_demo = 1", $table_books, 'Chronicles of the Deep Cosmos' ) );
 
-			// 1. David Thorne owns Book 4 (Completed)
-			if ( isset( $created_users['demo_david'] ) ) {
-				$d_uid = $created_users['demo_david']['id'];
-				$wpdb->insert( $table_purchases, array(
-					'user_id'        => $d_uid,
-					'book_id'        => $b4_id,
-					'order_id'       => 'DEMO-ORD-WC-501',
-					'amount'         => 29.99,
-					'currency'       => 'USD',
-					'payment_engine' => 'woocommerce',
-					'status'         => 'completed',
-					'is_demo'        => 1,
-					'created_at'     => current_time( 'mysql' ),
-					'updated_at'     => current_time( 'mysql' ),
-				) );
+		// 1. David Thorne owns Book 4 (Completed)
+		if ( $david_uid && $b4_id ) {
+			$wpdb->insert( $table_purchases, array(
+				'user_id'        => $david_uid,
+				'book_id'        => $b4_id,
+				'order_id'       => 'DEMO-ORD-WC-501',
+				'amount'         => 29.99,
+				'currency'       => 'USD',
+				'payment_engine' => 'woocommerce',
+				'status'         => 'completed',
+				'is_demo'        => 1,
+				'created_at'     => current_time( 'mysql' ),
+				'updated_at'     => current_time( 'mysql' ),
+			) );
 
-				$wpdb->insert( $table_txs, array(
-					'user_id'         => $d_uid,
-					'subscription_id' => 'BOOK-' . $b4_id,
-					'transaction_id'  => 'DEMO-TX-WC-501',
-					'provider'        => 'woocommerce',
-					'amount'          => 29.99,
-					'currency'        => 'USD',
-					'status'          => 'completed',
-					'is_demo'         => 1,
-					'created_at'      => current_time( 'mysql' ),
-				) );
-
-				// 2. David Thorne has pending purchase on Book 5
-				$wpdb->insert( $table_purchases, array(
-					'user_id'        => $d_uid,
-					'book_id'        => $b5_id,
-					'order_id'       => 'DEMO-ORD-MAN-502',
-					'amount'         => 19.99,
-					'currency'       => 'USD',
-					'payment_engine' => 'default',
-					'status'         => 'pending',
-					'is_demo'        => 1,
-					'created_at'     => current_time( 'mysql' ),
-					'updated_at'     => current_time( 'mysql' ),
-				) );
-
-				$wpdb->insert( $table_txs, array(
-					'user_id'         => $d_uid,
-					'subscription_id' => 'BOOK-' . $b5_id,
-					'transaction_id'  => 'DEMO-TX-MAN-502',
-					'provider'        => 'manual',
-					'amount'          => 19.99,
-					'currency'        => 'USD',
-					'status'          => 'pending',
-					'is_demo'         => 1,
-					'created_at'      => current_time( 'mysql' ),
-				) );
-			}
-
-			// 3. Clara Oswald bought Book 6 (Completed)
-			if ( isset( $created_users['demo_clara'] ) ) {
-				$c_uid = $created_users['demo_clara']['id'];
-				$wpdb->insert( $table_purchases, array(
-					'user_id'        => $c_uid,
-					'book_id'        => $b6_id,
-					'order_id'       => 'DEMO-ORD-WC-503',
-					'amount'         => 14.99,
-					'currency'       => 'USD',
-					'payment_engine' => 'woocommerce',
-					'status'         => 'completed',
-					'is_demo'        => 1,
-					'created_at'     => current_time( 'mysql' ),
-					'updated_at'     => current_time( 'mysql' ),
-				) );
-
-				$wpdb->insert( $table_txs, array(
-					'user_id'         => $c_uid,
-					'subscription_id' => 'BOOK-' . $b6_id,
-					'transaction_id'  => 'DEMO-TX-WC-503',
-					'provider'        => 'woocommerce',
-					'amount'          => 14.99,
-					'currency'        => 'USD',
-					'status'          => 'completed',
-					'is_demo'         => 1,
-					'created_at'      => current_time( 'mysql' ),
-				) );
-			}
-
-			// 4. Sarah Jenkins had Book 7 Refunded
-			if ( isset( $created_users['demo_sarah'] ) ) {
-				$s_uid = $created_users['demo_sarah']['id'];
-				$wpdb->insert( $table_purchases, array(
-					'user_id'        => $s_uid,
-					'book_id'        => $b7_id,
-					'order_id'       => 'DEMO-ORD-WC-504',
-					'amount'         => 24.99,
-					'currency'       => 'USD',
-					'payment_engine' => 'woocommerce',
-					'status'         => 'refunded',
-					'is_demo'        => 1,
-					'created_at'     => gmdate( 'Y-m-d H:i:s', strtotime( '-5 days' ) ),
-					'updated_at'     => current_time( 'mysql' ),
-				) );
-
-				$wpdb->insert( $table_txs, array(
-					'user_id'         => $s_uid,
-					'subscription_id' => 'BOOK-' . $b7_id,
-					'transaction_id'  => 'DEMO-TX-WC-504',
-					'provider'        => 'woocommerce',
-					'amount'          => 24.99,
-					'currency'        => 'USD',
-					'status'          => 'refunded',
-					'is_demo'         => 1,
-					'created_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-5 days' ) ),
-				) );
-			}
+			$wpdb->insert( $table_txs, array(
+				'user_id'         => $david_uid,
+				'subscription_id' => 'BOOK-' . $b4_id,
+				'transaction_id'  => 'DEMO-TX-WC-501',
+				'provider'        => 'woocommerce',
+				'amount'          => 29.99,
+				'currency'        => 'USD',
+				'status'          => 'completed',
+				'is_demo'         => 1,
+				'created_at'      => current_time( 'mysql' ),
+			) );
 		}
 
-		// 8. Mark demo import completed and clear caches
+		// 2. David Thorne has pending purchase on Book 5
+		if ( $david_uid && $b5_id ) {
+			$wpdb->insert( $table_purchases, array(
+				'user_id'        => $david_uid,
+				'book_id'        => $b5_id,
+				'order_id'       => 'DEMO-ORD-MAN-502',
+				'amount'         => 19.99,
+				'currency'       => 'USD',
+				'payment_engine' => 'default',
+				'status'         => 'pending',
+				'is_demo'        => 1,
+				'created_at'     => current_time( 'mysql' ),
+				'updated_at'     => current_time( 'mysql' ),
+			) );
+
+			$wpdb->insert( $table_txs, array(
+				'user_id'         => $david_uid,
+				'subscription_id' => 'BOOK-' . $b5_id,
+				'transaction_id'  => 'DEMO-TX-MAN-502',
+				'provider'        => 'manual',
+				'amount'          => 19.99,
+				'currency'        => 'USD',
+				'status'          => 'pending',
+				'is_demo'         => 1,
+				'created_at'      => current_time( 'mysql' ),
+			) );
+		}
+
+		// 3. Clara Oswald bought Book 6 (Completed)
+		if ( $clara_uid && $b6_id ) {
+			$wpdb->insert( $table_purchases, array(
+				'user_id'        => $clara_uid,
+				'book_id'        => $b6_id,
+				'order_id'       => 'DEMO-ORD-WC-503',
+				'amount'         => 14.99,
+				'currency'       => 'USD',
+				'payment_engine' => 'woocommerce',
+				'status'         => 'completed',
+				'is_demo'        => 1,
+				'created_at'     => current_time( 'mysql' ),
+				'updated_at'     => current_time( 'mysql' ),
+			) );
+
+			$wpdb->insert( $table_txs, array(
+				'user_id'         => $clara_uid,
+				'subscription_id' => 'BOOK-' . $b6_id,
+				'transaction_id'  => 'DEMO-TX-WC-503',
+				'provider'        => 'woocommerce',
+				'amount'          => 14.99,
+				'currency'        => 'USD',
+				'status'          => 'completed',
+				'is_demo'         => 1,
+				'created_at'      => current_time( 'mysql' ),
+			) );
+		}
+
+		// 4. Sarah Jenkins had Book 7 Refunded
+		if ( $sarah_uid && $b7_id ) {
+			$wpdb->insert( $table_purchases, array(
+				'user_id'        => $sarah_uid,
+				'book_id'        => $b7_id,
+				'order_id'       => 'DEMO-ORD-WC-504',
+				'amount'         => 24.99,
+				'currency'       => 'USD',
+				'payment_engine' => 'woocommerce',
+				'status'         => 'refunded',
+				'is_demo'        => 1,
+				'created_at'     => gmdate( 'Y-m-d H:i:s', strtotime( '-5 days' ) ),
+				'updated_at'     => current_time( 'mysql' ),
+			) );
+
+			$wpdb->insert( $table_txs, array(
+				'user_id'         => $sarah_uid,
+				'subscription_id' => 'BOOK-' . $b7_id,
+				'transaction_id'  => 'DEMO-TX-WC-504',
+				'provider'        => 'woocommerce',
+				'amount'          => 24.99,
+				'currency'        => 'USD',
+				'status'          => 'refunded',
+				'is_demo'         => 1,
+				'created_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '-5 days' ) ),
+			) );
+		}
+
+		return array(
+			'success' => true,
+			'step'    => 'orders',
+			'message' => __( 'Demo purchases and transactions created successfully.', 'digital-library-membership' ),
+		);
+	}
+
+	/**
+	 * Step 5: Finalize demo data import
+	 *
+	 * @return array
+	 */
+	public function import_step_finalize() {
 		update_option( 'dlm_demo_data_imported', 'yes' );
 		delete_transient( 'dlm_analytics_summary' );
 		delete_transient( 'dlm_trending_books' );
@@ -733,6 +810,7 @@ class DLM_Demo_Data {
 
 		return array(
 			'success' => true,
+			'step'    => 'finalize',
 			'message' => sprintf(
 				/* translators: 1: Books count, 2: Users count, 3: Purchases count, 4: Transactions count */
 				__( 'Demo data imported successfully! Added %1$d books, %2$d members, %3$d purchases, and %4$d transactions.', 'digital-library-membership' ),
@@ -746,52 +824,70 @@ class DLM_Demo_Data {
 	}
 
 	/**
-	 * Remove all tagged demo data cleanly from the system
+	 * Import full realistic demo dataset (Sequential monolithic wrapper for backwards compatibility)
 	 *
 	 * @return array Result summary
 	 */
-	public function remove() {
+	public function import() {
+		// Prevent concurrent executions
+		if ( get_transient( 'dlm_importing_demo' ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Import is currently in progress. Please wait a moment.', 'digital-library-membership' ),
+			);
+		}
+
+		set_transient( 'dlm_importing_demo', '1', 60 );
+
+		$this->import_step_init();
+		$this->import_step_books();
+		$this->import_step_users();
+		$this->import_step_orders();
+		return $this->import_step_finalize();
+	}
+
+	/**
+	 * Step 1: Remove demo purchases, transactions, and subscriptions
+	 *
+	 * @return array
+	 */
+	public function remove_step_orders() {
 		global $wpdb;
 
-		// 1. Delete all demo users
-		$demo_users = get_users( array(
-			'meta_key'   => '_dlm_is_demo',
-			'meta_value' => '1',
-			'fields'     => 'ID',
-		) );
-
-		require_once ABSPATH . 'wp-admin/includes/user.php';
-		foreach ( $demo_users as $uid ) {
-			wp_delete_user( $uid );
-		}
-
-		// Also check user_login with demo_ prefix if meta was missing
-		$prefix_users = $wpdb->get_col( "SELECT ID FROM {$wpdb->users} WHERE user_login LIKE 'demo_%'" );
-		if ( ! empty( $prefix_users ) ) {
-			foreach ( $prefix_users as $p_uid ) {
-				wp_delete_user( $p_uid );
-			}
-		}
-
-		// 2. Delete all demo book purchases
+		// 1. Delete all demo book purchases
 		$table_purchases = $this->db->get_table_name( 'book_purchases' );
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_purchases ) ) ) {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE is_demo = 1 OR order_id LIKE %s", $table_purchases, 'DEMO-%' ) );
 		}
 
-		// 3. Delete all demo transactions
+		// 2. Delete all demo transactions
 		$table_txs = $this->db->get_table_name( 'transactions' );
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_txs ) ) ) {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE is_demo = 1 OR transaction_id LIKE %s", $table_txs, 'DEMO-%' ) );
 		}
 
-		// 4. Delete all demo subscriptions
+		// 3. Delete all demo subscriptions
 		$table_subs = $this->db->get_table_name( 'subscriptions' );
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_subs ) ) ) {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE is_demo = 1 OR subscription_id LIKE %s", $table_subs, 'DEMO-%' ) );
 		}
 
-		// 5. Delete all demo linked WooCommerce virtual products
+		return array(
+			'success' => true,
+			'step'    => 'orders',
+			'message' => __( 'Demo orders, purchases, and subscriptions removed.', 'digital-library-membership' ),
+		);
+	}
+
+	/**
+	 * Step 2: Remove demo WooCommerce products, books, and sample PDF
+	 *
+	 * @return array
+	 */
+	public function remove_step_catalog() {
+		global $wpdb;
+
+		// 1. Delete all demo linked WooCommerce virtual products
 		$wc_demo_products = get_posts( array(
 			'post_type'      => 'product',
 			'post_status'    => 'any',
@@ -805,22 +901,64 @@ class DLM_Demo_Data {
 			wp_delete_post( $wc_pid, true );
 		}
 
-		// 6. Delete all demo books
+		// 2. Delete all demo books (and any WC products linked directly to them)
 		$table_books = $this->db->get_table_name( 'books' );
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_books ) ) ) {
-			$demo_book_ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM %i WHERE is_demo = 1", $table_books ) );
-			foreach ( $demo_book_ids as $bid ) {
-				$this->db->delete_book( $bid );
+			$demo_books = $wpdb->get_results( $wpdb->prepare( "SELECT id, wc_product_id FROM %i WHERE is_demo = 1", $table_books ) );
+			if ( ! empty( $demo_books ) ) {
+				foreach ( $demo_books as $d_book ) {
+					if ( ! empty( $d_book->wc_product_id ) ) {
+						wp_delete_post( intval( $d_book->wc_product_id ), true );
+					}
+					$this->db->delete_book( intval( $d_book->id ) );
+				}
 			}
 		}
 
-		// 7. Clean up sample PDF file
+		// 3. Clean up sample PDF file
 		$sample_pdf = DLM_PROTECTED_DIR . '/demo_sample_manuscript.pdf';
 		if ( file_exists( $sample_pdf ) ) {
 			wp_delete_file( $sample_pdf );
 		}
 
-		// 8. Reset options and clear cache transients
+		return array(
+			'success' => true,
+			'step'    => 'catalog',
+			'message' => __( 'Demo books, products, and sample manuscripts removed.', 'digital-library-membership' ),
+		);
+	}
+
+	/**
+	 * Step 3: Remove demo users and finalize cleanup
+	 *
+	 * @return array
+	 */
+	public function remove_step_users_finalize() {
+		global $wpdb;
+
+		// 1. Delete all demo users
+		$demo_users = get_users( array(
+			'meta_key'   => '_dlm_is_demo',
+			'meta_value' => '1',
+			'fields'     => 'ID',
+		) );
+
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		if ( ! empty( $demo_users ) ) {
+			foreach ( $demo_users as $uid ) {
+				wp_delete_user( $uid );
+			}
+		}
+
+		// Also check user_login with demo_ prefix if meta was missing
+		$prefix_users = $wpdb->get_col( "SELECT ID FROM {$wpdb->users} WHERE user_login LIKE 'demo_%'" );
+		if ( ! empty( $prefix_users ) ) {
+			foreach ( $prefix_users as $p_uid ) {
+				wp_delete_user( $p_uid );
+			}
+		}
+
+		// 2. Reset options and clear cache transients
 		delete_option( 'dlm_demo_data_imported' );
 		delete_transient( 'dlm_analytics_summary' );
 		delete_transient( 'dlm_trending_books' );
@@ -828,7 +966,20 @@ class DLM_Demo_Data {
 
 		return array(
 			'success' => true,
+			'step'    => 'users_finalize',
 			'message' => __( 'All demo content, users, purchases, and products have been cleanly removed.', 'digital-library-membership' ),
 		);
 	}
+
+	/**
+	 * Remove all tagged demo data cleanly from the system (Sequential monolithic wrapper for backwards compatibility)
+	 *
+	 * @return array Result summary
+	 */
+	public function remove() {
+		$this->remove_step_orders();
+		$this->remove_step_catalog();
+		return $this->remove_step_users_finalize();
+	}
 }
+

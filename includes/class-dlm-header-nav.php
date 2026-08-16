@@ -65,49 +65,32 @@ class DLM_Header_Nav {
 	}
 
 	/**
-	 * Compile dynamic alerts list from user achievements state and active status
+	 * Compile notifications list from persistent database records
 	 */
 	public static function get_user_notifications( $user_id ) {
-		$notifications = array();
 		if ( ! $user_id ) {
-			return $notifications;
+			return array();
 		}
 
-		$ach_raw = get_user_meta( $user_id, 'dlm_achievements_state', true );
-		if ( $ach_raw ) {
-			$ach = json_decode( $ach_raw, true );
-			if ( is_array( $ach ) && ! empty( $ach['badges'] ) ) {
-				foreach ( $ach['badges'] as $b ) {
-					$notifications[] = array(
-						/* translators: %s: Badge label */
-						'title' => sprintf( __( 'Earned Badge: %s', 'digital-library-membership' ), $b['label'] ),
-						'time'  => isset( $b['earned'] ) ? $b['earned'] : '',
-						'type'  => 'badge',
-					);
-				}
-			}
-			if ( is_array( $ach ) && isset( $ach['streak'] ) && $ach['streak'] > 0 ) {
+		$db  = new DLM_DB();
+		$raw = $db->get_user_notifications( $user_id, 10 );
+		$notifications = array();
+
+		if ( ! empty( $raw ) ) {
+			foreach ( $raw as $n ) {
 				$notifications[] = array(
-					/* translators: %d: Streak day count */
-					'title' => sprintf( __( 'Reading Streak: %d Days', 'digital-library-membership' ), $ach['streak'] ),
-					'time'  => gmdate( 'Y-m-d' ),
-					'type'  => 'streak',
+					'id'       => intval( $n->id ),
+					'title'    => $n->title,
+					'message'  => $n->message,
+					'time'     => $n->created_at,
+					'type'     => $n->type,
+					'link_url' => $n->link_url,
+					'is_read'  => intval( $n->is_read ),
 				);
 			}
 		}
 
-		$db = new DLM_DB();
-		$sub = $db->get_subscription_by_user( $user_id );
-		if ( $sub ) {
-			$notifications[] = array(
-				/* translators: %s: Subscription status name */
-				'title' => sprintf( __( 'Subscription status is %s', 'digital-library-membership' ), strtoupper( $sub->status ) ),
-				'time'  => isset( $sub->updated_at ) ? $sub->updated_at : '',
-				'type'  => 'membership',
-			);
-		}
-
-		return array_slice( $notifications, 0, 5 );
+		return $notifications;
 	}
 
 	/**

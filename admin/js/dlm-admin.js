@@ -151,6 +151,14 @@ function initModalSystem() {
         const accessType = tr.attr('data-access-type') || 'subscription_only';
         const price = tr.attr('data-price') || '0.00';
         const publishDate = tr.attr('data-publish-date') || '';
+        const isFeatured = tr.attr('data-is-featured') === '1';
+        const featuredTitle = tr.attr('data-featured-title') || '';
+        const featuredDesc = tr.attr('data-featured-description') || '';
+        const featuredBannerId = tr.attr('data-featured-banner-id') || '0';
+        const featuredBannerUrl = tr.attr('data-featured-banner-url') || '';
+        const featuredBtn1 = tr.attr('data-featured-btn1') || '';
+        const featuredBtn2 = tr.attr('data-featured-btn2') || '';
+        const featuredOrder = tr.attr('data-featured-order') || '0';
 
         jQuery('#edit-book-id').val(id);
         jQuery('#edit-book-title').val(title);
@@ -163,6 +171,33 @@ function initModalSystem() {
         jQuery('#edit-book-access-type').val(accessType);
         jQuery('#edit-book-price').val(price);
         jQuery('#edit-book-publish-date').val(publishDate);
+
+        // Featured book fields
+        jQuery('#edit-book-is-featured').prop('checked', isFeatured);
+        jQuery('#edit-book-featured-title').val(featuredTitle);
+        jQuery('#edit-book-featured-desc').val(featuredDesc);
+        jQuery('#edit-book-featured-desc').closest('.space-y-1').find('.char-count-num').text(featuredDesc.length);
+        jQuery('#edit-book-banner-input').val(featuredBannerUrl);
+        jQuery('#edit-book-banner-id').val(featuredBannerId);
+        jQuery('#edit-book-btn1').val(featuredBtn1);
+        jQuery('#edit-book-btn2').val(featuredBtn2);
+        jQuery('#edit-book-featured-order').val(featuredOrder);
+
+        if (isFeatured) {
+            jQuery('#edit-featured-fields').removeClass('hidden');
+        } else {
+            jQuery('#edit-featured-fields').addClass('hidden');
+        }
+
+        if (featuredBannerUrl) {
+            jQuery('#edit-banner-preview').attr('src', featuredBannerUrl).removeClass('hidden');
+            jQuery('#edit-banner-placeholder').addClass('hidden');
+            jQuery('#edit-book-clear-banner-btn').removeClass('hidden');
+        } else {
+            jQuery('#edit-banner-preview').addClass('hidden');
+            jQuery('#edit-banner-placeholder').removeClass('hidden');
+            jQuery('#edit-book-clear-banner-btn').addClass('hidden');
+        }
 
         if (accessType === 'purchase_only' || accessType === 'hybrid') {
             jQuery('#edit-book-price-container').show();
@@ -284,10 +319,49 @@ function initModalSystem() {
     });
 }
 
-/* 3. WORDPRESS MEDIA UPLOADER FOR COVERS */
+/* 3. WORDPRESS MEDIA UPLOADER FOR COVERS & FEATURED BANNERS */
 function initMediaUploaders() {
     initWPBooksMediaUploader('add-book-select-cover-btn', 'add-book-cover-input', 'add-cover-preview', 'add-cover-placeholder');
     initWPBooksMediaUploader('edit-book-select-cover-btn', 'edit-book-cover-input', 'edit-cover-preview', 'edit-cover-placeholder');
+
+    // Featured Banners Media Uploaders
+    initWPBannerMediaUploader('add-book-select-banner-btn', 'add-book-banner-input', 'add-book-banner-id', 'add-banner-preview', 'add-banner-placeholder', 'add-book-clear-banner-btn');
+    initWPBannerMediaUploader('edit-book-select-banner-btn', 'edit-book-banner-input', 'edit-book-banner-id', 'edit-banner-preview', 'edit-banner-placeholder', 'edit-book-clear-banner-btn');
+
+    // Featured toggle checkbox change listener
+    jQuery(document).on('change', '.dlm-featured-toggle', function() {
+        const targetSelector = jQuery(this).data('target');
+        if (jQuery(this).is(':checked')) {
+            jQuery(targetSelector).removeClass('hidden').hide().slideDown(200);
+        } else {
+            jQuery(targetSelector).slideUp(200, function() {
+                jQuery(this).addClass('hidden');
+            });
+        }
+    });
+
+    // Live character counter for featured description
+    jQuery(document).on('input', '.dlm-char-counter', function() {
+        const len = jQuery(this).val().length;
+        jQuery(this).closest('.space-y-1').find('.char-count-num').text(len);
+    });
+
+    // Clear banner buttons
+    jQuery(document).on('click', '#add-book-clear-banner-btn', function() {
+        jQuery('#add-book-banner-input').val('');
+        jQuery('#add-book-banner-id').val('0');
+        jQuery('#add-banner-preview').attr('src', '').addClass('hidden');
+        jQuery('#add-banner-placeholder').removeClass('hidden');
+        jQuery(this).addClass('hidden');
+    });
+
+    jQuery(document).on('click', '#edit-book-clear-banner-btn', function() {
+        jQuery('#edit-book-banner-input').val('');
+        jQuery('#edit-book-banner-id').val('0');
+        jQuery('#edit-banner-preview').attr('src', '').addClass('hidden');
+        jQuery('#edit-banner-placeholder').removeClass('hidden');
+        jQuery(this).addClass('hidden');
+    });
 
     // Register drag & drop file upload format checks
     jQuery(document).on('change', '.dlm-file-input', function(e) {
@@ -343,6 +417,35 @@ function initWPBooksMediaUploader(btnId, inputId, previewId, placeholderId) {
             jQuery('#' + placeholderId).addClass('hidden');
         });
         mediaUploader.open();
+    });
+}
+
+function initWPBannerMediaUploader(btnId, inputId, idInputId, previewId, placeholderId, clearBtnId) {
+    var bannerUploader;
+    jQuery(document).on('click', '#' + btnId, function(e) {
+        e.preventDefault();
+        if (bannerUploader) {
+            bannerUploader.open();
+            return;
+        }
+        bannerUploader = wp.media({
+            title: 'Choose Featured Banner Image (1600x600 px recommended)',
+            button: { text: 'Use Banner Image' },
+            multiple: false
+        });
+        bannerUploader.on('select', function() {
+            var attachment = bannerUploader.state().get('selection').first().toJSON();
+            jQuery('#' + inputId).val(attachment.url);
+            if (idInputId) {
+                jQuery('#' + idInputId).val(attachment.id || 0);
+            }
+            jQuery('#' + previewId).attr('src', attachment.url).removeClass('hidden');
+            jQuery('#' + placeholderId).addClass('hidden');
+            if (clearBtnId) {
+                jQuery('#' + clearBtnId).removeClass('hidden');
+            }
+        });
+        bannerUploader.open();
     });
 }
 
@@ -745,36 +848,120 @@ function initCustomScrollbars() {
     });
 }
 
-/* 12. DEMO DATA IMPORT & REMOVAL ACTIONS */
+/* Helper: Retrieve Admin AJAX Configuration & Nonce */
+function getDLMAdminAjaxConfig() {
+    const ajaxUrl = (window.dlmAdminParams && window.dlmAdminParams.ajaxUrl) ||
+                    window.ajaxurl ||
+                    (window.dlmLibraryData && window.dlmLibraryData.ajaxUrl) ||
+                    'admin-ajax.php';
+
+    const nonce = (window.dlmAdminParams && window.dlmAdminParams.nonce) ||
+                  (window.dlmLibraryData && window.dlmLibraryData.nonce) ||
+                  jQuery('input[name="dlm_nonce"]').val() ||
+                  jQuery('#dlm_public_nonce').val() ||
+                  jQuery('input[name="_wpnonce"]').val() ||
+                  '';
+
+    return { ajaxUrl: ajaxUrl, nonce: nonce };
+}
+
+/* Helper: Extract Honest Error Message from AJAX Failure */
+function parseDLMAjaxError(jqXHR, textStatus, errorThrown, defaultMessage) {
+    if (jqXHR.status === 403) {
+        return 'Security verification failed (HTTP 403 / Invalid Nonce). Please refresh the page and try again.';
+    }
+    if (jqXHR.status === 404) {
+        return 'Server endpoint not found (HTTP 404). Admin AJAX handler is unavailable.';
+    }
+    if (jqXHR.status === 500) {
+        return 'Internal Server Error (HTTP 500). Please check your server PHP error logs.';
+    }
+    if (jqXHR.status === 502 || jqXHR.status === 504) {
+        return 'Gateway / Proxy Timeout (HTTP ' + jqXHR.status + '). Server took too long to complete the request.';
+    }
+    if (textStatus === 'timeout') {
+        return 'Connection Timeout: The server did not respond within the expected timeframe.';
+    }
+    if (textStatus === 'parsererror') {
+        return 'Invalid response format from server (JSON parse error). Check for unexpected PHP output or warnings.';
+    }
+    if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data.message) {
+        return jqXHR.responseJSON.data.message;
+    }
+    if (jqXHR.responseText && jqXHR.responseText.length < 200 && !jqXHR.responseText.includes('<html')) {
+        return jqXHR.responseText;
+    }
+    return defaultMessage || (errorThrown ? 'Error: ' + errorThrown : 'Failed to connect to server. Please try again.');
+}
+
+/* 12. DEMO DATA IMPORT & REMOVAL ACTIONS (Chunked & Reliable Pipeline) */
 function initDemoDataActions() {
+    // 12A. CHUNKED IMPORT PIPELINE
     jQuery(document).on('click', '#dlm-btn-import-demo', function(e) {
         e.preventDefault();
         const $btn = jQuery(this);
         const originalHtml = $btn.html();
-        $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Importing Demo Data...');
+        const config = getDLMAdminAjaxConfig();
 
-        const ajaxUrl = window.ajaxurl || 'admin-ajax.php';
-        const nonce = (window.dlmLibraryData && window.dlmLibraryData.nonce) || jQuery('input[name="dlm_nonce"]').val() || jQuery('#dlm_public_nonce').val() || jQuery('input[name="_wpnonce"]').val();
+        const importSteps = [
+            { step: 'init', label: 'Preparing schema & categories (Step 1/5)...' },
+            { step: 'books', label: 'Importing books & products (Step 2/5)...' },
+            { step: 'users', label: 'Creating demo members (Step 3/5)...' },
+            { step: 'orders', label: 'Creating orders & transactions (Step 4/5)...' },
+            { step: 'finalize', label: 'Finalizing demo data (Step 5/5)...' }
+        ];
 
-        jQuery.post(ajaxUrl, {
-            action: 'dlm_import_demo_data',
-            nonce: nonce
-        }, function(res) {
-            if (res.success) {
-                window.showAlertModal('Demo Data Imported', res.data.message || 'Demo data imported successfully!', 'success');
-                setTimeout(function() {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                window.showAlertModal('Import Failed', (res.data && res.data.message) || 'An error occurred during demo data import.', 'error');
-                $btn.prop('disabled', false).html(originalHtml);
+        function runImportStep(stepIndex) {
+            if (stepIndex >= importSteps.length) {
+                // Completed all steps successfully
+                return;
             }
-        }).fail(function() {
-            window.showAlertModal('Connection Timeout', 'Failed to connect to server. Please try again.', 'error');
-            $btn.prop('disabled', false).html(originalHtml);
-        });
+
+            const current = importSteps[stepIndex];
+            $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> ' + current.label);
+
+            jQuery.ajax({
+                url: config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'dlm_import_demo_data',
+                    step: current.step,
+                    nonce: config.nonce
+                },
+                success: function(res) {
+                    if (res && res.success) {
+                        if (stepIndex === importSteps.length - 1) {
+                            // Final step completed
+                            const successMsg = (res.data && res.data.message) || 'Demo data imported successfully!';
+                            window.showAlertModal('Demo Data Imported', successMsg, 'success');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            // Proceed to next chunked step
+                            runImportStep(stepIndex + 1);
+                        }
+                    } else {
+                        const errMsg = (res && res.data && res.data.message) ? res.data.message : 'Unknown error occurred.';
+                        const detailMsg = 'Import failed at Step ' + (stepIndex + 1) + ' of ' + importSteps.length + ' (' + current.step + '): ' + errMsg + '\n\nNote: Partial demo data may have been created. You can retry the import or click "Remove Demo Data" to safely reset.';
+                        window.showAlertModal('Import Incomplete', detailMsg, 'error');
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    const parsedError = parseDLMAjaxError(jqXHR, textStatus, errorThrown, 'Request failed on server.');
+                    const detailMsg = 'Import failed at Step ' + (stepIndex + 1) + ' of ' + importSteps.length + ' (' + current.step + '): ' + parsedError + '\n\nNote: Partial demo data may have been created. You can retry the import or click "Remove Demo Data" to safely reset.';
+                    window.showAlertModal('Import Failed', detailMsg, 'error');
+                    $btn.prop('disabled', false).html(originalHtml);
+                }
+            });
+        }
+
+        runImportStep(0);
     });
 
+    // 12B. CHUNKED REMOVAL PIPELINE
     jQuery(document).on('click', '#dlm-btn-remove-demo', function(e) {
         e.preventDefault();
         if (!confirm('This will permanently remove all demo books, sample members, demo transactions, and associated demo products. Are you sure you want to proceed?')) {
@@ -783,28 +970,61 @@ function initDemoDataActions() {
 
         const $btn = jQuery(this);
         const originalHtml = $btn.html();
-        $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Removing Demo Data...');
+        const config = getDLMAdminAjaxConfig();
 
-        const ajaxUrl = window.ajaxurl || 'admin-ajax.php';
-        const nonce = (window.dlmLibraryData && window.dlmLibraryData.nonce) || jQuery('input[name="dlm_nonce"]').val() || jQuery('#dlm_public_nonce').val() || jQuery('input[name="_wpnonce"]').val();
+        const removeSteps = [
+            { step: 'orders', label: 'Removing orders & subscriptions (Step 1/3)...' },
+            { step: 'catalog', label: 'Removing books & products (Step 2/3)...' },
+            { step: 'users_finalize', label: 'Removing users & finalizing (Step 3/3)...' }
+        ];
 
-        jQuery.post(ajaxUrl, {
-            action: 'dlm_remove_demo_data',
-            nonce: nonce
-        }, function(res) {
-            if (res.success) {
-                window.showAlertModal('Demo Data Removed', res.data.message || 'Demo data removed successfully.', 'info');
-                setTimeout(function() {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                window.showAlertModal('Removal Failed', (res.data && res.data.message) || 'An error occurred during demo data removal.', 'error');
-                $btn.prop('disabled', false).html(originalHtml);
+        function runRemoveStep(stepIndex) {
+            if (stepIndex >= removeSteps.length) {
+                return;
             }
-        }).fail(function() {
-            window.showAlertModal('Connection Timeout', 'Failed to connect to server. Please try again.', 'error');
-            $btn.prop('disabled', false).html(originalHtml);
-        });
+
+            const current = removeSteps[stepIndex];
+            $btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> ' + current.label);
+
+            jQuery.ajax({
+                url: config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'dlm_remove_demo_data',
+                    step: current.step,
+                    nonce: config.nonce
+                },
+                success: function(res) {
+                    if (res && res.success) {
+                        if (stepIndex === removeSteps.length - 1) {
+                            // Final step completed
+                            const successMsg = (res.data && res.data.message) || 'Demo data removed successfully.';
+                            window.showAlertModal('Demo Data Removed', successMsg, 'info');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            // Proceed to next removal chunk
+                            runRemoveStep(stepIndex + 1);
+                        }
+                    } else {
+                        const errMsg = (res && res.data && res.data.message) ? res.data.message : 'Unknown error occurred.';
+                        const detailMsg = 'Removal failed at Step ' + (stepIndex + 1) + ' of ' + removeSteps.length + ' (' + current.step + '): ' + errMsg + '\n\nYou can click "Remove Demo Data" again to continue cleaning up remaining items.';
+                        window.showAlertModal('Removal Incomplete', detailMsg, 'error');
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    const parsedError = parseDLMAjaxError(jqXHR, textStatus, errorThrown, 'Request failed on server.');
+                    const detailMsg = 'Removal failed at Step ' + (stepIndex + 1) + ' of ' + removeSteps.length + ' (' + current.step + '): ' + parsedError + '\n\nYou can click "Remove Demo Data" again to continue cleaning up remaining items.';
+                    window.showAlertModal('Removal Failed', detailMsg, 'error');
+                    $btn.prop('disabled', false).html(originalHtml);
+                }
+            });
+        }
+
+        runRemoveStep(0);
     });
 }
 

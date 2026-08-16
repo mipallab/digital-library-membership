@@ -31,7 +31,15 @@ class DLM_Public {
 		$is_active    = $is_logged_in ? $this->db->has_active_membership( $user_id ) : false;
 		$pricing_url  = dlm_get_page_url( 'pricing' );
 
-		$raw_books = $this->db->get_books( 'publish' );
+		// Enqueue styles & scripts for shortcode rendering
+		wp_enqueue_style( 'dlm-public-css', DLM_URL . 'public/css/dlm-public.css', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-material-symbols', 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-font-awesome', DLM_URL . 'admin/css/font-awesome.min.css', array(), '6.4.0' );
+		wp_enqueue_script( 'dlm-tailwind', DLM_URL . 'admin/js/tailwindcss.js', array(), DLM_VERSION, false );
+		wp_enqueue_script( 'dlm-public-js', DLM_URL . 'public/js/dlm-public.js', array( 'jquery' ), DLM_VERSION, true );
+
+		$raw_books = $this->db->get_books( 'publish', true );
 		$books_data = array();
 		$categories_set = array();
 
@@ -65,22 +73,38 @@ class DLM_Public {
 				$currency    = get_option( 'dlm_currency', 'USD' );
 				$user_access = dlm_user_can_access_book( $user_id, $b->id );
 				$has_bought  = ( $is_logged_in && $user_id ) ? $this->db->has_purchased_book( $user_id, $b->id ) : false;
+				$is_future   = ( ! empty( $b->publish_date ) && strtotime( $b->publish_date ) > current_time( 'timestamp' ) ) || ( isset( $b->status ) && $b->status === 'future' );
+				$publish_iso = '';
+				if ( ! empty( $b->publish_date ) ) {
+					$publish_iso = wp_date( 'c', strtotime( $b->publish_date ) );
+					if ( empty( $publish_iso ) ) {
+						$publish_iso = date( 'c', strtotime( $b->publish_date ) );
+					}
+					if ( empty( $publish_iso ) ) {
+						$publish_iso = str_replace( ' ', 'T', trim( $b->publish_date ) );
+					}
+				}
+				$publish_fmt = ( ! empty( $b->publish_date ) ) ? date_i18n( get_option( 'date_format' ) . ' H:i', strtotime( $b->publish_date ) ) : '';
 
 				$books_data[] = array(
-					'id'              => $b->id,
-					'title'           => $b->title,
-					'author'          => $b->author,
-					'description'     => ! empty( $b->description ) ? wp_strip_all_tags( $b->description ) : '',
-					'category'        => $category,
-					'progress'        => $progress_percent,
-					'cover'           => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
-					'date'            => ! empty( $b->created_at ) ? date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) : '',
-					'read_url'        => home_url( '/read/' . $b->id . '/' ),
-					'access_type'     => $access_type,
-					'price'           => $price,
-					'price_formatted' => number_format( $price, 2 ) . ' ' . $currency,
-					'user_access'     => $user_access, // 'locked' | 'read_only' | 'read_download'
-					'has_purchased'   => $has_bought,
+					'id'                => $b->id,
+					'title'             => $b->title,
+					'author'            => $b->author,
+					'description'       => ! empty( $b->description ) ? wp_strip_all_tags( $b->description ) : '',
+					'category'          => $category,
+					'progress'          => $progress_percent,
+					'cover'             => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
+					'date'              => ! empty( $b->created_at ) ? date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) : '',
+					'read_url'          => home_url( '/read/' . $b->id . '/' ),
+					'access_type'       => $access_type,
+					'price'             => $price,
+					'price_formatted'   => number_format( $price, 2 ) . ' ' . $currency,
+					'user_access'       => $user_access, // 'locked' | 'read_only' | 'read_download'
+					'has_purchased'     => $has_bought,
+					'is_future'         => $is_future,
+					'publish_date'      => ! empty( $b->publish_date ) ? $b->publish_date : '',
+					'publish_iso'       => $publish_iso,
+					'publish_formatted' => $publish_fmt,
 				);
 			}
 		}
@@ -306,7 +330,121 @@ class DLM_Public {
 
 			<!-- Books Grid -->
 			<div id="books-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-gutter gap-y-12 min-h-[400px]">
-				<!-- Rendered via dlm-public.js -->
+				<?php if ( ! empty( $books_data ) ) : ?>
+					<?php foreach ( array_slice( $books_data, 0, 12 ) as $book ) : 
+						$user_access = $book['user_access'];
+						$price_formatted = $book['price_formatted'];
+						$is_future = ! empty( $book['is_future'] );
+					?>
+						<div class="group cursor-pointer animate-fade-in dlm-book-card-item" data-book-id="<?php echo esc_attr( $book['id'] ); ?>">
+							<div class="relative aspect-[3/4] mb-4 rounded-2xl overflow-hidden book-card-shadow border border-outline-variant/10">
+								<?php if ( ! empty( $book['cover'] ) ) : ?>
+									<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="<?php echo esc_url( $book['cover'] ); ?>" alt="<?php echo esc_attr( $book['title'] ); ?>" loading="lazy">
+								<?php else : ?>
+									<div class="w-full h-full bg-surface-container flex items-center justify-center text-center p-4">
+										<span class="font-bold text-xs"><?php echo esc_html( $book['title'] ); ?></span>
+									</div>
+								<?php endif; ?>
+
+								<?php if ( $is_future ) : ?>
+									<!-- Upcoming Badge on Cover -->
+									<div class="absolute top-2.5 left-2.5 z-10">
+										<span class="px-2.5 py-1 bg-amber-600/95 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider rounded-lg shadow-md flex items-center gap-1">
+											<i class="fa-solid fa-clock text-[9px]"></i> <?php esc_html_e( 'Upcoming', 'digital-library-membership' ); ?>
+										</span>
+									</div>
+
+									<!-- 4-Box Countdown Timer at Bottom of Cover -->
+									<?php 
+									$rel_time = ! empty( $book['publish_iso'] ) ? $book['publish_iso'] : ( ! empty( $book['publish_date'] ) ? $book['publish_date'] : '' );
+									if ( ! empty( $rel_time ) ) : 
+									?>
+										<div class="absolute bottom-2 inset-x-2 z-10 grid grid-cols-4 gap-1 p-1 rounded-xl shadow-xl text-white dlm-countdown-timer pointer-events-none" style="background: linear-gradient(135deg, rgba(133, 83, 0, 0.92), rgba(97, 59, 0, 0.95)) !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; backdrop-filter: blur(8px);" data-release-time="<?php echo esc_attr( $rel_time ); ?>" data-book-id="<?php echo esc_attr( $book['id'] ); ?>">
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-days font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none"><?php esc_html_e( 'Day', 'digital-library-membership' ); ?></span>
+											</div>
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-hours font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none"><?php esc_html_e( 'Hr', 'digital-library-membership' ); ?></span>
+											</div>
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-minutes font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none"><?php esc_html_e( 'Min', 'digital-library-membership' ); ?></span>
+											</div>
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-seconds font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none"><?php esc_html_e( 'Sec', 'digital-library-membership' ); ?></span>
+											</div>
+										</div>
+									<?php endif; ?>
+
+									<!-- Upcoming Release Overlay -->
+									<div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-1.5 p-3 text-center z-20">
+										<span class="px-3 py-1.5 bg-white text-black font-extrabold text-xs rounded-xl shadow-lg uppercase tracking-wider">
+											<?php esc_html_e( 'Coming Soon', 'digital-library-membership' ); ?>
+										</span>
+										<p class="text-white/90 text-[11px] font-medium leading-tight mt-1">
+											<?php echo esc_html( sprintf( __( 'Releases %s', 'digital-library-membership' ), $book['publish_formatted'] ) ); ?>
+										</p>
+									</div>
+								<?php else : ?>
+									<!-- Regular Actions Overlay -->
+									<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2 p-3 z-10">
+										<?php if ( $user_access === 'read_download' ) : ?>
+											<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+												<?php echo ( $book['progress'] > 0 ) ? esc_html__( 'Continue', 'digital-library-membership' ) : esc_html__( 'Read', 'digital-library-membership' ); ?>
+											</span>
+											<button class="dlm-btn-download dlm-book-action-btn" data-book-id="<?php echo esc_attr( $book['id'] ); ?>" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2); border:none; cursor:pointer;">
+												<?php esc_html_e( 'Download', 'digital-library-membership' ); ?>
+											</button>
+										<?php elseif ( $user_access === 'read_only' ) : ?>
+											<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+												<?php echo ( $book['progress'] > 0 ) ? esc_html__( 'Continue', 'digital-library-membership' ) : esc_html__( 'Read', 'digital-library-membership' ); ?>
+											</span>
+										<?php else : ?>
+											<?php if ( $book['access_type'] === 'purchase_only' || $book['access_type'] === 'hybrid' ) : ?>
+												<button class="dlm-btn-buy dlm-book-action-btn" data-book-id="<?php echo esc_attr( $book['id'] ); ?>" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2); border:none; cursor:pointer;">
+												<?php echo esc_html( sprintf( __( 'Buy (%s)', 'digital-library-membership' ), $price_formatted ) ); ?>
+											</button>
+										<?php elseif ( $is_logged_in ) : ?>
+											<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+												<?php esc_html_e( 'Subscribe', 'digital-library-membership' ); ?>
+											</span>
+										<?php else : ?>
+											<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+												<?php esc_html_e( 'Sign In', 'digital-library-membership' ); ?>
+											</span>
+										<?php endif; ?>
+									<?php endif; ?>
+									</div>
+								<?php endif; ?>
+
+								<?php if ( ! $is_future && $book['progress'] > 0 ) : ?>
+									<div class="absolute bottom-0 left-0 w-full h-1.5 bg-black/20">
+										<div class="h-full bg-surface-amber transition-all duration-300" style="width: <?php echo intval( $book['progress'] ); ?>%;"></div>
+									</div>
+								<?php endif; ?>
+							</div>
+							<div class="space-y-1">
+								<div class="flex items-center justify-between">
+									<span class="text-label-micro text-primary font-bold uppercase tracking-wider"><?php echo esc_html( $book['category'] ); ?></span>
+									<?php if ( ! $is_future && $book['progress'] > 0 ) : ?>
+										<span class="text-label-micro text-secondary font-semibold"><?php echo intval( $book['progress'] ); ?>% Read</span>
+									<?php endif; ?>
+								</div>
+								<h5 class="font-bold text-on-surface leading-snug mb-1 group-hover:text-primary transition-colors line-clamp-1"><?php echo esc_html( $book['title'] ); ?></h5>
+								<p class="text-xs text-secondary line-clamp-1"><?php echo esc_html( $book['author'] ); ?></p>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				<?php else : ?>
+					<div class="col-span-full text-center py-16">
+						<span class="material-symbols-outlined text-[64px] text-outline-variant mb-4">menu_book</span>
+						<h3 class="text-xl font-bold text-on-surface mb-2"><?php esc_html_e( 'No Books Found', 'digital-library-membership' ); ?></h3>
+						<p class="text-secondary text-sm max-w-sm mx-auto"><?php esc_html_e( 'No published books are currently available in the digital library catalog.', 'digital-library-membership' ); ?></p>
+					</div>
+				<?php endif; ?>
 			</div>
 
 			<!-- Empty State Container -->
@@ -333,13 +471,42 @@ class DLM_Public {
 					<span class="material-symbols-outlined">close</span>
 				</button>
 
-				<div class="flex gap-6 mb-6">
-					<img id="modal-cover" class="w-24 h-36 object-cover rounded-xl shadow-md border border-outline-variant/30" src="" alt="Book cover">
-					<div class="flex-1 space-y-2 pt-2">
+				<div class="flex gap-6 mb-4">
+					<img id="modal-cover" class="w-24 h-36 object-cover rounded-xl shadow-md border border-outline-variant/30 flex-shrink-0" src="" alt="Book cover">
+					<div class="flex-1 space-y-1.5 pt-1">
 						<span id="modal-category" class="text-label-micro text-primary font-bold uppercase tracking-wider"></span>
-						<h3 id="modal-title" class="font-title-sm text-on-surface text-xl font-bold"></h3>
+						<h3 id="modal-title" class="font-title-sm text-on-surface text-xl font-bold leading-tight"></h3>
 						<p id="modal-author" class="text-sm text-secondary"></p>
 						<p id="modal-published" class="text-xs text-secondary/70"></p>
+					</div>
+				</div>
+
+				<!-- Upcoming Release Countdown in Modal -->
+				<div id="modal-countdown-container" class="hidden my-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900">
+					<div class="flex items-center justify-between mb-2.5">
+						<span class="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+							<i class="fa-solid fa-clock text-amber-600"></i>
+							<?php esc_html_e( 'Release Countdown', 'digital-library-membership' ); ?>
+						</span>
+						<span id="modal-release-date-badge" class="text-[11px] font-bold text-amber-800 bg-amber-200/70 px-2.5 py-0.5 rounded-full"></span>
+					</div>
+					<div class="grid grid-cols-4 gap-2 text-center dlm-countdown-timer" id="modal-countdown-timer" data-release-time="">
+						<div class="bg-white/90 backdrop-blur-sm py-2.5 px-1 rounded-xl shadow-xs border border-amber-200/60 flex flex-col items-center justify-center">
+							<span class="countdown-days font-mono font-extrabold text-xl text-amber-950 block leading-tight">00</span>
+							<span class="text-[9px] uppercase font-extrabold tracking-wider text-amber-700 mt-0.5"><?php esc_html_e( 'Day', 'digital-library-membership' ); ?></span>
+						</div>
+						<div class="bg-white/90 backdrop-blur-sm py-2.5 px-1 rounded-xl shadow-xs border border-amber-200/60 flex flex-col items-center justify-center">
+							<span class="countdown-hours font-mono font-extrabold text-xl text-amber-950 block leading-tight">00</span>
+							<span class="text-[9px] uppercase font-extrabold tracking-wider text-amber-700 mt-0.5"><?php esc_html_e( 'Hr', 'digital-library-membership' ); ?></span>
+						</div>
+						<div class="bg-white/90 backdrop-blur-sm py-2.5 px-1 rounded-xl shadow-xs border border-amber-200/60 flex flex-col items-center justify-center">
+							<span class="countdown-minutes font-mono font-extrabold text-xl text-amber-950 block leading-tight">00</span>
+							<span class="text-[9px] uppercase font-extrabold tracking-wider text-amber-700 mt-0.5"><?php esc_html_e( 'Min', 'digital-library-membership' ); ?></span>
+						</div>
+						<div class="bg-white/90 backdrop-blur-sm py-2.5 px-1 rounded-xl shadow-xs border border-amber-200/60 flex flex-col items-center justify-center">
+							<span class="countdown-seconds font-mono font-extrabold text-xl text-amber-950 block leading-tight">00</span>
+							<span class="text-[9px] uppercase font-extrabold tracking-wider text-amber-700 mt-0.5"><?php esc_html_e( 'Sec', 'digital-library-membership' ); ?></span>
+						</div>
 					</div>
 				</div>
 
@@ -869,7 +1036,7 @@ class DLM_Public {
 						<?php 
 						$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
 						$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
-						$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
+						$recaptcha_version  = ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' );
 						if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
 							<div class="g-recaptcha flex justify-center my-3" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
 						<?php endif; ?>
@@ -1203,6 +1370,66 @@ class DLM_Public {
 			}
 		}
 
+		// Fetch previous state to detect newly unlocked events
+		$old_ach_raw = get_user_meta( $user_id, 'dlm_achievements_state', true );
+		$old_ach     = $old_ach_raw ? json_decode( $old_ach_raw, true ) : array();
+		$old_level   = isset( $old_ach['level'] ) ? intval( $old_ach['level'] ) : 1;
+		$old_badges  = array();
+		if ( isset( $old_ach['badges'] ) && is_array( $old_ach['badges'] ) ) {
+			foreach ( $old_ach['badges'] as $ob ) {
+				if ( isset( $ob['id'] ) ) {
+					$old_badges[] = $ob['id'];
+				}
+			}
+		}
+
+		// Trigger notifications for newly earned badges
+		if ( ! empty( $sanitized_state['badges'] ) ) {
+			foreach ( $sanitized_state['badges'] as $nb ) {
+				if ( ! in_array( $nb['id'], $old_badges, true ) ) {
+					$badge_label = ! empty( $nb['label'] ) ? $nb['label'] : $nb['id'];
+					if ( ! $this->db->notification_exists( $user_id, 'badge', $badge_label ) ) {
+						$this->db->create_notification( array(
+							'user_id'   => $user_id,
+							'type'      => 'badge',
+							'title'     => sprintf( __( 'Badge Unlocked: %s', 'digital-library-membership' ), $badge_label ),
+							'message'   => sprintf( __( 'Congratulations! You unlocked the "%s" milestone achievement badge.', 'digital-library-membership' ), $badge_label ),
+							'link_url'  => '#achievements',
+						) );
+					}
+				}
+			}
+		}
+
+		// Trigger notification for level up
+		if ( $sanitized_state['level'] > $old_level ) {
+			$level_title = sprintf( __( 'Level Up: Level %d!', 'digital-library-membership' ), $sanitized_state['level'] );
+			if ( ! $this->db->notification_exists( $user_id, 'level_up', 'Level ' . $sanitized_state['level'] ) ) {
+				$this->db->create_notification( array(
+					'user_id'   => $user_id,
+					'type'      => 'level_up',
+					'title'     => $level_title,
+					'message'   => sprintf( __( 'You reached Level %d. Keep reading to earn more XP and unlock rewards!', 'digital-library-membership' ), $sanitized_state['level'] ),
+					'link_url'  => '#achievements',
+				) );
+			}
+		}
+
+		// Trigger notification for streak milestones (3, 7, 14, 30, 60, 100 days)
+		if ( in_array( $sanitized_state['streak'], array( 3, 7, 14, 30, 60, 100 ), true ) ) {
+			$streak_title = sprintf( __( '%d-Day Reading Streak!', 'digital-library-membership' ), $sanitized_state['streak'] );
+			$since_30d    = gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) );
+			if ( ! $this->db->notification_exists( $user_id, 'streak', $sanitized_state['streak'] . '-Day', $since_30d ) ) {
+				$this->db->create_notification( array(
+					'user_id'   => $user_id,
+					'type'      => 'streak',
+					'title'     => $streak_title,
+					'message'   => sprintf( __( 'Incredible dedication! You have read for %d consecutive days. Keep the streak alive!', 'digital-library-membership' ), $sanitized_state['streak'] ),
+					'link_url'  => '#achievements',
+				) );
+			}
+		}
+
 		update_user_meta( $user_id, 'dlm_achievements_state', json_encode( $sanitized_state ) );
 		wp_send_json_success( array( 'message' => __( 'State synced successfully.', 'digital-library-membership' ) ) );
 	}
@@ -1446,5 +1673,239 @@ class DLM_Public {
 			'favorites'   => $fav_books 
 		) );
 	}
+
+	/**
+	 * AJAX dynamic cache-safe user access resolution for Featured Books
+	 */
+	public function ajax_get_featured_access() {
+		// Nonce check: verify dlm_public_nonce or dlm_nonce with soft-fallback for cached pages
+		$nonce = isset( $_REQUEST['nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['nonce'] ) ) : '';
+		if ( ! empty( $nonce ) && ! wp_verify_nonce( $nonce, 'dlm_public_nonce' ) && ! wp_verify_nonce( $nonce, 'dlm_nonce' ) ) {
+			// If invalid nonce was supplied explicitly, return json error
+			wp_send_json_error( array( 'message' => __( 'Security check failed. Invalid nonce.', 'digital-library-membership' ) ) );
+		}
+
+		$user_id = get_current_user_id();
+		$is_logged = is_user_logged_in();
+		
+		// Sanitize array of book IDs to safe positive integers
+		$raw_ids = isset( $_POST['book_ids'] ) ? (array) $_POST['book_ids'] : array();
+		$book_ids = array_filter( array_map( 'intval', $raw_ids ) );
+
+		$currency = get_option( 'dlm_currency', 'USD' );
+		$pricing_url = get_permalink( get_option( 'dlm_pricing_page_id' ) );
+		if ( ! $pricing_url ) {
+			$pricing_url = home_url( '/pricing/' );
+		}
+		$account_url = dlm_get_page_url( 'account' );
+
+		$fav_books = array();
+		if ( $is_logged ) {
+			$fav_books_raw = get_user_meta( $user_id, 'dlm_favorite_books', true );
+			$fav_books = $fav_books_raw ? json_decode( $fav_books_raw, true ) : array();
+			if ( ! is_array( $fav_books ) ) {
+				$fav_books = array();
+			}
+		}
+
+		$results = array();
+
+		foreach ( $book_ids as $bid ) {
+			if ( ! $bid || $bid <= 0 ) continue;
+			$book = $this->db->get_book( $bid );
+			if ( ! $book ) continue;
+
+			$access_status = dlm_user_can_access_book( $user_id, $bid );
+			$is_future = ! empty( $book->publish_date ) && ( strtotime( $book->publish_date ) > current_time( 'timestamp' ) );
+			$price = isset( $book->price ) ? floatval( $book->price ) : 0.00;
+			$publish_iso = ! empty( $book->publish_date ) ? wp_date( 'c', strtotime( $book->publish_date ) ) : '';
+			if ( empty( $publish_iso ) && ! empty( $book->publish_date ) ) {
+				$publish_iso = str_replace( ' ', 'T', trim( $book->publish_date ) );
+			}
+
+			// Format default dynamic button label based on live user access
+			$default_btn_label = '';
+			$target_url = home_url( '/read/' . $bid . '/' );
+
+			if ( $access_status === 'read_download' || $access_status === 'read_only' ) {
+				$default_btn_label = __( 'Read Now', 'digital-library-membership' );
+				$target_url = home_url( '/read/' . $bid . '/' );
+			} elseif ( $book->access_type === 'purchase_only' || $book->access_type === 'hybrid' ) {
+				$default_btn_label = sprintf( __( 'Buy Book (%s)', 'digital-library-membership' ), number_format( $price, 2 ) . ' ' . $currency );
+				$target_url = home_url( '/read/' . $bid . '/' );
+			} elseif ( ! $is_logged ) {
+				$default_btn_label = __( 'Sign In to Read', 'digital-library-membership' );
+				$target_url = $account_url;
+			} else {
+				$default_btn_label = __( 'Unlock Membership', 'digital-library-membership' );
+				$target_url = $pricing_url;
+			}
+
+			$results[ $bid ] = array(
+				'id'                => $bid,
+				'access'            => $access_status, // 'read_download', 'read_only', 'locked'
+				'access_type'       => $book->access_type,
+				'is_future'         => $is_future,
+				'publish_date'      => $book->publish_date,
+				'publish_iso'       => $publish_iso,
+				'price'             => $price,
+				'price_formatted'   => number_format( $price, 2 ) . ' ' . $currency,
+				'reader_url'        => home_url( '/read/' . $bid . '/' ),
+				'target_url'        => $target_url,
+				'btn1_label'        => ! empty( $book->featured_button_1_label ) ? $book->featured_button_1_label : $default_btn_label,
+				'btn2_label'        => ! empty( $book->featured_button_2_label ) ? $book->featured_button_2_label : '',
+				'is_favorite'       => in_array( $bid, $fav_books, true ),
+			);
+		}
+
+		wp_send_json_success( array(
+			'is_logged_in' => $is_logged,
+			'user_id'      => $user_id,
+			'pricing_url'  => $pricing_url,
+			'account_url'  => $account_url,
+			'access_map'   => $results,
+		) );
+	}
+
+	/**
+	 * AJAX fetch latest notifications and unread count
+	 */
+	public function ajax_get_notifications() {
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'Not logged in.', 'digital-library-membership' ) ) );
+		}
+
+		$user_id       = get_current_user_id();
+		$limit         = isset( $_POST['limit'] ) ? max( 1, min( 50, intval( $_POST['limit'] ) ) ) : 20;
+		$raw_notifs    = $this->db->get_user_notifications( $user_id, $limit );
+		$unread_count  = $this->db->get_unread_notifications_count( $user_id );
+		$notifications = array();
+
+		if ( ! empty( $raw_notifs ) ) {
+			foreach ( $raw_notifs as $n ) {
+				$time_diff = human_time_diff( strtotime( $n->created_at ), current_time( 'timestamp' ) );
+				$notifications[] = array(
+					'id'            => intval( $n->id ),
+					'type'          => $n->type,
+					'title'         => $n->title,
+					'message'       => $n->message,
+					'link_url'      => $n->link_url,
+					'is_read'       => intval( $n->is_read ),
+					'created_at'    => $n->created_at,
+					'time_relative' => sprintf(
+						/* translators: %s: Human-readable time difference (e.g. 5 mins) */
+						__( '%s ago', 'digital-library-membership' ),
+						$time_diff
+					),
+				);
+			}
+		}
+
+		wp_send_json_success( array(
+			'notifications' => $notifications,
+			'unread_count'  => $unread_count,
+		) );
+	}
+
+	/**
+	 * AJAX mark a single notification as read
+	 */
+	public function ajax_mark_notification_read() {
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'Not logged in.', 'digital-library-membership' ) ) );
+		}
+
+		$user_id         = get_current_user_id();
+		$notification_id = isset( $_POST['notification_id'] ) ? intval( $_POST['notification_id'] ) : 0;
+
+		if ( ! $notification_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid notification ID.', 'digital-library-membership' ) ) );
+		}
+
+		$this->db->mark_notification_read( $notification_id, $user_id );
+		$unread_count = $this->db->get_unread_notifications_count( $user_id );
+
+		wp_send_json_success( array(
+			'notification_id' => $notification_id,
+			'unread_count'    => $unread_count,
+		) );
+	}
+
+	/**
+	 * AJAX mark all notifications as read for current user
+	 */
+	public function ajax_mark_all_notifications_read() {
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'Not logged in.', 'digital-library-membership' ) ) );
+		}
+
+		$user_id = get_current_user_id();
+		$this->db->mark_all_notifications_read( $user_id );
+
+		wp_send_json_success( array(
+			'message'      => __( 'All notifications marked as read.', 'digital-library-membership' ),
+			'unread_count' => 0,
+		) );
+	}
+
+	/**
+	 * AJAX get lightweight unread count for periodic polling
+	 */
+	public function ajax_get_unread_notifications_count() {
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'Not logged in.', 'digital-library-membership' ) ) );
+		}
+
+		$user_id      = get_current_user_id();
+		$unread_count = $this->db->get_unread_notifications_count( $user_id );
+
+		wp_send_json_success( array(
+			'unread_count' => $unread_count,
+		) );
+	}
+
+	/**
+	 * AJAX update member onboarding tour completion/skip/reset state
+	 */
+	public function ajax_update_onboarding_status() {
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'Not logged in.', 'digital-library-membership' ) ) );
+		}
+
+		$user_id = get_current_user_id();
+		$status  = isset( $_POST['status'] ) ? sanitize_key( $_POST['status'] ) : '';
+
+		if ( $status === 'completed' ) {
+			update_user_meta( $user_id, 'dlm_onboarding_completed', 'yes' );
+			update_user_meta( $user_id, 'dlm_onboarding_completed_at', current_time( 'mysql' ) );
+			wp_send_json_success( array(
+				'onboarding_completed' => 'yes',
+				'message'              => __( 'Onboarding tour completed.', 'digital-library-membership' ),
+			) );
+		} elseif ( $status === 'skipped' ) {
+			update_user_meta( $user_id, 'dlm_onboarding_completed', 'yes' );
+			update_user_meta( $user_id, 'dlm_onboarding_skipped_at', current_time( 'mysql' ) );
+			wp_send_json_success( array(
+				'onboarding_completed' => 'yes',
+				'message'              => __( 'Onboarding tour skipped.', 'digital-library-membership' ),
+			) );
+		} elseif ( $status === 'reset' ) {
+			update_user_meta( $user_id, 'dlm_onboarding_completed', 'no' );
+			delete_user_meta( $user_id, 'dlm_onboarding_completed_at' );
+			delete_user_meta( $user_id, 'dlm_onboarding_skipped_at' );
+			wp_send_json_success( array(
+				'onboarding_completed' => 'no',
+				'message'              => __( 'Onboarding tour reset for replay.', 'digital-library-membership' ),
+			) );
+		}
+
+		wp_send_json_error( array( 'message' => __( 'Invalid onboarding status.', 'digital-library-membership' ) ) );
+	}
 }
+
 

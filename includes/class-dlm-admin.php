@@ -278,7 +278,95 @@ class DLM_Admin {
 	}
 
 	/**
-	 * AJAX handler: Import demo data
+	 * AJAX handler to install and activate recommended plugins (Elementor, WooCommerce)
+	 */
+	public function ajax_install_activate_plugin() {
+		if ( ! current_user_can( 'install_plugins' ) || ! current_user_can( 'activate_plugins' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. Administrator capabilities required.', 'digital-library-membership' ) ) );
+		}
+
+		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
+
+		$slug = isset( $_POST['slug'] ) ? sanitize_key( $_POST['slug'] ) : '';
+		$allowed_plugins = array(
+			'elementor'   => array(
+				'name' => 'Elementor',
+				'file' => 'elementor/elementor.php',
+				'slug' => 'elementor',
+			),
+			'woocommerce' => array(
+				'name' => 'WooCommerce',
+				'file' => 'woocommerce/woocommerce.php',
+				'slug' => 'woocommerce',
+			),
+		);
+
+		if ( ! isset( $allowed_plugins[ $slug ] ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid plugin requested.', 'digital-library-membership' ) ) );
+		}
+
+		$plugin_info = $allowed_plugins[ $slug ];
+		$plugin_file = $plugin_info['file'];
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		// 1. Check if already active
+		if ( is_plugin_active( $plugin_file ) ) {
+			wp_send_json_success( array(
+				'status'  => 'active',
+				'message' => sprintf( __( '%s is already active.', 'digital-library-membership' ), $plugin_info['name'] ),
+			) );
+		}
+
+		// 2. Check if installed but inactive
+		if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
+			$activated = activate_plugin( $plugin_file );
+			if ( is_wp_error( $activated ) ) {
+				wp_send_json_error( array( 'message' => $activated->get_error_message() ) );
+			}
+			wp_send_json_success( array(
+				'status'  => 'active',
+				'message' => sprintf( __( '%s activated successfully!', 'digital-library-membership' ), $plugin_info['name'] ),
+			) );
+		}
+
+		// 3. Not installed — install from WordPress.org API
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+
+		$api = plugins_api( 'plugin_information', array(
+			'slug'   => $plugin_info['slug'],
+			'fields' => array( 'sections' => false ),
+		) );
+
+		if ( is_wp_error( $api ) ) {
+			wp_send_json_error( array( 'message' => $api->get_error_message() ) );
+		}
+
+		$skin     = new WP_Ajax_Upgrader_Skin();
+		$upgrader = new Plugin_Upgrader( $skin );
+		$install  = $upgrader->install( $api->download_link );
+
+		if ( is_wp_error( $install ) ) {
+			wp_send_json_error( array( 'message' => $install->get_error_message() ) );
+		}
+
+		if ( true === $install || is_null( $install ) ) {
+			$activated = activate_plugin( $plugin_file );
+			if ( is_wp_error( $activated ) ) {
+				wp_send_json_error( array( 'message' => $activated->get_error_message() ) );
+			}
+			wp_send_json_success( array(
+				'status'  => 'active',
+				'message' => sprintf( __( '%s installed and activated successfully!', 'digital-library-membership' ), $plugin_info['name'] ),
+			) );
+		}
+
+		wp_send_json_error( array( 'message' => sprintf( __( 'Could not install %s. Please install it manually from Plugins > Add New.', 'digital-library-membership' ), $plugin_info['name'] ) ) );
+	}
+
+	/**
+	 * AJAX handler: Import demo data (supports modular steps or full execution)
 	 */
 	public function ajax_import_demo_data() {
 		if ( ! current_user_can( 'manage_dlm_library' ) ) {
@@ -287,10 +375,32 @@ class DLM_Admin {
 
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
 
+		$step     = isset( $_POST['step'] ) ? sanitize_key( $_POST['step'] ) : 'all';
 		$demo_mgr = new DLM_Demo_Data( $this->db, $this->checkout );
-		$result   = $demo_mgr->import();
 
-		if ( $result['success'] ) {
+		switch ( $step ) {
+			case 'init':
+				$result = $demo_mgr->import_step_init();
+				break;
+			case 'books':
+				$result = $demo_mgr->import_step_books();
+				break;
+			case 'users':
+				$result = $demo_mgr->import_step_users();
+				break;
+			case 'orders':
+				$result = $demo_mgr->import_step_orders();
+				break;
+			case 'finalize':
+				$result = $demo_mgr->import_step_finalize();
+				break;
+			case 'all':
+			default:
+				$result = $demo_mgr->import();
+				break;
+		}
+
+		if ( ! empty( $result['success'] ) ) {
 			wp_send_json_success( $result );
 		} else {
 			wp_send_json_error( $result );
@@ -298,7 +408,7 @@ class DLM_Admin {
 	}
 
 	/**
-	 * AJAX handler: Remove demo data
+	 * AJAX handler: Remove demo data (supports modular steps or full execution)
 	 */
 	public function ajax_remove_demo_data() {
 		if ( ! current_user_can( 'manage_dlm_library' ) ) {
@@ -307,10 +417,26 @@ class DLM_Admin {
 
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
 
+		$step     = isset( $_POST['step'] ) ? sanitize_key( $_POST['step'] ) : 'all';
 		$demo_mgr = new DLM_Demo_Data( $this->db, $this->checkout );
-		$result   = $demo_mgr->remove();
 
-		if ( $result['success'] ) {
+		switch ( $step ) {
+			case 'orders':
+				$result = $demo_mgr->remove_step_orders();
+				break;
+			case 'catalog':
+				$result = $demo_mgr->remove_step_catalog();
+				break;
+			case 'users_finalize':
+				$result = $demo_mgr->remove_step_users_finalize();
+				break;
+			case 'all':
+			default:
+				$result = $demo_mgr->remove();
+				break;
+		}
+
+		if ( ! empty( $result['success'] ) ) {
 			wp_send_json_success( $result );
 		} else {
 			wp_send_json_error( $result );
@@ -433,6 +559,14 @@ class DLM_Admin {
 		$access_type  = isset( $_POST['access_type'] ) ? sanitize_text_field( wp_unslash( $_POST['access_type'] ) ) : 'subscription_only';
 		$price        = isset( $_POST['price'] ) ? floatval( $_POST['price'] ) : 0.00;
 		$publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : null;
+		$is_featured    = ! empty( $_POST['is_featured'] ) ? 1 : 0;
+		$featured_title = isset( $_POST['featured_title'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_title'] ) ) : '';
+		$featured_desc  = isset( $_POST['featured_description'] ) ? wp_kses_post( wp_unslash( $_POST['featured_description'] ) ) : null;
+		$banner_id      = isset( $_POST['featured_banner_id'] ) ? intval( $_POST['featured_banner_id'] ) : 0;
+		$banner_url     = isset( $_POST['featured_banner_url'] ) ? esc_url_raw( wp_unslash( $_POST['featured_banner_url'] ) ) : '';
+		$btn1_label     = isset( $_POST['featured_button_1_label'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_button_1_label'] ) ) : '';
+		$btn2_label     = isset( $_POST['featured_button_2_label'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_button_2_label'] ) ) : '';
+		$featured_order = isset( $_POST['featured_order'] ) ? intval( $_POST['featured_order'] ) : 0;
 
 		$status = 'publish';
 		if ( isset( $_POST['status'] ) && sanitize_text_field( wp_unslash( $_POST['status'] ) ) === 'draft' ) {
@@ -443,16 +577,24 @@ class DLM_Admin {
 
 		// Insert DB entry
 		$book_data = array(
-			'title'           => sanitize_text_field( wp_unslash( $_POST['title'] ) ),
-			'author'          => sanitize_text_field( wp_unslash( $_POST['author'] ) ),
-			'description'     => wp_kses_post( wp_unslash( $_POST['description'] ) ),
-			'cover_image_url' => esc_url_raw( wp_unslash( $_POST['cover_image_url'] ) ),
-			'file_path'       => $target_path,
-			'file_type'       => $file_ext,
-			'status'          => $status,
-			'access_type'     => $access_type,
-			'price'           => $price,
-			'publish_date'    => $publish_date,
+			'title'                   => sanitize_text_field( wp_unslash( $_POST['title'] ) ),
+			'author'                  => sanitize_text_field( wp_unslash( $_POST['author'] ) ),
+			'description'             => wp_kses_post( wp_unslash( $_POST['description'] ) ),
+			'cover_image_url'         => esc_url_raw( wp_unslash( $_POST['cover_image_url'] ) ),
+			'file_path'               => $target_path,
+			'file_type'               => $file_ext,
+			'status'                  => $status,
+			'access_type'             => $access_type,
+			'price'                   => $price,
+			'publish_date'            => $publish_date,
+			'is_featured'             => $is_featured,
+			'featured_title'          => $featured_title,
+			'featured_description'    => $featured_desc,
+			'featured_banner_id'      => $banner_id,
+			'featured_banner_url'     => $banner_url,
+			'featured_button_1_label' => $btn1_label,
+			'featured_button_2_label' => $btn2_label,
+			'featured_order'          => $featured_order,
 		);
 
 		$book_id = $this->db->insert_book( $book_data );
@@ -507,6 +649,14 @@ class DLM_Admin {
 		$access_type  = isset( $_POST['access_type'] ) ? sanitize_text_field( wp_unslash( $_POST['access_type'] ) ) : 'subscription_only';
 		$price        = isset( $_POST['price'] ) ? floatval( $_POST['price'] ) : 0.00;
 		$publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : null;
+		$is_featured    = ! empty( $_POST['is_featured'] ) ? 1 : 0;
+		$featured_title = isset( $_POST['featured_title'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_title'] ) ) : '';
+		$featured_desc  = isset( $_POST['featured_description'] ) ? wp_kses_post( wp_unslash( $_POST['featured_description'] ) ) : null;
+		$banner_id      = isset( $_POST['featured_banner_id'] ) ? intval( $_POST['featured_banner_id'] ) : 0;
+		$banner_url     = isset( $_POST['featured_banner_url'] ) ? esc_url_raw( wp_unslash( $_POST['featured_banner_url'] ) ) : '';
+		$btn1_label     = isset( $_POST['featured_button_1_label'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_button_1_label'] ) ) : '';
+		$btn2_label     = isset( $_POST['featured_button_2_label'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_button_2_label'] ) ) : '';
+		$featured_order = isset( $_POST['featured_order'] ) ? intval( $_POST['featured_order'] ) : 0;
 
 		$status = 'publish';
 		if ( isset( $_POST['status'] ) && $_POST['status'] === 'draft' ) {
@@ -516,14 +666,22 @@ class DLM_Admin {
 		}
 
 		$book_data = array(
-			'title'           => sanitize_text_field( $_POST['title'] ),
-			'author'          => sanitize_text_field( $_POST['author'] ),
-			'description'     => wp_kses_post( $_POST['description'] ),
-			'cover_image_url' => esc_url_raw( $_POST['cover_image_url'] ),
-			'status'          => $status,
-			'access_type'     => $access_type,
-			'price'           => $price,
-			'publish_date'    => $publish_date,
+			'title'                   => sanitize_text_field( $_POST['title'] ),
+			'author'                  => sanitize_text_field( $_POST['author'] ),
+			'description'             => wp_kses_post( $_POST['description'] ),
+			'cover_image_url'         => esc_url_raw( $_POST['cover_image_url'] ),
+			'status'                  => $status,
+			'access_type'             => $access_type,
+			'price'                   => $price,
+			'publish_date'            => $publish_date,
+			'is_featured'             => $is_featured,
+			'featured_title'          => $featured_title,
+			'featured_description'    => $featured_desc,
+			'featured_banner_id'      => $banner_id,
+			'featured_banner_url'     => $banner_url,
+			'featured_button_1_label' => $btn1_label,
+			'featured_button_2_label' => $btn2_label,
+			'featured_order'          => $featured_order,
 		);
 
 		// Check if a new file was uploaded

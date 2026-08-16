@@ -475,35 +475,78 @@ jQuery(document).ready(function($) {
                 
                 if (userAccess === 'read_download') {
                     var btnText = book.progress > 0 ? 'Continue' : 'Read';
-                    actionButton = '<span class="px-3 py-1.5 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform mr-1.5">' + btnText + '</span>' +
-                                   '<button class="p-1.5 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform dlm-btn-download" data-book-id="' + book.id + '" title="Download PDF">⬇</button>';
+                    actionButton = '<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">' + btnText + '</span>' +
+                                   '<button class="dlm-btn-download dlm-book-action-btn" data-book-id="' + book.id + '" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2); border:none; cursor:pointer;">Download</button>';
                 } else if (userAccess === 'read_only') {
-                    var btnText = book.progress > 0 ? 'Continue Reading' : 'Read Online';
-                    actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">' + btnText + '</span>';
+                    var btnText = book.progress > 0 ? 'Continue' : 'Read';
+                    actionButton = '<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">' + btnText + '</span>';
                 } else {
                     if (book.access_type === 'purchase_only' || book.access_type === 'hybrid') {
-                        actionButton = '<button class="px-3 py-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform dlm-btn-buy" data-book-id="' + book.id + '">Buy (' + (book.price_formatted || '$' + book.price) + ')</button>';
+                        actionButton = '<button class="dlm-btn-buy dlm-book-action-btn" data-book-id="' + book.id + '" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2); border:none; cursor:pointer;">Buy (' + (book.price_formatted || '$' + book.price) + ')</button>';
                     } else if (isLoggedIn) {
-                        actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Subscribe to Read</span>';
+                        actionButton = '<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">Subscribe</span>';
                     } else {
-                        actionButton = '<span class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform">Sign In to Read</span>';
+                        actionButton = '<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">Sign In</span>';
                     }
                 }
 
-                var progressBarHtml = book.progress > 0 
+                var isFuture = !!book.is_future;
+                var upcomingBadgeHtml = isFuture 
+                    ? '<div class="absolute top-2.5 left-2.5 z-10">' +
+                        '<span class="px-2.5 py-1 bg-amber-600/95 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider rounded-lg shadow-md flex items-center gap-1">' +
+                            '<i class="fa-solid fa-clock text-[9px]"></i> Upcoming' +
+                        '</span>' +
+                      '</div>' 
+                    : '';
+
+                var relTime = book.publish_iso || book.publish_date || '';
+                var coverCountdownHtml = (isFuture && relTime)
+                    ? '<div class="absolute bottom-2 inset-x-2 z-10 grid grid-cols-4 gap-1 p-1 rounded-xl shadow-xl text-white dlm-countdown-timer pointer-events-none" style="background: linear-gradient(135deg, rgba(133, 83, 0, 0.92), rgba(97, 59, 0, 0.95)) !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; backdrop-filter: blur(8px);" data-release-time="' + relTime + '" data-book-id="' + book.id + '">' +
+                        '<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">' +
+                            '<span class="countdown-days font-mono font-extrabold text-[12px] leading-tight text-white">00</span>' +
+                            '<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Day</span>' +
+                        '</div>' +
+                        '<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">' +
+                            '<span class="countdown-hours font-mono font-extrabold text-[12px] leading-tight text-white">00</span>' +
+                            '<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Hr</span>' +
+                        '</div>' +
+                        '<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">' +
+                            '<span class="countdown-minutes font-mono font-extrabold text-[12px] leading-tight text-white">00</span>' +
+                            '<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Min</span>' +
+                        '</div>' +
+                        '<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">' +
+                            '<span class="countdown-seconds font-mono font-extrabold text-[12px] leading-tight text-white">00</span>' +
+                            '<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Sec</span>' +
+                        '</div>' +
+                      '</div>'
+                    : '';
+
+                var overlayHtml = '';
+                if (isFuture) {
+                    overlayHtml = '<div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-1.5 p-3 text-center z-20">' +
+                        '<span class="px-3 py-1.5 bg-white text-black font-extrabold text-xs rounded-xl shadow-lg uppercase tracking-wider">Coming Soon</span>' +
+                        '<p class="text-white/90 text-[11px] font-medium leading-tight mt-1">Releases ' + (book.publish_formatted || book.publish_date || '') + '</p>' +
+                    '</div>';
+                } else {
+                    overlayHtml = '<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2 p-3 z-10">' +
+                        actionButton +
+                    '</div>';
+                }
+
+                var progressBarHtml = (!isFuture && book.progress > 0) 
                     ? '<div class="absolute bottom-0 left-0 w-full h-1.5 bg-black/20"><div class="h-full bg-surface-amber transition-all duration-300" style="width: ' + book.progress + '%;"></div></div>' 
                     : '';
 
-                var progressTextHtml = book.progress > 0 
+                var progressTextHtml = (!isFuture && book.progress > 0) 
                     ? '<span class="text-label-micro text-secondary font-semibold">' + book.progress + '% Read</span>' 
                     : '';
 
                 return '<div class="group cursor-pointer animate-fade-in dlm-book-card-item" data-book-id="' + book.id + '">' +
                     '<div class="relative aspect-[3/4] mb-4 rounded-2xl overflow-hidden book-card-shadow border border-outline-variant/10">' +
                         coverMarkup +
-                        '<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">' +
-                            actionButton +
-                        '</div>' +
+                        upcomingBadgeHtml +
+                        coverCountdownHtml +
+                        overlayHtml +
                         progressBarHtml +
                     '</div>' +
                     '<div class="space-y-1">' +
@@ -518,6 +561,7 @@ jQuery(document).ready(function($) {
             }).join('');
 
             $grid.html(html);
+            initDlmCountdowns();
 
             if (libState.visibleCount >= total) {
                 $loadMore.addClass('hidden');
@@ -623,15 +667,39 @@ jQuery(document).ready(function($) {
             var $actionBtn = $('#modal-action-btn');
             var userAccess = book.user_access || (isActive ? 'read_only' : 'locked');
             
-            if (userAccess === 'read_download' || userAccess === 'read_only') {
-                $actionBtn.text('Start Reading').attr('href', book.read_url).removeClass('dlm-btn-buy').removeAttr('data-book-id');
-            } else {
-                if (book.access_type === 'purchase_only' || book.access_type === 'hybrid') {
-                    $actionBtn.text('Buy Book (' + (book.price_formatted || '$' + book.price) + ')').attr('href', '#').addClass('dlm-btn-buy').attr('data-book-id', book.id);
-                } else if (isLoggedIn) {
-                    $actionBtn.text('Unlock Membership').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+            if (book.is_future) {
+                var modalRelTime = book.publish_iso || book.publish_date || '';
+                var isStillFuture = modalRelTime ? (new Date(String(modalRelTime).replace(' ', 'T')).getTime() > new Date().getTime()) : true;
+                if (isStillFuture) {
+                    $('#modal-countdown-timer').attr('data-release-time', modalRelTime);
+                    $('#modal-release-date-badge').text(book.publish_formatted || book.publish_date || 'Upcoming');
+                    $('#modal-countdown-container').removeClass('hidden');
+                    window.initDlmCountdowns();
+                    $actionBtn.text('Releases on ' + (book.publish_formatted || book.publish_date || 'Coming Soon')).attr('href', '#').removeClass('dlm-btn-buy').removeAttr('data-book-id').css('pointer-events', 'none').css('opacity', '0.75');
                 } else {
-                    $actionBtn.text('Sign Up to Read').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                    $('#modal-countdown-container').addClass('hidden');
+                    $actionBtn.css('pointer-events', '').css('opacity', '');
+                    if (userAccess === 'read_download' || userAccess === 'read_only') {
+                        $actionBtn.text('Start Reading').attr('href', book.read_url).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                    } else if (book.access_type === 'purchase_only' || book.access_type === 'hybrid') {
+                        $actionBtn.text('Buy Book (' + (book.price_formatted || '$' + book.price) + ')').attr('href', '#').addClass('dlm-btn-buy').attr('data-book-id', book.id);
+                    } else {
+                        $actionBtn.text(isLoggedIn ? 'Unlock Membership' : 'Sign Up to Read').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                    }
+                }
+            } else {
+                $('#modal-countdown-container').addClass('hidden');
+                $actionBtn.css('pointer-events', '').css('opacity', '');
+                if (userAccess === 'read_download' || userAccess === 'read_only') {
+                    $actionBtn.text('Start Reading').attr('href', book.read_url).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                } else {
+                    if (book.access_type === 'purchase_only' || book.access_type === 'hybrid') {
+                        $actionBtn.text('Buy Book (' + (book.price_formatted || '$' + book.price) + ')').attr('href', '#').addClass('dlm-btn-buy').attr('data-book-id', book.id);
+                    } else if (isLoggedIn) {
+                        $actionBtn.text('Unlock Membership').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                    } else {
+                        $actionBtn.text('Sign Up to Read').attr('href', pricingUrl).removeClass('dlm-btn-buy').removeAttr('data-book-id');
+                    }
                 }
             }
 
@@ -740,4 +808,68 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    // Real-time Countdown Timer for Scheduled/Future Release Books
+    window.initDlmCountdowns = function() {
+        function parseReleaseTime(str) {
+            if (!str) return 0;
+            var s = String(str).trim();
+            if (s.indexOf(' ') > 0 && s.indexOf('T') === -1) {
+                s = s.replace(' ', 'T');
+            }
+            var parsed = Date.parse(s);
+            if (!isNaN(parsed) && parsed > 0) {
+                return parsed;
+            }
+            var d = new Date(str);
+            var t = d.getTime();
+            return isNaN(t) ? 0 : t;
+        }
+
+        function updateTimers() {
+            var now = new Date().getTime();
+            $('.dlm-countdown-timer').each(function() {
+                var $timer = $(this);
+                var releaseIso = $timer.attr('data-release-time') || $timer.data('release-time');
+                if (!releaseIso) return;
+
+                var targetTime = parseReleaseTime(releaseIso);
+                if (!targetTime) return;
+
+                var distance = targetTime - now;
+
+                if (distance <= 0) {
+                    $timer.find('.countdown-days').text('00');
+                    $timer.find('.countdown-hours').text('00');
+                    $timer.find('.countdown-minutes').text('00');
+                    $timer.find('.countdown-seconds').text('00');
+                    $timer.find('.countdown-digits').text('Available Now!').removeClass('text-amber-900').addClass('text-green-700 font-bold');
+                    return;
+                }
+
+                var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                var dStr = days < 10 ? '0' + days : '' + days;
+                var hStr = hours < 10 ? '0' + hours : '' + hours;
+                var mStr = minutes < 10 ? '0' + minutes : '' + minutes;
+                var sStr = seconds < 10 ? '0' + seconds : '' + seconds;
+
+                $timer.find('.countdown-days').text(dStr);
+                $timer.find('.countdown-hours').text(hStr);
+                $timer.find('.countdown-minutes').text(mStr);
+                $timer.find('.countdown-seconds').text(sStr);
+            });
+        }
+
+        updateTimers();
+        if (!window.dlmCountdownInterval) {
+            window.dlmCountdownInterval = setInterval(updateTimers, 1000);
+        }
+    };
+
+    // Initialize countdowns on DOM ready
+    window.initDlmCountdowns();
 });

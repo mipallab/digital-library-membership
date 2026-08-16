@@ -145,6 +145,7 @@ class DLM {
 
 		// Admin Setup Wizard AJAX
 		add_action( 'wp_ajax_dlm_save_setup_wizard', array( $this->admin, 'ajax_save_setup_wizard' ) );
+		add_action( 'wp_ajax_dlm_install_activate_plugin', array( $this->admin, 'ajax_install_activate_plugin' ) );
 
 		// Demo Data Management AJAX
 		add_action( 'wp_ajax_dlm_import_demo_data', array( $this->admin, 'ajax_import_demo_data' ) );
@@ -156,6 +157,22 @@ class DLM {
 		add_action( 'wp_ajax_dlm_update_profile', array( $this->public, 'ajax_update_profile' ) );
 		add_action( 'wp_ajax_dlm_upload_avatar', array( $this->public, 'ajax_upload_avatar' ) );
 		add_action( 'wp_ajax_dlm_toggle_favorite', array( $this->public, 'ajax_toggle_favorite' ) );
+		add_action( 'wp_ajax_dlm_get_user_featured_access', array( $this->public, 'ajax_get_featured_access' ) );
+		add_action( 'wp_ajax_nopriv_dlm_get_user_featured_access', array( $this->public, 'ajax_get_featured_access' ) );
+
+		// Member In-App Notification AJAX actions
+		add_action( 'wp_ajax_dlm_get_notifications', array( $this->public, 'ajax_get_notifications' ) );
+		add_action( 'wp_ajax_dlm_mark_notification_read', array( $this->public, 'ajax_mark_notification_read' ) );
+		add_action( 'wp_ajax_dlm_mark_all_notifications_read', array( $this->public, 'ajax_mark_all_notifications_read' ) );
+		add_action( 'wp_ajax_dlm_get_unread_notifications_count', array( $this->public, 'ajax_get_unread_notifications_count' ) );
+
+		// Member Onboarding Tour AJAX action
+		add_action( 'wp_ajax_dlm_update_onboarding_status', array( $this->public, 'ajax_update_onboarding_status' ) );
+
+		// Register Elementor Category & Custom Widgets
+		add_action( 'elementor/elements/categories_registered', array( $this, 'register_elementor_category' ) );
+		add_action( 'elementor/widgets/register', array( $this, 'register_elementor_featured_slider' ) );
+		add_action( 'elementor/widgets/widgets_registered', array( $this, 'register_elementor_featured_slider_legacy' ) );
 
 		// Webhooks listeners
 		add_action( 'init', array( $this->checkout, 'handle_webhooks' ) );
@@ -238,7 +255,11 @@ class DLM {
 	 * Enqueue Frontend Scripts & Styles
 	 */
 	public function enqueue_public_assets() {
-		// Only load assets if library shortcodes are present or on the reader page
+		if ( is_admin() ) {
+			return;
+		}
+
+		// Only load assets if library shortcodes are present, on singular pages, or on the reader page
 		$should_load = false;
 		if ( get_query_var( 'dlm_reader' ) ) {
 			$should_load = true;
@@ -248,9 +269,14 @@ class DLM {
 				if ( has_shortcode( $post->post_content, 'dlm_library' ) || 
 					 has_shortcode( $post->post_content, 'dlm_pricing' ) || 
 					 has_shortcode( $post->post_content, 'dlm_checkout' ) || 
-					 has_shortcode( $post->post_content, 'dlm_account' ) ) {
+					 has_shortcode( $post->post_content, 'dlm_account' ) ||
+					 has_shortcode( $post->post_content, 'dlm_member_dashboard' ) ) {
 					$should_load = true;
 				}
+			}
+			// In case shortcode is inside an Elementor template or custom builder page
+			if ( ! $should_load && ( is_singular() || is_page() ) ) {
+				$should_load = true;
 			}
 		}
 
@@ -260,12 +286,14 @@ class DLM {
 
 		// Enqueue public core stylesheet
 		wp_enqueue_style( 'dlm-public-css', DLM_URL . 'public/css/dlm-public.css', array(), DLM_VERSION );
+		wp_enqueue_style( 'dlm-onboarding-tour-css', DLM_URL . 'public/css/dlm-onboarding-tour.css', array(), DLM_VERSION );
 		wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap', array(), DLM_VERSION );
 		wp_enqueue_style( 'dlm-material-symbols', 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap', array(), DLM_VERSION );
 		wp_enqueue_style( 'dlm-font-awesome', DLM_URL . 'admin/css/font-awesome.min.css', array(), '6.4.0' );
 
 		wp_enqueue_script( 'dlm-tailwind', DLM_URL . 'admin/js/tailwindcss.js', array(), DLM_VERSION, false );
 		wp_enqueue_script( 'dlm-public-js', DLM_URL . 'public/js/dlm-public.js', array( 'jquery' ), DLM_VERSION, true );
+		wp_enqueue_script( 'dlm-onboarding-tour-js', DLM_URL . 'public/js/dlm-onboarding-tour.js', array( 'jquery' ), DLM_VERSION, true );
 
 		// PayPal SDK
 		$paypal_client_id = get_option( 'dlm_paypal_client_id' );
@@ -274,13 +302,9 @@ class DLM {
 		}
 
 		// Google ReCAPTCHA Integration
-		$recaptcha_site_key = get_option( 'dlm_recaptcha_site_key' );
-		$recaptcha_version  = get_option( 'dlm_recaptcha_version', 'v2' );
 		$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
-
-		if ( $recaptcha_mode === 'testing' ) {
-			$recaptcha_site_key = '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC';
-		}
+		$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
+		$recaptcha_version  = ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' );
 
 		if ( $recaptcha_site_key ) {
 			if ( $recaptcha_version === 'v3' ) {
@@ -316,8 +340,8 @@ class DLM {
 			'paypalLifetimePlanId' => get_option( 'dlm_paypal_lifetime_plan_id' ),
 			'nonce'             => wp_create_nonce( 'dlm_public_nonce' ),
 			'useWooCommerce'    => class_exists( 'WooCommerce' ) && ( get_option( 'dlm_wc_monthly_product' ) || get_option( 'dlm_wc_yearly_product' ) || get_option( 'dlm_wc_lifetime_product' ) ),
-			'recaptchaSiteKey'  => get_option( 'dlm_recaptcha_mode', 'production' ) === 'testing' ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' ),
-			'recaptchaVersion'  => get_option( 'dlm_recaptcha_version', 'v2' ),
+			'recaptchaSiteKey'  => ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' ),
+			'recaptchaVersion'  => ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' ),
 		) );
 	}
 
@@ -433,16 +457,44 @@ class DLM {
 			<?php
 		}
 
-		// Notice if WooCommerce is explicitly set as primary gateway but WooCommerce plugin is missing
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$enable_wc = get_option( 'dlm_enable_woocommerce', '0' );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( '1' === $enable_wc && ! class_exists( 'WooCommerce' ) && isset( $_GET['page'] ) && 'dlm-library' === sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) {
+		// Notice: Elementor Integration
+		if ( ! did_action( 'elementor/loaded' ) && ! class_exists( '\Elementor\Plugin' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			$is_el_installed = file_exists( WP_PLUGIN_DIR . '/elementor/elementor.php' );
+			$el_action_url   = $is_el_installed 
+				? wp_nonce_url( admin_url( 'plugins.php?action=activate&plugin=elementor%2Felementor.php' ), 'activate-plugin_elementor/elementor.php' )
+				: wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=elementor' ), 'install-plugin_elementor' );
 			?>
-			<div class="notice notice-warning is-dismissible">
+			<div class="notice notice-info is-dismissible">
 				<p>
-					<strong><?php esc_html_e( 'WooCommerce Gateway Notice:', 'digital-library-membership' ); ?></strong>
-					<?php esc_html_e( 'WooCommerce integration is enabled in settings, but WooCommerce is not active. Install WooCommerce or disable WooCommerce Gateway in settings.', 'digital-library-membership' ); ?>
+					<strong><?php esc_html_e( 'Digital Library Membership:', 'digital-library-membership' ); ?></strong>
+					<?php esc_html_e( 'Elementor Page Builder is recommended to enable the Featured Book Hero Carousel slider and custom drag-and-drop templates.', 'digital-library-membership' ); ?>
+					<a href="<?php echo esc_url( $el_action_url ); ?>" class="button button-primary" style="margin-left:10px;">
+						<?php echo $is_el_installed ? esc_html__( 'Activate Elementor', 'digital-library-membership' ) : esc_html__( 'Install Elementor', 'digital-library-membership' ); ?>
+					</a>
+				</p>
+			</div>
+			<?php
+		}
+
+		// Notice: WooCommerce Integration
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			$is_wc_installed = file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' );
+			$wc_action_url   = $is_wc_installed 
+				? wp_nonce_url( admin_url( 'plugins.php?action=activate&plugin=woocommerce%2Fwoocommerce.php' ), 'activate-plugin_woocommerce/woocommerce.php' )
+				: wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=woocommerce' ), 'install-plugin_woocommerce' );
+			$enable_wc       = get_option( 'dlm_enable_woocommerce', '0' );
+			?>
+			<div class="notice notice-<?php echo '1' === $enable_wc ? 'warning' : 'info'; ?> is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'Digital Library Membership:', 'digital-library-membership' ); ?></strong>
+					<?php echo '1' === $enable_wc 
+						? esc_html__( 'WooCommerce gateway is enabled in settings, but WooCommerce is not active.', 'digital-library-membership' ) 
+						: esc_html__( 'WooCommerce is recommended for advanced e-commerce cart, checkout gateways, and automated book product syncing.', 'digital-library-membership' ); ?>
+					<a href="<?php echo esc_url( $wc_action_url ); ?>" class="button <?php echo '1' === $enable_wc ? 'button-primary' : 'button-secondary'; ?>" style="margin-left:10px;">
+						<?php echo $is_wc_installed ? esc_html__( 'Activate WooCommerce', 'digital-library-membership' ) : esc_html__( 'Install WooCommerce', 'digital-library-membership' ); ?>
+					</a>
 				</p>
 			</div>
 			<?php
@@ -477,7 +529,7 @@ class DLM {
 	}
 
 	/**
-	 * Fetch subscriptions ending in 3 days and send alerts
+	 * Fetch subscriptions ending in 3 days, handle expired subscriptions, and send alerts & notifications
 	 */
 	public function run_expiry_checks() {
 		global $wpdb;
@@ -487,6 +539,9 @@ class DLM {
 			return;
 		}
 
+		$db = new DLM_DB();
+
+		// 1. Check subscriptions expiring in 3 days
 		$target_date = gmdate( 'Y-m-d', strtotime( '+3 days' ) );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$results = $wpdb->get_results( $wpdb->prepare(
@@ -514,6 +569,62 @@ class DLM {
 				);
 
 				wp_mail( $to, $subject, $body );
+
+				// Idempotent In-App Notification (Checks if 3-day notice sent within last 7 days)
+				$since_7d = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
+				if ( ! $db->notification_exists( $sub->user_id, 'subscription', 'Expiring in 3 Days', $since_7d ) ) {
+					$db->create_notification( array(
+						'user_id'   => $sub->user_id,
+						'type'      => 'subscription',
+						'title'     => __( 'Subscription Expiring in 3 Days', 'digital-library-membership' ),
+						'message'   => sprintf(
+							/* translators: 1: Plan name, 2: Expiry date */
+							__( 'Your %1$s subscription is expiring on %2$s. Click here to renew your membership and keep reading.', 'digital-library-membership' ),
+							ucfirst( $sub->plan_interval ),
+							date_i18n( get_option( 'date_format' ), strtotime( $sub->expires_at ) )
+						),
+						'link_url'  => '#membership',
+					) );
+				}
+			}
+		}
+
+		// 2. Check and expire lapsed subscriptions
+		$now = current_time( 'mysql' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$lapsed = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM %i WHERE status = 'active' AND expires_at < %s AND plan_interval != 'lifetime'",
+			$table,
+			$now
+		) );
+
+		if ( ! empty( $lapsed ) ) {
+			foreach ( $lapsed as $l_sub ) {
+				// Mark expired
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->update(
+					$table,
+					array( 'status' => 'expired', 'updated_at' => current_time( 'mysql' ) ),
+					array( 'id' => $l_sub->id )
+				);
+
+				// Revoke capability
+				$u = new WP_User( $l_sub->user_id );
+				if ( $u->exists() ) {
+					$u->remove_cap( 'read_dlm_library' );
+				}
+
+				// Idempotent In-App Notification (Checks if expired notice sent within last 30 days)
+				$since_30d = gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) );
+				if ( ! $db->notification_exists( $l_sub->user_id, 'subscription', 'Subscription Expired', $since_30d ) ) {
+					$db->create_notification( array(
+						'user_id'   => $l_sub->user_id,
+						'type'      => 'subscription',
+						'title'     => __( 'Subscription Expired', 'digital-library-membership' ),
+						'message'   => __( 'Your digital library membership has expired. Click here to renew your plan and regain full access.', 'digital-library-membership' ),
+						'link_url'  => '#membership',
+					) );
+				}
 			}
 		}
 	}
@@ -539,6 +650,22 @@ class DLM {
 		);
 
 		wp_mail( $to, $subject, $body );
+
+		// In-App Notification
+		$db = new DLM_DB();
+		$db->create_notification( array(
+			'user_id'          => $user_id,
+			'type'             => 'subscription',
+			'title'            => sprintf( __( 'Subscription Active: %s', 'digital-library-membership' ), ucfirst( $interval ) ),
+			'message'          => sprintf(
+				/* translators: 1: Plan interval name, 2: Expiry date */
+				__( 'Your %1$s membership is now active (%2$s). You have unlimited access to the entire digital book catalog.', 'digital-library-membership' ),
+				ucfirst( $interval ),
+				( $interval === 'lifetime' ) ? __( 'Lifetime', 'digital-library-membership' ) : date_i18n( get_option( 'date_format' ), strtotime( $expires_at ) )
+			),
+			'link_url'         => '#membership',
+			'deduplicate_days' => 1,
+		) );
 	}
 
 	/**
@@ -664,6 +791,49 @@ class DLM {
 			$redirect_url = dlm_get_page_url( 'account' );
 			wp_safe_redirect( $redirect_url );
 			exit;
+		}
+	}
+
+	/**
+	 * Register custom Elementor category 'digital-library'
+	 */
+	public function register_elementor_category( $elements_manager ) {
+		$elements_manager->add_category(
+			'digital-library',
+			array(
+				'title' => __( 'Digital Library', 'digital-library-membership' ),
+				'icon'  => 'fa fa-book',
+			)
+		);
+	}
+
+	/**
+	 * Register Elementor Custom Widgets (Featured Slider & Book Countdown)
+	 */
+	public function register_elementor_featured_slider( $widgets_manager ) {
+		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
+			return;
+		}
+		require_once DLM_PATH . 'includes/class-dlm-elementor-featured-slider.php';
+		require_once DLM_PATH . 'includes/class-dlm-elementor-book-countdown.php';
+
+		$widgets_manager->register( new DLM_Elementor_Featured_Slider() );
+		$widgets_manager->register( new DLM_Elementor_Book_Countdown() );
+	}
+
+	/**
+	 * Register Elementor Custom Widgets for older Elementor versions
+	 */
+	public function register_elementor_featured_slider_legacy( $widgets_manager ) {
+		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
+			return;
+		}
+		if ( method_exists( $widgets_manager, 'register_widget_type' ) ) {
+			require_once DLM_PATH . 'includes/class-dlm-elementor-featured-slider.php';
+			require_once DLM_PATH . 'includes/class-dlm-elementor-book-countdown.php';
+
+			$widgets_manager->register_widget_type( new DLM_Elementor_Featured_Slider() );
+			$widgets_manager->register_widget_type( new DLM_Elementor_Book_Countdown() );
 		}
 	}
 }
@@ -917,7 +1087,11 @@ function dlm_user_can_access_book( $user_id = 0, $book_id = 0 ) {
 	}
 
 	// Check if book is scheduled for future publish
-	if ( $book->status === 'future' || ( ! empty( $book->publish_date ) && strtotime( $book->publish_date ) > current_time( 'timestamp' ) ) ) {
+	$is_future = ! empty( $book->publish_date ) && ( strtotime( $book->publish_date ) > current_time( 'timestamp' ) );
+	if ( $book->status === 'future' && empty( $book->publish_date ) ) {
+		$is_future = true;
+	}
+	if ( $is_future ) {
 		return 'locked';
 	}
 

@@ -88,8 +88,12 @@ if ( $is_logged_in ) {
 	$has_active_sub = $dlm_db->has_active_membership( $user_id );
 	$sub_details = $dlm_db->get_subscription_by_user( $user_id );
 
-	// Get published books
-	$books = $dlm_db->get_books( 'publish' );
+	// Get published & scheduled books
+	$books = $dlm_db->get_books( 'publish', true );
+	$featured_books = $dlm_db->get_featured_books( 10 );
+	if ( empty( $featured_books ) && ! empty( $books ) ) {
+		$featured_books = array( $books[0] );
+	}
 	
 	// Get all categories terms
 	$categories_terms = get_terms( array(
@@ -97,6 +101,14 @@ if ( $is_logged_in ) {
 		'hide_empty' => false,
 		'parent'     => 0,
 	) );
+
+	// Persistent notifications from database
+	$db_notifications   = $dlm_db->get_user_notifications( $user_id, 20 );
+	$unread_notif_count = $dlm_db->get_unread_notifications_count( $user_id );
+
+	// Onboarding tour status
+	$onboarding_completed   = get_user_meta( $user_id, 'dlm_onboarding_completed', true );
+	$should_show_onboarding = ( empty( $onboarding_completed ) || $onboarding_completed === 'no' );
 }
 
 // Pricing options
@@ -212,13 +224,39 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		}
 	</script>
 	<style>
+		/* Viewport Root and Admin Bar Height Alignment */
+		.dlm-portal-root {
+			height: 100vh;
+			height: 100dvh;
+			width: 100%;
+			display: flex;
+			justify-content: center;
+			overflow: hidden;
+			background-color: #FAFAFA;
+		}
+		@media (min-width: 768px) {
+			html, body.dlm-member-portal-body {
+				height: 100%;
+				overflow: hidden;
+			}
+			body.admin-bar .dlm-portal-root {
+				height: calc(100vh - 32px);
+				height: calc(100dvh - 32px);
+			}
+		}
+		@media (max-width: 782px) {
+			body.admin-bar .dlm-portal-root {
+				height: calc(100vh - 46px);
+				height: calc(100dvh - 46px);
+			}
+		}
 		body {
 			background-color: #FAFAFA;
 			color: #1a1c1c;
 			-webkit-font-smoothing: antialiased;
 		}
 		.glass-sidebar {
-			background: rgba(255, 255, 255, 0.7);
+			background: rgba(255, 255, 255, 0.82);
 			backdrop-filter: blur(20px);
 			-webkit-backdrop-filter: blur(20px);
 		}
@@ -242,9 +280,114 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			-ms-overflow-style: none;
 			scrollbar-width: none;
 		}
+
+		/* ========================================================= */
+		/* SPA THEME CUSTOM SCROLLBARS (Amber / Bronze Palette)     */
+		/* ========================================================= */
+		::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+		::-webkit-scrollbar-track {
+			background: #f7f3ee;
+			border-radius: 9999px;
+		}
+		::-webkit-scrollbar-thumb {
+			background: linear-gradient(180deg, #c7924c 0%, #855300 100%);
+			border-radius: 9999px;
+			border: 2px solid #f7f3ee;
+			background-clip: padding-box;
+		}
+		::-webkit-scrollbar-thumb:hover {
+			background: linear-gradient(180deg, #f59e0b 0%, #613b00 100%);
+			border: 2px solid #f7f3ee;
+			background-clip: padding-box;
+		}
+
+		.custom-scrollbar::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-track {
+			background: rgba(216, 195, 173, 0.2);
+			border-radius: 9999px;
+		}
+		.custom-scrollbar::-webkit-scrollbar-thumb {
+			background: linear-gradient(180deg, #c7924c 0%, #855300 100%);
+			border-radius: 9999px;
+			border: 1px solid rgba(255, 255, 255, 0.6);
+		}
+		.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+			background: linear-gradient(180deg, #f59e0b 0%, #613b00 100%);
+		}
+
+		/* Firefox Scrollbars Support */
+		* {
+			scrollbar-width: thin;
+			scrollbar-color: #855300 #f7f3ee;
+		}
+		.custom-scrollbar {
+			scrollbar-width: thin;
+			scrollbar-color: #855300 rgba(216, 195, 173, 0.2);
+		}
+
+		/* Vertical scrolling containment & hardware acceleration */
+		#dlm-main-content,
+		.custom-scrollbar,
+		aside nav {
+			-webkit-overflow-scrolling: touch;
+			overscroll-behavior-y: contain;
+		}
+
+		/* Responsive adaptations for laptops and compact-height screens (e.g. 1363px / 1366x768) */
+		@media (max-height: 850px) and (min-width: 768px) {
+			aside.glass-sidebar {
+				padding: 1rem 1.15rem !important;
+				gap: 0.25rem !important;
+			}
+			aside.glass-sidebar .sidebar-brand-wrapper {
+				margin-bottom: 0.75rem !important;
+			}
+			aside.glass-sidebar nav a {
+				padding: 0.5rem 0.75rem !important;
+				font-size: 0.875rem !important;
+				gap: 0.625rem !important;
+			}
+			aside.glass-sidebar nav a i {
+				font-size: 1rem !important;
+			}
+			aside.glass-sidebar .sidebar-cta-card {
+				padding: 0.625rem 0.75rem !important;
+				margin-bottom: 0.25rem !important;
+			}
+			aside.glass-sidebar .sidebar-cta-card p {
+				margin-bottom: 0.25rem !important;
+			}
+			aside.glass-sidebar .sidebar-cta-card button {
+				padding-top: 0.35rem !important;
+				padding-bottom: 0.35rem !important;
+				font-size: 0.75rem !important;
+			}
+			aside.glass-sidebar .sidebar-footer-links a {
+				padding: 0.35rem 0.625rem !important;
+				font-size: 0.8125rem !important;
+			}
+		}
+
 		aside, main, header {
 			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		}
+
+		/* Mobile Drawer Left Sidebar */
+		#mobile-sidebar-drawer {
+			transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+			will-change: transform;
+			-webkit-overflow-scrolling: touch;
+		}
+		#mobile-sidebar-backdrop {
+			transition: opacity 0.3s ease-in-out !important;
+		}
+
 		.sidebar-collapsed aside {
 			width: 80px;
 			padding-left: 0.5rem;
@@ -449,6 +592,40 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			border-width: 2px !important;
 		}
 
+		/* Library Book Card Action Buttons (Read & Download with White BG & Black Text) */
+		body.dlm-member-portal-body .dlm-book-action-btn,
+		body.dlm-member-portal-body button.dlm-book-action-btn {
+			background: #ffffff !important;
+			background-color: #ffffff !important;
+			color: #000000 !important;
+			font-family: 'Inter', sans-serif !important;
+			font-weight: 700 !important;
+			font-size: 0.75rem !important;
+			line-height: 1rem !important;
+			padding: 0.5rem 0.75rem !important;
+			border-radius: 0.75rem !important;
+			border: 1px solid rgba(0, 0, 0, 0.08) !important;
+			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+			width: 100% !important;
+			max-width: 130px !important;
+			text-align: center !important;
+			display: flex !important;
+			align-items: center !important;
+			justify-content: center !important;
+			cursor: pointer !important;
+			transition: all 0.2s ease-in-out !important;
+			text-transform: none !important;
+			height: auto !important;
+		}
+		body.dlm-member-portal-body .dlm-book-action-btn:hover,
+		body.dlm-member-portal-body button.dlm-book-action-btn:hover {
+			background: #f3f3f3 !important;
+			background-color: #f3f3f3 !important;
+			color: #000000 !important;
+			transform: translateY(-2px) scale(1.03) !important;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28) !important;
+		}
+
 		/* Preserve input paddings for inner icons */
 		body.dlm-member-portal-body input.pl-12,
 		body.dlm-member-portal-body #spa-register-form input.pl-12 {
@@ -465,15 +642,6 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		}
 
 		/* Protect specific functional button layouts */
-		body.dlm-member-portal-body #sidebar-collapse-btn {
-			background-color: #ffffff !important;
-			border: 1px solid rgba(134, 116, 97, 0.3) !important;
-			border-radius: 9999px !important;
-			width: 1.5rem !important;
-			height: 1.5rem !important;
-			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-			display: flex !important;
-		}
 		body.dlm-member-portal-body #notification-btn {
 			background-color: transparent !important;
 			border-radius: 9999px !important;
@@ -518,166 +686,288 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	<!-- ========================================== -->
 	<!-- MAIN SPA MEMBER DASHBOARD LAYOUT (Logged In) -->
 	<!-- ========================================== -->
-	<div class="min-h-screen bg-background flex justify-center">
-		<div class="w-full max-w-[2560px] flex relative min-h-screen">
+	<div class="dlm-portal-root bg-background">
+		<div class="w-full max-w-[2560px] flex h-full overflow-hidden relative">
 
 	<!-- Sidebar Menu (Desktop View) -->
-	<aside class="sticky top-0 h-screen w-[280px] flex-shrink-0 glass-sidebar border-r border-outline-variant/20 flex flex-col p-6 gap-2 z-50 hidden md:flex transition-all duration-300">
+	<aside class="h-full w-[260px] lg:w-[280px] flex-shrink-0 glass-sidebar border-r border-outline-variant/20 flex flex-col p-4 lg:p-6 gap-2 z-50 hidden md:flex transition-all duration-300 overflow-hidden">
 		<!-- Brand & Logo -->
-		<div class="mb-10 px-2 flex items-center gap-3 relative w-full">
-			<div class="w-9 h-9 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+		<div class="sidebar-brand-wrapper mb-4 lg:mb-6 px-2 flex items-center gap-3 relative w-full flex-shrink-0">
+			<div class="w-9 h-9 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/20">
 				<i class="fa-solid fa-book-open text-white text-[16px]"></i>
 			</div>
 			<div class="sidebar-brand-text">
-				<span class="font-display-lg text-[20px] text-primary font-bold tracking-tight block leading-tight">Bridgeway36</span>
+				<span class="font-display-lg text-[19px] lg:text-[20px] text-primary font-bold tracking-tight block leading-tight">Bridgeway36</span>
 				<p class="text-secondary text-[10px] font-semibold uppercase tracking-widest mt-0.5">Digital Library</p>
 			</div>
-			<!-- Collapse Toggle Button -->
-			<button id="sidebar-collapse-btn" class="absolute -right-9 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-outline-variant shadow-md flex items-center justify-center hover:bg-primary-fixed-dim hover:text-primary transition-all z-50 cursor-pointer">
-				<i class="fa-solid fa-chevron-left text-[11px]" id="sidebar-collapse-icon"></i>
-			</button>
 		</div>
 
-		<!-- Nav Links List -->
-		<nav class="flex-1 space-y-1">
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 bg-primary/10 text-primary rounded-lg font-semibold scale-[0.98] transition-all cursor-pointer" data-tab="library" onclick="showTab('library')">
-				<i class="fa-solid fa-book text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Library</span>
+		<!-- Scrollable Nav Links List -->
+		<nav class="flex-1 space-y-1 overflow-y-auto custom-scrollbar min-h-0 pr-1 -mr-1">
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 bg-primary/10 text-primary rounded-xl font-semibold scale-[0.98] transition-all cursor-pointer" data-tab="library" onclick="showTab('library')">
+				<i class="fa-solid fa-book text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Library</span>
 			</a>
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-lg transition-all cursor-pointer" data-tab="discover" onclick="showTab('discover')">
-				<i class="fa-solid fa-compass text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Discover</span>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-xl transition-all cursor-pointer" data-tab="discover" onclick="showTab('discover')">
+				<i class="fa-solid fa-compass text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Discover</span>
 			</a>
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-lg transition-all cursor-pointer" data-tab="journal" onclick="showTab('journal')">
-				<i class="fa-solid fa-pen-to-square text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Reading Journal</span>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-xl transition-all cursor-pointer" data-tab="journal" onclick="showTab('journal')">
+				<i class="fa-solid fa-pen-to-square text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Reading Journal</span>
 			</a>
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-lg transition-all cursor-pointer" data-tab="collections" onclick="showTab('collections')">
-				<i class="fa-solid fa-bookmark text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Collections</span>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-xl transition-all cursor-pointer" data-tab="collections" onclick="showTab('collections')">
+				<i class="fa-solid fa-bookmark text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Collections</span>
 			</a>
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-lg transition-all cursor-pointer" data-tab="membership" onclick="showTab('membership')">
-				<i class="fa-solid fa-crown text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Membership</span>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-xl transition-all cursor-pointer" data-tab="membership" onclick="showTab('membership')">
+				<i class="fa-solid fa-crown text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Membership</span>
 			</a>
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-lg transition-all cursor-pointer" data-tab="achievements" onclick="showTab('achievements')">
-				<i class="fa-solid fa-trophy text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Achievements</span>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-xl transition-all cursor-pointer" data-tab="achievements" onclick="showTab('achievements')">
+				<i class="fa-solid fa-trophy text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Achievements</span>
 			</a>
-			<a class="nav-tab-link flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-lg transition-all cursor-pointer" data-tab="settings" onclick="showTab('settings')">
-				<i class="fa-solid fa-gear text-[18px] flex-shrink-0"></i>
-				<span class="font-title-sm text-title-sm sidebar-nav-text">Settings</span>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2 lg:py-2.5 text-secondary hover:bg-surface-container-high/50 hover:text-on-surface rounded-xl transition-all cursor-pointer" data-tab="settings" onclick="showTab('settings')">
+				<i class="fa-solid fa-gear text-[17px] flex-shrink-0"></i>
+				<span class="font-title-sm text-sm lg:text-title-sm sidebar-nav-text">Settings</span>
 			</a>
 		</nav>
 
-		<!-- Bottom CTA & Actions -->
-		<div class="mt-auto space-y-4 pt-6">
+		<!-- Bottom CTA & Actions (Pinned at bottom, always visible) -->
+		<div class="mt-auto space-y-2.5 pt-2 flex-shrink-0">
 			<?php 
 			$is_pending = ( $sub_details && $sub_details->status === 'pending_approval' );
 			if ( ! $has_active_sub && ! $is_pending ) : 
 			?>
-				<div class="bg-primary-container/20 border border-primary-container/30 p-4 rounded-2xl text-on-primary-container sidebar-cta-card">
-					<p class="font-semibold text-body-md mb-2 text-primary">Upgrade to Pro</p>
-					<p class="text-xs text-secondary leading-tight mb-4">Access our entire archive of premium digital editions.</p>
-					<button onclick="showTab('membership')" class="block text-center w-full py-2.5 bg-primary text-white text-body-md font-semibold rounded-xl hover:opacity-90 transition-opacity">Unlock All</button>
+				<div class="bg-primary-container/15 border border-primary-container/30 p-3 rounded-xl text-on-primary-container sidebar-cta-card">
+					<div class="flex items-center justify-between mb-1">
+						<p class="font-bold text-xs text-primary">Upgrade to Pro</p>
+						<span class="text-[10px] bg-primary text-white font-bold px-1.5 py-0.5 rounded">PRO</span>
+					</div>
+					<p class="text-[11px] text-secondary leading-tight mb-2">Access all premium digital books.</p>
+					<button onclick="showTab('membership')" class="block text-center w-full py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">Unlock All</button>
 				</div>
 			<?php elseif ( $is_pending ) : ?>
-				<div class="bg-amber-50 border border-amber-200/50 p-4 rounded-2xl text-amber-800 sidebar-cta-card">
-					<p class="font-semibold text-body-md mb-2 text-amber-900">Pending Approval</p>
-					<p class="text-xs text-secondary leading-tight mb-4">Your subscription is being reviewed by our administrators.</p>
-					<button onclick="showTab('membership')" class="block text-center w-full py-2.5 bg-amber-100 text-amber-900 text-body-md font-semibold rounded-xl hover:bg-amber-200 transition-colors">Check Status</button>
+				<div class="bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl text-amber-800 sidebar-cta-card">
+					<p class="font-bold text-xs text-amber-900 mb-0.5">Pending Approval</p>
+					<p class="text-[11px] text-secondary leading-tight mb-1.5">Under administrator review.</p>
+					<button onclick="showTab('membership')" class="block text-center w-full py-1 bg-amber-100 text-amber-900 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors">Check Status</button>
 				</div>
 			<?php endif; ?>
-			<div class="pt-4 border-t border-outline-variant/30 sidebar-footer-links flex flex-col gap-1">
-				<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:text-on-surface text-body-md transition-all cursor-pointer" onclick="Aurelian.toast('Concierge support active hello@bridgeway36.com'); return false;">
-					<i class="fa-regular fa-circle-question text-[18px] flex-shrink-0"></i>
+			<div class="pt-2 border-t border-outline-variant/30 sidebar-footer-links flex flex-col gap-1">
+				<a class="flex items-center gap-3 px-3.5 py-2 text-secondary hover:text-on-surface hover:bg-surface-container/60 rounded-xl text-body-md transition-all cursor-pointer" onclick="Aurelian.toast('Concierge support active hello@bridgeway36.com'); return false;">
+					<i class="fa-regular fa-circle-question text-[17px] flex-shrink-0"></i>
 					<span>Help</span>
 				</a>
-				<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:text-on-surface text-body-md transition-all cursor-pointer" href="<?php echo esc_url( wp_logout_url( get_permalink() ) ); ?>">
-					<i class="fa-solid fa-right-from-bracket text-[18px] flex-shrink-0"></i>
+				<a class="flex items-center gap-3 px-3.5 py-2 text-red-700 hover:text-red-800 hover:bg-red-50/80 rounded-xl text-body-md font-semibold transition-all cursor-pointer group" href="<?php echo esc_url( wp_logout_url( get_permalink() ) ); ?>" title="Sign Out">
+					<i class="fa-solid fa-right-from-bracket text-[17px] flex-shrink-0 text-red-600 group-hover:scale-110 transition-transform"></i>
 					<span>Sign Out</span>
 				</a>
 			</div>
 		</div>
 	</aside>
 
-	<div class="flex-1 flex flex-col min-w-0">
-		<!-- Top App Bar Navigation Header -->
-		<header class="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 h-16 px-margin-desktop hidden md:flex items-center justify-between transition-all duration-300">
-			<div class="flex items-center gap-4">
-				<h1 class="font-headline-md text-headline-md text-primary tracking-tight" id="top-bar-title">Library</h1>
+	<!-- ========================================== -->
+	<!-- MOBILE LEFT SIDEBAR DRAWER & BACKDROP      -->
+	<!-- ========================================== -->
+	<div id="mobile-sidebar-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] transition-opacity duration-300 opacity-0 pointer-events-none md:hidden"></div>
+
+	<aside id="mobile-sidebar-drawer" class="fixed top-0 left-0 bottom-0 w-[300px] max-w-[85vw] bg-white border-r border-outline-variant/30 z-[9999] shadow-2xl flex flex-col p-5 gap-3 transition-transform duration-300 ease-in-out -translate-x-full md:hidden overflow-y-auto custom-scrollbar">
+		<!-- Brand Header + Close Button -->
+		<div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+			<div class="flex items-center gap-2.5">
+				<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/20">
+					<i class="fa-solid fa-book-open text-white text-[14px]"></i>
+				</div>
+				<div>
+					<span class="font-display-lg text-[17px] text-primary font-bold tracking-tight block leading-tight">Bridgeway36</span>
+					<p class="text-secondary text-[9px] font-bold uppercase tracking-widest">Digital Library</p>
+				</div>
 			</div>
-			<div class="flex items-center gap-6">
-				<!-- Header Search Bar -->
+			<button id="mobile-drawer-close-btn" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-secondary hover:text-on-surface transition-all cursor-pointer" aria-label="Close Navigation">
+				<i class="fa-solid fa-xmark text-sm"></i>
+			</button>
+		</div>
+
+		<!-- User Profile Summary in Drawer -->
+		<div class="flex items-center gap-3 p-3 bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm">
+			<div class="w-10 h-10 rounded-full overflow-hidden border border-primary/20 flex-shrink-0">
+				<img class="w-full h-full object-cover" src="<?php echo esc_url( $avatar_url ); ?>">
+			</div>
+			<div class="min-w-0 flex-1">
+				<p class="font-bold text-xs text-on-surface truncate"><?php echo esc_html( $user_display_name ?: 'Member' ); ?></p>
+				<span class="inline-flex items-center gap-1 text-[10px] font-bold <?php echo $has_active_sub ? 'text-amber-700' : 'text-secondary'; ?>">
+					<i class="fa-solid <?php echo $has_active_sub ? 'fa-crown text-amber-600' : 'fa-user'; ?>"></i>
+					<?php echo $has_active_sub ? 'PRO Member' : ( $is_pending ? 'Pending Approval' : 'Free Reader' ); ?>
+				</span>
+			</div>
+		</div>
+
+		<!-- Full Nav Links in Drawer -->
+		<nav class="flex-1 space-y-1 overflow-y-auto custom-scrollbar min-h-0 py-2">
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 bg-primary/10 text-primary rounded-xl font-semibold transition-all cursor-pointer mobile-drawer-link" data-tab="library" onclick="showTab('library')">
+				<i class="fa-solid fa-book text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Library</span>
+			</a>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 text-secondary hover:bg-surface-container hover:text-on-surface rounded-xl transition-all cursor-pointer mobile-drawer-link" data-tab="discover" onclick="showTab('discover')">
+				<i class="fa-solid fa-compass text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Discover</span>
+			</a>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 text-secondary hover:bg-surface-container hover:text-on-surface rounded-xl transition-all cursor-pointer mobile-drawer-link" data-tab="journal" onclick="showTab('journal')">
+				<i class="fa-solid fa-pen-to-square text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Reading Journal</span>
+			</a>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 text-secondary hover:bg-surface-container hover:text-on-surface rounded-xl transition-all cursor-pointer mobile-drawer-link" data-tab="collections" onclick="showTab('collections')">
+				<i class="fa-solid fa-bookmark text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Collections</span>
+			</a>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 text-secondary hover:bg-surface-container hover:text-on-surface rounded-xl transition-all cursor-pointer mobile-drawer-link" data-tab="membership" onclick="showTab('membership')">
+				<i class="fa-solid fa-crown text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Membership</span>
+			</a>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 text-secondary hover:bg-surface-container hover:text-on-surface rounded-xl transition-all cursor-pointer mobile-drawer-link" data-tab="achievements" onclick="showTab('achievements')">
+				<i class="fa-solid fa-trophy text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Achievements</span>
+			</a>
+			<a class="nav-tab-link flex items-center gap-3 px-3.5 py-2.5 text-secondary hover:bg-surface-container hover:text-on-surface rounded-xl transition-all cursor-pointer mobile-drawer-link" data-tab="settings" onclick="showTab('settings')">
+				<i class="fa-solid fa-gear text-[17px] flex-shrink-0"></i>
+				<span class="text-sm font-semibold">Settings</span>
+			</a>
+		</nav>
+
+		<!-- Bottom Drawer Actions -->
+		<div class="mt-auto pt-3 border-t border-outline-variant/30 space-y-2 flex-shrink-0">
+			<?php if ( ! $has_active_sub && ! $is_pending ) : ?>
+				<div class="bg-primary-container/15 border border-primary-container/30 p-3 rounded-xl text-on-primary-container">
+					<div class="flex items-center justify-between mb-1">
+						<p class="font-bold text-xs text-primary">Upgrade to Pro</p>
+						<span class="text-[10px] bg-primary text-white font-bold px-1.5 py-0.5 rounded">PRO</span>
+					</div>
+					<p class="text-[11px] text-secondary leading-tight mb-2">Access all premium digital books.</p>
+					<button onclick="showTab('membership')" class="block text-center w-full py-1.5 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">Unlock All</button>
+				</div>
+			<?php endif; ?>
+			<a class="flex items-center gap-3 px-3.5 py-2 text-secondary hover:text-on-surface hover:bg-surface-container/60 rounded-xl text-sm transition-all cursor-pointer" onclick="Aurelian.toast('Concierge support active hello@bridgeway36.com'); return false;">
+				<i class="fa-regular fa-circle-question text-[17px] flex-shrink-0"></i>
+				<span>Help & Support</span>
+			</a>
+			<a class="flex items-center gap-3 px-3.5 py-2 text-red-700 hover:text-red-800 hover:bg-red-50/80 rounded-xl text-sm font-semibold transition-all cursor-pointer group" href="<?php echo esc_url( wp_logout_url( get_permalink() ) ); ?>" title="Sign Out">
+				<i class="fa-solid fa-right-from-bracket text-[17px] flex-shrink-0 text-red-600 group-hover:scale-110 transition-transform"></i>
+				<span>Sign Out</span>
+			</a>
+		</div>
+	</aside>
+
+	<div class="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+		<!-- Top App Bar Navigation Header (Responsive on Mobile & Desktop) -->
+		<header class="flex-shrink-0 z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/30 h-16 px-4 md:px-margin-desktop flex items-center justify-between transition-all duration-300">
+			<div class="flex items-center gap-3">
+				<!-- Universal Navigation Menu / Sidebar Toggle Button (All Devices) -->
+				<button id="mobile-menu-trigger-btn" class="flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-outline-variant/30 shadow-sm text-primary hover:bg-surface-container-high/60 active:scale-95 transition-all cursor-pointer flex-shrink-0" aria-label="Toggle Navigation Menu">
+					<i class="fa-solid fa-bars-staggered text-[17px]"></i>
+				</button>
+
+				<div class="flex items-center gap-2">
+					<div class="w-8 h-8 bg-primary rounded-lg flex md:hidden items-center justify-center flex-shrink-0 shadow-sm shadow-primary/20">
+						<i class="fa-solid fa-book-open text-white text-[14px]"></i>
+					</div>
+					<h1 class="font-headline-md text-[18px] md:text-headline-md text-primary tracking-tight font-bold" id="top-bar-title">Library</h1>
+				</div>
+			</div>
+			<div class="flex items-center gap-2.5 md:gap-6">
+				<!-- Header Search Bar (Desktop & Mobile) -->
 				<div class="relative group" id="header-search-container">
-					<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-secondary group-focus-within:text-primary transition-colors"></i>
-					<input class="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-xl w-64 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all text-body-md" id="global-search-input" placeholder="Search titles, authors..." type="text">
+					<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-secondary group-focus-within:text-primary transition-colors text-xs md:text-sm"></i>
+					<input class="pl-8 pr-3 md:pl-10 md:pr-4 py-1.5 md:py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-xl w-28 sm:w-44 md:w-64 focus:w-36 sm:focus:w-56 md:focus:w-64 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all text-xs md:text-body-md" id="global-search-input" placeholder="Search..." type="text" aria-label="Search library books">
 				</div>
 
 				<!-- Streak Counter Nudge Badge -->
-				<div class="flex items-center gap-4">
-					<div class="flex items-center gap-1.5 pl-3 pr-4 py-1.5 bg-primary-container/20 border border-primary-container/40 rounded-full hover:bg-primary-container/30 cursor-pointer transition-colors" title="Your reading streak" onclick="showTab('achievements')">
-						<i class="fa-solid fa-fire text-primary text-[18px]"></i>
-						<span id="streak-count-header" class="font-label-caps text-label-caps text-on-primary-container font-semibold">0 day streak</span>
-					</div>
+				<div id="header-streak-badge" class="flex items-center gap-1.5 pl-2.5 pr-3 md:pl-3 md:pr-4 py-1 md:py-1.5 bg-primary-container/20 border border-primary-container/40 rounded-full hover:bg-primary-container/30 cursor-pointer transition-colors" title="Your reading streak" onclick="showTab('achievements')">
+					<i class="fa-solid fa-fire text-primary text-[15px] md:text-[18px]"></i>
+					<span id="streak-count-header" class="font-label-caps text-[11px] md:text-label-caps text-on-primary-container font-bold">0d</span>
+				</div>
 
-					<!-- Notifications Menu Dropdown -->
-					<div class="relative">
-						<?php
-						$notifications = array();
-						if ( $is_logged_in && class_exists( 'DLM_Header_Nav' ) ) {
-							$notifications = DLM_Header_Nav::get_user_notifications( $user_id );
-						}
-						$notif_count = count( $notifications );
-						?>
-						<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative">
-							<i class="fa-regular fa-bell text-[20px]"></i>
-							<span id="notification-badge" class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-surface<?php if ( $notif_count === 0 ) echo ' hidden'; ?>"></span>
-						</button>
+				<!-- Notifications Menu Dropdown -->
+				<div class="relative" id="notification-bell-wrapper">
+					<?php
+					$notifs_list = ! empty( $db_notifications ) ? $db_notifications : array();
+					$unread_total = isset( $unread_notif_count ) ? intval( $unread_notif_count ) : 0;
+					?>
+					<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative cursor-pointer" type="button" aria-haspopup="true" aria-expanded="false" aria-label="<?php echo $unread_total > 0 ? sprintf( esc_attr__( 'Notifications (%d unread)', 'digital-library-membership' ), $unread_total ) : esc_attr__( 'Notifications (No unread)', 'digital-library-membership' ); ?>">
+						<i class="fa-regular fa-bell text-[18px] md:text-[20px]"></i>
+						<span id="notification-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-surface shadow-sm<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo intval( $unread_total ); ?></span>
+					</button>
 
-						<div id="notification-dropdown" class="absolute right-0 top-12 w-80 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl shadow-xl py-4 px-2 hidden z-50">
-							<div class="px-4 pb-2 border-b border-outline-variant/30 flex justify-between items-center">
-								<h4 class="font-bold text-on-surface text-body-md">Notifications</h4>
-								<span class="text-[11px] text-primary hover:underline cursor-pointer" id="clear-notifications-btn">Clear all</span>
+					<div id="notification-dropdown" class="absolute right-0 top-12 w-80 md:w-96 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl shadow-2xl py-3 px-2 hidden z-50 transition-all" role="region" aria-label="<?php esc_attr_e( 'Notifications panel', 'digital-library-membership' ); ?>">
+						<div class="px-3 pb-2.5 border-b border-outline-variant/20 flex justify-between items-center">
+							<div class="flex items-center gap-2">
+								<h4 class="font-bold text-on-surface text-sm"><?php esc_html_e( 'Notifications', 'digital-library-membership' ); ?></h4>
+								<span id="notification-unread-pill" class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo sprintf( esc_html__( '%d new', 'digital-library-membership' ), $unread_total ); ?></span>
 							</div>
-							<div class="max-h-64 overflow-y-auto mt-2 space-y-1" id="notification-list">
-								<?php if ( empty( $notifications ) ) : ?>
-									<div class="p-6 text-center text-secondary opacity-60">
-										<i class="fa-regular fa-bell text-xl mb-1 block"></i>
-										No new alerts
-									</div>
-								<?php else : ?>
-									<?php foreach ( $notifications as $notif ) : ?>
-										<div class="p-3 hover:bg-surface-variant/30 rounded-xl transition-all cursor-pointer">
-											<div class="flex gap-2.5 items-start">
-												<div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-													<i class="fa-solid <?php 
-														if ( $notif['type'] === 'badge' ) echo 'fa-trophy';
-														elseif ( $notif['type'] === 'streak' ) echo 'fa-fire';
-														else echo 'fa-award';
-													?> text-sm"></i>
-												</div>
-												<div>
-													<p class="text-body-md font-bold text-on-surface leading-snug"><?php echo esc_html( $notif['title'] ); ?></p>
-													<p class="text-xs text-secondary opacity-70 mt-0.5"><?php echo esc_html( $notif['time'] ); ?></p>
-												</div>
-											</div>
+							<button type="button" class="text-xs font-bold text-primary hover:underline cursor-pointer transition-colors p-1" id="mark-all-read-btn"><?php esc_html_e( 'Mark all read', 'digital-library-membership' ); ?></button>
+						</div>
+						<div class="max-h-80 overflow-y-auto mt-2 space-y-1.5 custom-scrollbar px-1" id="notification-list">
+							<?php if ( empty( $notifs_list ) ) : ?>
+								<div class="p-8 text-center text-secondary opacity-60" id="notification-empty-state">
+									<i class="fa-regular fa-bell text-2xl mb-2 block"></i>
+									<p class="text-xs font-semibold"><?php esc_html_e( 'No notifications yet', 'digital-library-membership' ); ?></p>
+								</div>
+							<?php else : ?>
+								<?php foreach ( $notifs_list as $notif ) : 
+									$is_notif_read = ! empty( $notif->is_read );
+									$time_diff = human_time_diff( strtotime( $notif->created_at ), current_time( 'timestamp' ) );
+
+									$icon_class = 'fa-bell';
+									$icon_color = 'bg-primary/10 text-primary';
+									if ( $notif->type === 'badge' ) {
+										$icon_class = 'fa-trophy';
+										$icon_color = 'bg-amber-100 text-amber-700';
+									} elseif ( $notif->type === 'level_up' ) {
+										$icon_class = 'fa-arrow-up-right-dots';
+										$icon_color = 'bg-blue-100 text-blue-700';
+									} elseif ( $notif->type === 'streak' ) {
+										$icon_class = 'fa-fire';
+										$icon_color = 'bg-orange-100 text-orange-600';
+									} elseif ( $notif->type === 'purchase' ) {
+										$icon_class = 'fa-bag-shopping';
+										$icon_color = 'bg-emerald-100 text-emerald-700';
+									} elseif ( $notif->type === 'subscription' ) {
+										$icon_class = 'fa-crown';
+										$icon_color = 'bg-amber-100 text-amber-800';
+									} elseif ( $notif->type === 'featured_book' ) {
+										$icon_class = 'fa-star';
+										$icon_color = 'bg-purple-100 text-purple-700';
+									}
+								?>
+									<div class="dlm-notif-row p-3 rounded-xl transition-all cursor-pointer flex items-start gap-3 relative <?php echo $is_notif_read ? 'bg-transparent hover:bg-surface-variant/30 text-on-surface-variant' : 'bg-primary-container/10 border border-primary/20 hover:bg-primary-container/20 text-on-surface font-semibold shadow-xs'; ?>" data-id="<?php echo intval( $notif->id ); ?>" data-link="<?php echo esc_attr( $notif->link_url ); ?>" data-is-read="<?php echo $is_notif_read ? '1' : '0'; ?>" role="button" tabindex="0">
+										<div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm <?php echo esc_attr( $icon_color ); ?>">
+											<i class="fa-solid <?php echo esc_attr( $icon_class ); ?>"></i>
 										</div>
-									<?php endforeach; ?>
-								<?php endif; ?>
-							</div>
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center justify-between gap-1 mb-0.5">
+												<p class="text-xs font-bold text-on-surface truncate leading-tight"><?php echo esc_html( $notif->title ); ?></p>
+												<span class="text-[10px] text-secondary shrink-0 opacity-80"><?php echo sprintf( esc_html__( '%s ago', 'digital-library-membership' ), $time_diff ); ?></span>
+											</div>
+											<p class="text-[11px] text-secondary leading-snug line-clamp-2"><?php echo esc_html( $notif->message ); ?></p>
+										</div>
+										<?php if ( ! $is_notif_read ) : ?>
+											<span class="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5 notif-unread-dot"></span>
+										<?php endif; ?>
+									</div>
+								<?php endforeach; ?>
+							<?php endif; ?>
 						</div>
 					</div>
+				</div>
 
+				<!-- Quick Settings Nav -->
+				<div class="h-6 md:h-8 w-px bg-outline-variant/30"></div>
 
-					<!-- Quick Settings Nav -->
-					<div class="h-8 w-px bg-outline-variant/30"></div>
-
-					<div class="flex items-center gap-3">
-						<a href="#" class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/50 block hover:scale-105 transition-all" onclick="showTab('settings'); return false;">
-							<img class="w-full h-full object-cover" id="header-avatar-img" src="<?php echo esc_url( $avatar_url ); ?>">
-						</a>
-					</div>
+				<div class="flex items-center gap-2">
+					<a href="#" class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/50 block hover:scale-105 transition-all flex-shrink-0" onclick="showTab('settings'); return false;">
+						<img class="w-full h-full object-cover" id="header-avatar-img" src="<?php echo esc_url( $avatar_url ); ?>">
+					</a>
 				</div>
 			</div>
 		</header>
@@ -685,36 +975,168 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		<!-- ========================================== -->
 		<!-- SPA PAGE SECTION VIEWS CONTAINER           -->
 		<!-- ========================================== -->
-		<main class="flex-1 pt-8 pb-20 px-margin-mobile md:px-margin-desktop">
+		<main id="dlm-main-content" class="flex-1 overflow-y-auto pt-4 md:pt-8 pb-28 md:pb-20 px-4 md:px-margin-desktop custom-scrollbar">
 
 		<!-- SECTION 1: LIBRARY VIEW -->
 		<div id="section-library" class="spa-page">
-			<!-- Hero Card Carousel -->
-			<section class="mb-12 relative h-[400px] rounded-3xl overflow-hidden group shadow-lg">
-				<div class="absolute inset-0">
-					<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="<?php echo esc_url( DLM_URL . 'public/images/featured_hero.png' ); ?>" alt="Featured Book">
-					<div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent"></div>
+			<!-- Hero Card Carousel / Featured Book Slider -->
+			<?php 
+			$featured_count = ! empty( $featured_books ) ? count( $featured_books ) : 0;
+			?>
+			<section class="mb-8 md:mb-12 relative min-h-[380px] md:h-[430px] rounded-2xl md:rounded-3xl overflow-hidden group shadow-2xl bg-surface-container" id="member-hero-slider-section">
+				<div class="relative w-full h-full min-h-[380px] md:h-[430px] overflow-hidden" id="hero-slider-track">
+					<?php if ( ! empty( $featured_books ) ) : ?>
+						<?php foreach ( $featured_books as $f_idx => $fb ) : 
+							$f_title = ! empty( $fb->featured_title ) ? $fb->featured_title : $fb->title;
+							$f_desc  = ! empty( $fb->featured_description ) ? $fb->featured_description : ( ! empty( $fb->description ) ? wp_strip_all_tags( $fb->description ) : '' );
+							$f_banner = ! empty( $fb->featured_banner_url ) ? $fb->featured_banner_url : ( ! empty( $fb->cover_image_url ) ? $fb->cover_image_url : DLM_URL . 'public/images/featured_hero.png' );
+							$f_cover = ! empty( $fb->cover_image_url ) ? $fb->cover_image_url : '';
+							
+							$f_access = dlm_user_can_access_book( $user_id, $fb->id );
+							$f_price = isset( $fb->price ) ? floatval( $fb->price ) : 0.00;
+							$f_is_future = ( ! empty( $fb->publish_date ) && strtotime( $fb->publish_date ) > current_time( 'timestamp' ) ) || ( isset( $fb->status ) && $fb->status === 'future' );
+							$f_publish_iso = ! empty( $fb->publish_date ) ? wp_date( 'c', strtotime( $fb->publish_date ) ) : '';
+							if ( empty( $f_publish_iso ) && ! empty( $fb->publish_date ) ) {
+								$f_publish_iso = date( 'c', strtotime( $fb->publish_date ) );
+							}
+							if ( empty( $f_publish_iso ) && ! empty( $fb->publish_date ) ) {
+								$f_publish_iso = str_replace( ' ', 'T', trim( $fb->publish_date ) );
+							}
+							$f_publish_fmt = ! empty( $fb->publish_date ) ? date_i18n( get_option( 'date_format' ) . ' H:i', strtotime( $fb->publish_date ) ) : '';
+							
+							$btn1_label = ! empty( $fb->featured_button_1_label ) ? $fb->featured_button_1_label : '';
+							$btn2_label = ! empty( $fb->featured_button_2_label ) ? $fb->featured_button_2_label : '';
+							$is_f_fav = in_array( $fb->id, $fav_books );
+						?>
+							<div class="hero-slide absolute inset-0 w-full h-full transition-all duration-700 ease-in-out <?php echo $f_idx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'; ?>" data-slide-index="<?php echo intval( $f_idx ); ?>" data-book-id="<?php echo intval( $fb->id ); ?>">
+								<!-- Background Image & Gradient Overlays -->
+								<div class="absolute inset-0">
+									<img class="w-full h-full object-cover transform scale-100 group-hover:scale-105 transition-transform duration-1000" src="<?php echo esc_url( $f_banner ); ?>" alt="<?php echo esc_attr( $f_title ); ?>" loading="lazy">
+									<div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30 md:bg-gradient-to-r md:from-black/95 md:via-black/75 md:to-black/30"></div>
+								</div>
+
+								<!-- Slide Inner Content -->
+								<div class="relative z-10 w-full h-full flex flex-col md:flex-row items-center justify-between p-6 sm:p-8 md:p-12 gap-6 text-white">
+									<!-- Left Text & CTAs -->
+									<div class="w-full md:max-w-xl lg:max-w-2xl flex flex-col justify-end md:justify-center h-full">
+										<div class="flex items-center gap-2.5 mb-2.5 md:mb-4 flex-wrap">
+											<span class="bg-primary text-white font-extrabold text-[10px] md:text-xs px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1.5">
+												<i class="fa-solid fa-star text-[10px] text-amber-300"></i>
+												<?php esc_html_e( 'Featured Book', 'digital-library-membership' ); ?>
+											</span>
+											<?php if ( $f_is_future ) : ?>
+												<span class="bg-amber-600/90 backdrop-blur-md text-white font-extrabold text-[10px] md:text-xs px-3 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
+													<i class="fa-solid fa-clock text-[9px]"></i> <?php esc_html_e( 'Upcoming Release', 'digital-library-membership' ); ?>
+												</span>
+											<?php endif; ?>
+										</div>
+
+										<h2 class="font-display-lg text-2xl sm:text-3xl md:text-4xl lg:text-[40px] leading-tight mb-2 md:mb-3 font-bold text-white tracking-tight drop-shadow-md">
+											<?php echo esc_html( $f_title ); ?>
+										</h2>
+
+										<?php if ( ! empty( $fb->author ) ) : ?>
+											<p class="text-xs md:text-sm text-amber-200/90 font-medium mb-3 flex items-center gap-1.5">
+												<i class="fa-solid fa-feather text-[10px]"></i> by <?php echo esc_html( $fb->author ); ?>
+											</p>
+										<?php endif; ?>
+
+										<p class="font-body-lg text-xs md:text-sm text-white/85 mb-5 md:mb-7 line-clamp-3 md:line-clamp-3 max-w-xl leading-relaxed">
+											<?php echo esc_html( $f_desc ); ?>
+										</p>
+
+										<!-- Action Buttons & Countdown -->
+										<div class="flex flex-wrap items-center gap-3 md:gap-4 hero-cta-wrapper" data-book-id="<?php echo intval( $fb->id ); ?>">
+											<?php if ( $f_is_future ) : ?>
+												<!-- Scheduled Release Countdown + Coming Soon Badge -->
+												<div class="flex flex-wrap items-center gap-3">
+													<div class="grid grid-cols-4 gap-1 p-1.5 rounded-xl shadow-xl text-white dlm-countdown-timer shrink-0" style="background: linear-gradient(135deg, rgba(133, 83, 0, 0.92), rgba(97, 59, 0, 0.95)) !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; backdrop-filter: blur(8px);" data-release-time="<?php echo esc_attr( $f_publish_iso ); ?>" data-book-id="<?php echo esc_attr( $fb->id ); ?>">
+														<div class="flex flex-col items-center justify-center rounded-lg py-1 px-1.5 text-center shadow-xs min-w-[36px]" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+															<span class="countdown-days font-mono font-extrabold text-sm leading-tight text-white">00</span>
+															<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Day</span>
+														</div>
+														<div class="flex flex-col items-center justify-center rounded-lg py-1 px-1.5 text-center shadow-xs min-w-[36px]" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+															<span class="countdown-hours font-mono font-extrabold text-sm leading-tight text-white">00</span>
+															<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Hr</span>
+														</div>
+														<div class="flex flex-col items-center justify-center rounded-lg py-1 px-1.5 text-center shadow-xs min-w-[36px]" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+															<span class="countdown-minutes font-mono font-extrabold text-sm leading-tight text-white">00</span>
+															<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Min</span>
+														</div>
+														<div class="flex flex-col items-center justify-center rounded-lg py-1 px-1.5 text-center shadow-xs min-w-[36px]" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+															<span class="countdown-seconds font-mono font-extrabold text-sm leading-tight text-white">00</span>
+															<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Sec</span>
+														</div>
+													</div>
+													<span class="px-4 py-2.5 bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs flex items-center gap-1.5 border border-white/20">
+														<i class="fa-solid fa-bell text-amber-300"></i>
+														<?php echo esc_html( $btn1_label ?: sprintf( __( 'Releases %s', 'digital-library-membership' ), $f_publish_fmt ) ); ?>
+													</span>
+												</div>
+											<?php else : ?>
+												<?php if ( $f_access === 'read_download' || $f_access === 'read_only' ) : ?>
+													<button onclick="Aurelian.openBook(<?php echo intval($fb->id); ?>, '<?php echo esc_js($fb->title); ?>')" class="px-6 md:px-8 py-3 bg-white text-black font-extrabold rounded-xl hover:bg-slate-100 hover:scale-105 transition-all text-xs md:text-sm shadow-xl flex items-center gap-2">
+														<i class="fa-solid fa-book-open text-primary"></i>
+														<?php echo esc_html( $btn1_label ?: 'Read Now' ); ?>
+													</button>
+												<?php elseif ( $fb->access_type === 'purchase_only' || $fb->access_type === 'hybrid' ) : ?>
+													<button onclick="Aurelian.buyBook(<?php echo intval($fb->id); ?>, '<?php echo esc_js($fb->title); ?>', <?php echo floatval($f_price); ?>)" class="px-6 md:px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl hover:scale-105 transition-all text-xs md:text-sm shadow-xl flex items-center gap-2">
+														<i class="fa-solid fa-cart-shopping"></i>
+														<?php echo esc_html( $btn1_label ?: sprintf( 'Buy Book (%s %s)', number_format($f_price, 2), $currency ) ); ?>
+													</button>
+												<?php else : ?>
+													<button onclick="showTab('membership')" class="px-6 md:px-8 py-3 bg-primary text-white font-extrabold rounded-xl hover:scale-105 transition-all text-xs md:text-sm shadow-xl flex items-center gap-2">
+														<i class="fa-solid fa-id-card"></i>
+														<?php echo esc_html( $btn1_label ?: 'Unlock Membership' ); ?>
+													</button>
+												<?php endif; ?>
+											<?php endif; ?>
+
+											<button class="px-5 md:px-6 py-3 bg-white/15 hover:bg-white/25 backdrop-blur-md text-white border border-white/25 font-bold rounded-xl transition-all text-xs md:text-sm flex items-center gap-2" onclick="toggleFavoriteBook(<?php echo intval($fb->id); ?>, this)">
+												<i class="<?php echo $is_f_fav ? 'fa-solid' : 'fa-regular'; ?> fa-bookmark text-amber-300"></i>
+												<span><?php echo esc_html( $btn2_label ?: ( $is_f_fav ? 'Saved' : 'Add to Favorites' ) ); ?></span>
+											</button>
+										</div>
+									</div>
+
+									<!-- Right Floating Book Cover (Desktop & Tablet) -->
+									<?php if ( $f_cover ) : ?>
+										<div class="hidden md:flex items-center justify-center shrink-0 pr-4">
+											<div class="w-36 lg:w-48 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 transform rotate-2 group-hover:rotate-0 group-hover:scale-105 transition-all duration-500 bg-slate-900">
+												<img class="w-full h-full object-cover" src="<?php echo esc_url( $f_cover ); ?>" alt="<?php echo esc_attr( $f_title ); ?>" loading="lazy">
+											</div>
+										</div>
+									<?php endif; ?>
+								</div>
+							</div>
+						<?php endforeach; ?>
+					<?php endif; ?>
 				</div>
-				<div class="absolute bottom-0 left-0 p-10 text-white w-full md:w-2/3">
-					<div class="flex items-center gap-2 mb-4">
-						<span class="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[12px] font-semibold">FEATURED THIS MONTH</span>
+
+				<!-- Slider Navigation Controls (Only if count > 1) -->
+				<?php if ( $featured_count > 1 ) : ?>
+					<!-- Prev / Next Arrow Buttons -->
+					<button id="hero-slider-prev" class="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all focus:outline-none" aria-label="Previous Slide">
+						<i class="fa-solid fa-chevron-left text-sm"></i>
+					</button>
+					<button id="hero-slider-next" class="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all focus:outline-none" aria-label="Next Slide">
+						<i class="fa-solid fa-chevron-right text-sm"></i>
+					</button>
+
+					<!-- Bottom Dots Pagination -->
+					<div class="absolute bottom-4 right-6 z-20 flex items-center gap-2" id="hero-slider-dots">
+						<?php for ( $i = 0; $i < $featured_count; $i++ ) : ?>
+							<button class="hero-dot w-2.5 h-2.5 rounded-full transition-all duration-300 <?php echo $i === 0 ? 'w-7 bg-white' : 'bg-white/50 hover:bg-white/80'; ?>" data-dot-index="<?php echo intval( $i ); ?>" aria-label="Go to slide <?php echo intval( $i + 1 ); ?>"></button>
+						<?php endfor; ?>
 					</div>
-					<h2 class="font-display-lg text-display-lg-mobile md:text-[38px] leading-tight mb-4 font-bold text-white">The Architecture of Silence</h2>
-					<p class="font-body-lg text-body-lg text-white/90 mb-8 max-w-xl">Explore the serene intersection of minimalist design and acoustic psychology in this month's curated editorial spotlight.</p>
-					<div class="flex gap-4">
-						<?php if ( ! empty( $books ) ) : ?>
-							<button onclick="Aurelian.openBook(<?php echo intval($books[0]->id); ?>, '<?php echo esc_js($books[0]->title); ?>')" class="px-8 py-3 bg-primary-container text-on-primary-container font-semibold rounded-xl hover:scale-105 transition-transform inline-block">Read Now</button>
-						<?php endif; ?>
-						<button class="px-8 py-3 bg-white/20 backdrop-blur-md text-white border border-white/30 font-semibold rounded-xl hover:bg-white/30 transition-all animate-pulse" onclick="Aurelian.surpriseMe()">Surprise Me</button>
-					</div>
-				</div>
+				<?php endif; ?>
 			</section>
 
 			<!-- Category Chips Section -->
-			<section class="mb-10 flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2" id="category-chips">
-				<button class="px-6 py-2.5 bg-primary text-white rounded-full font-bold text-body-md whitespace-nowrap active-chip" data-category="all" onclick="filterCategory('all', this)">All Library</button>
+			<section class="mb-8 md:mb-10 flex items-center gap-2 md:gap-3 overflow-x-auto hide-scrollbar pb-2" id="category-chips">
+				<button class="px-5 md:px-6 py-2 md:py-2.5 bg-primary text-white rounded-full font-bold text-xs md:text-body-md whitespace-nowrap active-chip" data-category="all" onclick="filterCategory('all', this)">All Library</button>
 				<?php foreach ( $categories_terms as $term ) : ?>
-					<button class="px-6 py-2.5 bg-surface-container-high/50 text-secondary hover:bg-primary-container hover:text-on-primary-container rounded-full font-semibold text-body-md whitespace-nowrap transition-colors" data-category="<?php echo esc_attr( $term->slug ); ?>" onclick="filterCategory('<?php echo esc_attr( $term->slug ); ?>', this)"><?php echo esc_html( $term->name ); ?></button>
+					<button class="px-5 md:px-6 py-2 md:py-2.5 bg-surface-container-high/50 text-secondary hover:bg-primary-container hover:text-on-primary-container rounded-full font-semibold text-xs md:text-body-md whitespace-nowrap transition-colors" data-category="<?php echo esc_attr( $term->slug ); ?>" onclick="filterCategory('<?php echo esc_attr( $term->slug ); ?>', this)"><?php echo esc_html( $term->name ); ?></button>
 				<?php endforeach; ?>
 			</section>
 
@@ -768,6 +1190,20 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						
 						// Is favorited
 						$is_fav = in_array( $book->id, $fav_books );
+
+						// Future release status
+						$is_future   = ( ! empty( $book->publish_date ) && strtotime( $book->publish_date ) > current_time( 'timestamp' ) ) || ( isset( $book->status ) && $book->status === 'future' );
+						$publish_iso = '';
+						if ( ! empty( $book->publish_date ) ) {
+							$publish_iso = wp_date( 'c', strtotime( $book->publish_date ) );
+							if ( empty( $publish_iso ) ) {
+								$publish_iso = date( 'c', strtotime( $book->publish_date ) );
+							}
+							if ( empty( $publish_iso ) ) {
+								$publish_iso = str_replace( ' ', 'T', trim( $book->publish_date ) );
+							}
+						}
+						$publish_fmt = ( ! empty( $book->publish_date ) ) ? date_i18n( get_option( 'date_format' ) . ' H:i', strtotime( $book->publish_date ) ) : '';
 						?>
 						<div class="group cursor-pointer book-card-el" data-book-id="<?php echo intval( $book->id ); ?>" data-title="<?php echo esc_attr( strtolower( $book->title ) ); ?>" data-author="<?php echo esc_attr( strtolower( $book->author ) ); ?>" data-categories="<?php echo esc_attr( $cat_slugs_str ); ?>" data-pct="<?php echo intval($pct); ?>" data-user-access="<?php echo esc_attr($user_access); ?>" data-access-type="<?php echo esc_attr($access_type); ?>" data-price="<?php echo esc_attr($price); ?>">
 							<div class="aspect-[3/4] rounded-2xl overflow-hidden mb-4 book-card-shadow relative">
@@ -786,35 +1222,75 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 									</button>
 								</div>
 
-								<!-- Reading & Download Trigger overlay -->
-								<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity px-2">
-									<?php if ( $user_access === 'read_download' ) : ?>
-										<button class="px-3 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform flex items-center gap-1.5" onclick="event.stopPropagation(); Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
-											<i class="fa-solid fa-book-open"></i> Read
-										</button>
-										<button class="p-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform" onclick="event.stopPropagation(); Aurelian.downloadBook(<?php echo intval($book->id); ?>)" title="Download PDF">
-											<i class="fa-solid fa-download"></i>
-										</button>
-									<?php elseif ( $user_access === 'read_only' ) : ?>
-										<button class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform" onclick="event.stopPropagation(); Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
-											Read Online
-										</button>
-									<?php else : ?>
-										<?php if ( $access_type === 'purchase_only' ) : ?>
-											<button class="px-3 py-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform text-center" onclick="event.stopPropagation(); Aurelian.buyBook(<?php echo intval($book->id); ?>)">
-												Buy <?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>
+								<?php if ( $is_future ) : ?>
+									<!-- Upcoming Pill Badge -->
+									<div class="absolute top-2.5 left-2.5 z-10">
+										<span class="px-2.5 py-1 bg-amber-600/95 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider rounded-lg shadow-md flex items-center gap-1">
+											<i class="fa-solid fa-clock text-[9px]"></i> Upcoming
+										</span>
+									</div>
+
+									<!-- 4-Box Countdown Timer at Bottom of Cover -->
+									<?php 
+									$rel_time = ! empty( $publish_iso ) ? $publish_iso : ( ! empty( $book->publish_date ) ? $book->publish_date : '' );
+									if ( ! empty( $rel_time ) ) : 
+									?>
+										<div class="absolute bottom-2 inset-x-2 z-10 grid grid-cols-4 gap-1 p-1 rounded-xl shadow-xl text-white dlm-countdown-timer pointer-events-none" style="background: linear-gradient(135deg, rgba(133, 83, 0, 0.92), rgba(97, 59, 0, 0.95)) !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; backdrop-filter: blur(8px);" data-release-time="<?php echo esc_attr( $rel_time ); ?>" data-book-id="<?php echo esc_attr( $book->id ); ?>">
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-days font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Day</span>
+											</div>
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-hours font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Hr</span>
+											</div>
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-minutes font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Min</span>
+											</div>
+											<div class="flex flex-col items-center justify-center rounded-lg py-1 px-0.5 text-center shadow-xs" style="background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.15);">
+												<span class="countdown-seconds font-mono font-extrabold text-[12px] leading-tight text-white">00</span>
+												<span class="text-[7.5px] uppercase font-bold tracking-tight text-amber-100/90 leading-none">Sec</span>
+											</div>
+										</div>
+									<?php endif; ?>
+
+									<!-- Upcoming Release Overlay -->
+									<div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition-opacity p-3 text-center z-20">
+										<span class="px-3 py-1.5 bg-white text-black font-extrabold text-xs rounded-xl shadow-lg uppercase tracking-wider">
+											Coming Soon
+										</span>
+										<p class="text-white/90 text-[11px] font-medium leading-tight mt-1">
+											Releases <?php echo esc_html( $publish_fmt ); ?>
+										</p>
+									</div>
+								<?php else : ?>
+									<!-- Reading & Download Trigger overlay -->
+									<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2 transition-opacity p-3 z-10">
+										<?php if ( $user_access === 'read_download' ) : ?>
+											<button class="dlm-book-action-btn" onclick="event.stopPropagation(); Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
+												Read
 											</button>
-										<?php elseif ( $access_type === 'hybrid' ) : ?>
-											<button class="px-3 py-2 bg-primary text-white font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform text-center" onclick="event.stopPropagation(); Aurelian.buyBook(<?php echo intval($book->id); ?>)">
-												Buy <?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>
+											<button class="dlm-btn-download dlm-book-action-btn" onclick="event.stopPropagation(); Aurelian.downloadBook(<?php echo intval($book->id); ?>)">
+												Download
+											</button>
+										<?php elseif ( $user_access === 'read_only' ) : ?>
+											<button class="dlm-book-action-btn" onclick="event.stopPropagation(); Aurelian.openBook(<?php echo intval($book->id); ?>, '<?php echo esc_js($book->title); ?>')">
+												Read
 											</button>
 										<?php else : ?>
-											<button class="px-4 py-2 bg-white text-on-surface font-semibold text-xs rounded-xl shadow-lg hover:scale-105 transition-transform" onclick="event.stopPropagation(); showTab('membership')">
-												Subscribe to Read
-											</button>
+											<?php if ( $access_type === 'purchase_only' || $access_type === 'hybrid' ) : ?>
+												<button class="dlm-btn-buy dlm-book-action-btn" onclick="event.stopPropagation(); Aurelian.buyBook(<?php echo intval($book->id); ?>)">
+													Buy <?php echo esc_html( number_format( $price, 2 ) . ' ' . $currency ); ?>
+												</button>
+											<?php else : ?>
+												<button class="dlm-book-action-btn" onclick="event.stopPropagation(); showTab('membership')">
+													Subscribe
+												</button>
+											<?php endif; ?>
 										<?php endif; ?>
-									<?php endif; ?>
-								</div>
+									</div>
+								<?php endif; ?>
 							</div>
 							<h5 class="font-bold text-on-surface leading-snug mb-1 group-hover:text-primary transition-colors line-clamp-1"><?php echo esc_html( $book->title ); ?></h5>
 							<p class="text-xs text-secondary line-clamp-1"><?php echo esc_html( $book->author ); ?></p>
@@ -1227,10 +1703,27 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 							</div>
 						</div>
 						<div class="flex justify-end pt-4">
-							<button class="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md shadow-primary/10" type="submit">Save Changes</button>
+							<button class="px-8 py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 cursor-pointer" type="submit">Save Changes</button>
 						</div>
 					</form>
 				</div>
+			</div>
+
+			<!-- Interactive Onboarding Tour Replay Card -->
+			<div class="mt-8 bg-white border border-outline-variant/30 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+				<div class="space-y-1 max-w-xl">
+					<div class="flex items-center gap-2.5 mb-1">
+						<span class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-base font-bold flex-shrink-0">
+							<i class="fa-solid fa-route"></i>
+						</span>
+						<h3 class="font-bold text-lg text-on-surface">Member Onboarding Tour</h3>
+					</div>
+					<p class="text-sm text-secondary leading-relaxed">Need a quick walkthrough of all features and navigation tools? Replay the interactive spotlight tour anytime.</p>
+				</div>
+				<button id="dlm-replay-tour-btn" onclick="replayOnboardingTour()" type="button" class="px-6 py-3.5 bg-surface-container hover:bg-primary hover:text-white text-on-surface font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 shadow-sm flex-shrink-0 cursor-pointer min-h-[44px]">
+					<i class="fa-solid fa-wand-magic-sparkles text-primary"></i>
+					<span>Show Me Around Again</span>
+				</button>
 			</div>
 		</div>
 
@@ -1365,23 +1858,27 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	</div> <!-- End centered portal content wrapper -->
 	</div> <!-- End outer centering wrapper -->
 
-	<!-- Mobile Bottom Bar navigation (Responsive) -->
-	<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface/80 backdrop-blur-xl border-t border-outline-variant/30 shadow-lg rounded-t-xl">
-		<a class="flex flex-col items-center justify-center text-primary scale-110 mobile-nav-btn" data-tab="library" onclick="showTab('library')">
-			<i class="fa-solid fa-book text-[20px] mb-0.5"></i>
-			<span class="text-[10px] mt-1 font-semibold">Library</span>
+	<!-- Mobile Bottom Bar navigation (Responsive 5-Tab Bar) -->
+	<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-2 pb-safe bg-white/95 backdrop-blur-xl border-t border-outline-variant/30 shadow-2xl">
+		<a class="flex flex-col items-center justify-center py-1 px-2 text-primary mobile-nav-btn cursor-pointer transition-all" data-tab="library" onclick="showTab('library')">
+			<i class="fa-solid fa-book text-[18px] mb-0.5"></i>
+			<span class="text-[10px] font-bold">Library</span>
 		</a>
-		<a class="flex flex-col items-center justify-center text-secondary mobile-nav-btn" data-tab="discover" onclick="showTab('discover')">
-			<i class="fa-solid fa-compass text-[20px] mb-0.5"></i>
-			<span class="text-[10px] mt-1 font-semibold">Explore</span>
+		<a class="flex flex-col items-center justify-center py-1 px-2 text-secondary mobile-nav-btn cursor-pointer transition-all" data-tab="discover" onclick="showTab('discover')">
+			<i class="fa-solid fa-compass text-[18px] mb-0.5"></i>
+			<span class="text-[10px] font-bold">Explore</span>
 		</a>
-		<a class="flex flex-col items-center justify-center text-secondary mobile-nav-btn" data-tab="journal" onclick="showTab('journal')">
-			<i class="fa-solid fa-pen-to-square text-[20px] mb-0.5"></i>
-			<span class="text-[10px] mt-1 font-semibold">Journal</span>
+		<a class="flex flex-col items-center justify-center py-1 px-2 text-secondary mobile-nav-btn cursor-pointer transition-all" data-tab="journal" onclick="showTab('journal')">
+			<i class="fa-solid fa-pen-to-square text-[18px] mb-0.5"></i>
+			<span class="text-[10px] font-bold">Journal</span>
 		</a>
-		<a class="flex flex-col items-center justify-center text-secondary mobile-nav-btn" data-tab="settings" onclick="showTab('settings')">
-			<i class="fa-solid fa-user text-[20px] mb-0.5"></i>
-			<span class="text-[10px] mt-1 font-semibold">Profile</span>
+		<a class="flex flex-col items-center justify-center py-1 px-2 text-secondary mobile-nav-btn cursor-pointer transition-all" data-tab="membership" onclick="showTab('membership')">
+			<i class="fa-solid fa-crown text-[18px] mb-0.5"></i>
+			<span class="text-[10px] font-bold">Pro</span>
+		</a>
+		<a class="flex flex-col items-center justify-center py-1 px-2 text-secondary cursor-pointer transition-all" id="mobile-nav-menu-btn" onclick="openMobileDrawer()">
+			<i class="fa-solid fa-bars-staggered text-[18px] mb-0.5"></i>
+			<span class="text-[10px] font-bold">Menu</span>
 		</a>
 	</nav>
 
@@ -1449,7 +1946,9 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			userAchievements: <?php echo json_encode( $achievements ); ?>,
 			userNotes: <?php echo json_encode( $notes ); ?>,
 			favoriteBooks: <?php echo json_encode( $fav_books ); ?>,
-			checkoutUrl: '<?php echo esc_js( home_url( '/checkout/' ) ); ?>'
+			checkoutUrl: '<?php echo esc_js( home_url( '/checkout/' ) ); ?>',
+			shouldShowOnboarding: <?php echo $should_show_onboarding ? 'true' : 'false'; ?>,
+			onboardingCompleted: '<?php echo esc_js( $onboarding_completed ); ?>'
 		};
 	</script>
 <?php else : ?>
@@ -1574,38 +2073,208 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	});
 
 	<?php if ( $is_logged_in ) : ?>
-		// Sidebar Collapse trigger
-		jQuery('#sidebar-collapse-btn').on('click', function() {
-			const collapsed = jQuery('body').toggleClass('sidebar-collapsed').hasClass('sidebar-collapsed');
-			localStorage.setItem('sidebar_collapsed', collapsed);
+		// Mobile Left Sidebar Drawer Controls
+		function openMobileDrawer() {
+			jQuery('#mobile-sidebar-drawer').removeClass('-translate-x-full');
+			jQuery('#mobile-sidebar-backdrop').removeClass('opacity-0 pointer-events-none').addClass('opacity-100 pointer-events-auto');
+		}
+		window.openMobileDrawer = openMobileDrawer;
+
+		function closeMobileDrawer() {
+			jQuery('#mobile-sidebar-drawer').addClass('-translate-x-full');
+			jQuery('#mobile-sidebar-backdrop').removeClass('opacity-100 pointer-events-auto').addClass('opacity-0 pointer-events-none');
+		}
+		window.closeMobileDrawer = closeMobileDrawer;
+
+		// Replay Onboarding Tour Trigger
+		function replayOnboardingTour() {
+			if (window.DLMOnboardingTour && typeof window.DLMOnboardingTour.replay === 'function') {
+				window.DLMOnboardingTour.replay();
+			}
+		}
+		window.replayOnboardingTour = replayOnboardingTour;
+
+		// Universal Sidebar / Drawer Toggle Trigger (Works across All Devices)
+		jQuery('#mobile-menu-trigger-btn').on('click', function(e) {
+			e.preventDefault();
+			if (window.innerWidth < 768) {
+				openMobileDrawer();
+			} else {
+				const collapsed = jQuery('body').toggleClass('sidebar-collapsed').hasClass('sidebar-collapsed');
+				localStorage.setItem('sidebar_collapsed', collapsed);
+			}
 		});
-		
-		if (localStorage.getItem('sidebar_collapsed') === 'true') {
+
+		jQuery('#mobile-nav-menu-btn').on('click', function(e) {
+			e.preventDefault();
+			openMobileDrawer();
+		});
+
+		jQuery('#mobile-drawer-close-btn, #mobile-sidebar-backdrop, .mobile-drawer-link').on('click', function(e) {
+			closeMobileDrawer();
+		});
+
+		if (window.innerWidth >= 768 && localStorage.getItem('sidebar_collapsed') === 'true') {
 			jQuery('body').addClass('sidebar-collapsed');
 		}
 
-		// Notifications drawer
+		// -------------------------------------------------------------
+		// MEMBER NOTIFICATIONS CONTROLLER
+		// -------------------------------------------------------------
+		function toggleNotificationsDropdown(forceState) {
+			const dropdown = jQuery('#notification-dropdown');
+			const btn = jQuery('#notification-btn');
+			const isHidden = dropdown.hasClass('hidden');
+			const shouldOpen = typeof forceState === 'boolean' ? forceState : isHidden;
+
+			if (shouldOpen) {
+				dropdown.removeClass('hidden');
+				btn.attr('aria-expanded', 'true');
+			} else {
+				dropdown.addClass('hidden');
+				btn.attr('aria-expanded', 'false');
+			}
+		}
+
 		jQuery('#notification-btn').on('click', function(e) {
 			e.stopPropagation();
-			jQuery('#notification-dropdown').toggleClass('hidden');
+			toggleNotificationsDropdown();
 		});
 
 		jQuery(document).on('click', function(e) {
 			if (!jQuery('#notification-dropdown').is(e.target) && jQuery('#notification-dropdown').has(e.target).length === 0 && !jQuery('#notification-btn').is(e.target)) {
-				jQuery('#notification-dropdown').addClass('hidden');
+				toggleNotificationsDropdown(false);
 			}
 		});
 
-		jQuery('#clear-notifications-btn').on('click', function(e) {
-			e.stopPropagation();
-			jQuery('#notification-list').html('<div class="p-6 text-center text-secondary opacity-60"><i class="fa-regular fa-bell text-xl mb-1 block"></i>No new alerts</div>');
-			jQuery('#notification-badge').addClass('hidden');
+		jQuery(document).on('keydown', function(e) {
+			if (e.key === 'Escape' && !jQuery('#notification-dropdown').hasClass('hidden')) {
+				toggleNotificationsDropdown(false);
+				jQuery('#notification-btn').focus();
+			}
 		});
+
+		// Mark single notification as read & route to link destination (SPA tab vs Real URL)
+		jQuery(document).on('click', '.dlm-notif-row', function(e) {
+			e.preventDefault();
+			const row = jQuery(this);
+			const notifId = row.data('id');
+			const linkUrl = row.data('link') ? String(row.data('link')).trim() : '';
+			const isRead = parseInt(row.data('is-read'), 10) === 1;
+
+			// Visual update immediately
+			if (!isRead) {
+				row.removeClass('bg-primary-container/10 border border-primary/20 hover:bg-primary-container/20 font-semibold shadow-xs')
+				   .addClass('bg-transparent hover:bg-surface-variant/30 text-on-surface-variant')
+				   .data('is-read', 1);
+				row.find('.notif-unread-dot').remove();
+
+				// Decrement badge count
+				const badge = jQuery('#notification-badge');
+				const currentCount = parseInt(badge.text(), 10) || 0;
+				const newCount = Math.max(0, currentCount - 1);
+				if (newCount > 0) {
+					badge.text(newCount).removeClass('hidden');
+					jQuery('#notification-unread-pill').text(`${newCount} new`).removeClass('hidden');
+					jQuery('#notification-btn').attr('aria-label', `Notifications (${newCount} unread)`);
+				} else {
+					badge.text('0').addClass('hidden');
+					jQuery('#notification-unread-pill').addClass('hidden');
+					jQuery('#notification-btn').attr('aria-label', 'Notifications (No unread)');
+				}
+
+				// AJAX update
+				if (window.dlmParams && dlmParams.ajaxUrl && dlmParams.nonce) {
+					jQuery.post(dlmParams.ajaxUrl, {
+						action: 'dlm_mark_notification_read',
+						nonce: dlmParams.nonce,
+						notification_id: notifId
+					});
+				}
+			}
+
+			// Close dropdown
+			toggleNotificationsDropdown(false);
+
+			// Smart routing: SPA in-page tab switch vs full browser URL navigation
+			if (linkUrl) {
+				if (linkUrl.startsWith('#') || linkUrl.startsWith('tab:')) {
+					const tab = linkUrl.replace(/^#tab-|^#|^tab:/, '');
+					if (typeof showTab === 'function') {
+						showTab(tab);
+					}
+				} else if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://') || linkUrl.startsWith('/')) {
+					window.location.href = linkUrl;
+				}
+			}
+		});
+
+		// Keyboard enter / space trigger for notification row
+		jQuery(document).on('keydown', '.dlm-notif-row', function(e) {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				jQuery(this).trigger('click');
+			}
+		});
+
+		// Mark all as read button
+		jQuery('#mark-all-read-btn, #clear-notifications-btn').on('click', function(e) {
+			e.stopPropagation();
+			const badge = jQuery('#notification-badge');
+			badge.text('0').addClass('hidden');
+			jQuery('#notification-unread-pill').addClass('hidden');
+			jQuery('#notification-btn').attr('aria-label', 'Notifications (No unread)');
+
+			jQuery('.dlm-notif-row').each(function() {
+				jQuery(this).removeClass('bg-primary-container/10 border border-primary/20 hover:bg-primary-container/20 font-semibold shadow-xs')
+				           .addClass('bg-transparent hover:bg-surface-variant/30 text-on-surface-variant')
+				           .data('is-read', 1);
+				jQuery(this).find('.notif-unread-dot').remove();
+			});
+
+			if (window.dlmParams && dlmParams.ajaxUrl && dlmParams.nonce) {
+				jQuery.post(dlmParams.ajaxUrl, {
+					action: 'dlm_mark_all_notifications_read',
+					nonce: dlmParams.nonce
+				});
+			}
+
+			if (typeof showToast === 'function') {
+				showToast('All notifications marked as read.', 'info');
+			}
+		});
+
+		// Lightweight background polling for unread count (every 60 seconds)
+		setInterval(function() {
+			if (!window.dlmParams || !dlmParams.ajaxUrl || !dlmParams.nonce) return;
+			jQuery.post(dlmParams.ajaxUrl, {
+				action: 'dlm_get_unread_notifications_count',
+				nonce: dlmParams.nonce
+			}, function(res) {
+				if (res && res.success && typeof res.data.unread_count !== 'undefined') {
+					const count = parseInt(res.data.unread_count, 10);
+					const badge = jQuery('#notification-badge');
+					const pill = jQuery('#notification-unread-pill');
+					if (count > 0) {
+						badge.text(count).removeClass('hidden');
+						pill.text(`${count} new`).removeClass('hidden');
+						jQuery('#notification-btn').attr('aria-label', `Notifications (${count} unread)`);
+					} else {
+						badge.text('0').addClass('hidden');
+						pill.addClass('hidden');
+						jQuery('#notification-btn').attr('aria-label', 'Notifications (No unread)');
+					}
+				}
+			});
+		}, 60000);
 
 		// -------------------------------------------------------------
 		// TAB NAVIGATION LAYER
 		// -------------------------------------------------------------
 		function showTab(tabName) {
+			// Auto close mobile drawer on tab switch
+			closeMobileDrawer();
+
 			// Toggle views
 			jQuery('.spa-page').addClass('hidden');
 			jQuery('#section-' + tabName).removeClass('hidden');
@@ -1644,8 +2313,12 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				paintWeeklyStrip();
 				paintBadgesWall();
 			}
-			
-			window.scrollTo({ top: 0, behavior: 'smooth' });
+			const mainContentEl = document.getElementById('dlm-main-content');
+			if (mainContentEl) {
+				mainContentEl.scrollTo({ top: 0, behavior: 'smooth' });
+			} else {
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
 		}
 
 		// -------------------------------------------------------------
@@ -2515,6 +3188,161 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				}
 
 				handlePaymentRedirectStatus();
+
+				// Real-time countdown timer for scheduled release books
+				function parseReleaseTime(str) {
+					if (!str) return 0;
+					let s = String(str).trim();
+					if (s.indexOf(' ') > 0 && s.indexOf('T') === -1) {
+						s = s.replace(' ', 'T');
+					}
+					const parsed = Date.parse(s);
+					if (!isNaN(parsed) && parsed > 0) {
+						return parsed;
+					}
+					const d = new Date(str);
+					const t = d.getTime();
+					return isNaN(t) ? 0 : t;
+				}
+
+				function updateCountdowns() {
+					const now = new Date().getTime();
+					jQuery('.dlm-countdown-timer').each(function() {
+						const $timer = jQuery(this);
+						const releaseIso = $timer.attr('data-release-time') || $timer.data('release-time');
+						if (!releaseIso) return;
+
+						const targetTime = parseReleaseTime(releaseIso);
+						if (!targetTime) return;
+
+						const distance = targetTime - now;
+
+						if (distance <= 0) {
+							$timer.find('.countdown-days').text('00');
+							$timer.find('.countdown-hours').text('00');
+							$timer.find('.countdown-minutes').text('00');
+							$timer.find('.countdown-seconds').text('00');
+							$timer.find('.countdown-digits').text('Available Now!').removeClass('text-amber-900').addClass('text-green-700 font-bold');
+							return;
+						}
+
+						const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+						const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+						const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+						const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+						const dStr = days < 10 ? '0' + days : '' + days;
+						const hStr = hours < 10 ? '0' + hours : '' + hours;
+						const mStr = minutes < 10 ? '0' + minutes : '' + minutes;
+						const sStr = seconds < 10 ? '0' + seconds : '' + seconds;
+
+						$timer.find('.countdown-days').text(dStr);
+						$timer.find('.countdown-hours').text(hStr);
+						$timer.find('.countdown-minutes').text(mStr);
+						$timer.find('.countdown-seconds').text(sStr);
+					});
+				}
+
+				updateCountdowns();
+				setInterval(updateCountdowns, 1000);
+
+				// Hero Slider Controller
+				function initHeroSlider() {
+					const $slides = jQuery('.hero-slide');
+					const totalSlides = $slides.length;
+					if (totalSlides <= 1) return;
+
+					let currentIndex = 0;
+					let slideInterval = null;
+					const autoPlayDelay = 6000;
+
+					function goToSlide(index) {
+						if (index < 0) index = totalSlides - 1;
+						if (index >= totalSlides) index = 0;
+						currentIndex = index;
+
+						$slides.each(function(i) {
+							if (i === currentIndex) {
+								jQuery(this).removeClass('opacity-0 z-0 pointer-events-none').addClass('opacity-100 z-10');
+							} else {
+								jQuery(this).removeClass('opacity-100 z-10').addClass('opacity-0 z-0 pointer-events-none');
+							}
+						});
+
+						// Update dots
+						jQuery('.hero-dot').each(function(i) {
+							if (i === currentIndex) {
+								jQuery(this).removeClass('bg-white/50 hover:bg-white/80 w-2.5').addClass('w-7 bg-white');
+							} else {
+								jQuery(this).removeClass('w-7 bg-white').addClass('w-2.5 bg-white/50 hover:bg-white/80');
+							}
+						});
+					}
+
+					function startAutoplay() {
+						stopAutoplay();
+						slideInterval = setInterval(() => {
+							goToSlide(currentIndex + 1);
+						}, autoPlayDelay);
+					}
+
+					function stopAutoplay() {
+						if (slideInterval) {
+							clearInterval(slideInterval);
+							slideInterval = null;
+						}
+					}
+
+					// Event handlers
+					jQuery('#hero-slider-next').on('click', function(e) {
+						e.preventDefault();
+						goToSlide(currentIndex + 1);
+						startAutoplay();
+					});
+
+					jQuery('#hero-slider-prev').on('click', function(e) {
+						e.preventDefault();
+						goToSlide(currentIndex - 1);
+						startAutoplay();
+					});
+
+					jQuery(document).on('click', '.hero-dot', function(e) {
+						e.preventDefault();
+						const idx = parseInt(jQuery(this).attr('data-dot-index'), 10);
+						if (!isNaN(idx)) {
+							goToSlide(idx);
+							startAutoplay();
+						}
+					});
+
+					// Pause on hover
+					const $section = jQuery('#member-hero-slider-section');
+					$section.on('mouseenter', stopAutoplay).on('mouseleave', startAutoplay);
+
+					// Touch swipe support
+					let touchStartX = 0;
+					let touchEndX = 0;
+					$section.on('touchstart', function(e) {
+						touchStartX = e.originalEvent.touches[0].clientX;
+					}, { passive: true });
+
+					$section.on('touchend', function(e) {
+						touchEndX = e.originalEvent.changedTouches[0].clientX;
+						const diff = touchStartX - touchEndX;
+						if (Math.abs(diff) > 45) {
+							if (diff > 0) {
+								goToSlide(currentIndex + 1);
+							} else {
+								goToSlide(currentIndex - 1);
+							}
+							startAutoplay();
+						}
+					}, { passive: true });
+
+					startAutoplay();
+				}
+
+				initHeroSlider();
 			}
 
 			jQuery(document).ready(init);

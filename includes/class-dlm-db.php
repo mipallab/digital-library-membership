@@ -45,10 +45,19 @@ class DLM_DB {
 			$now = current_time( 'mysql' );
 			return $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM %i WHERE status = %s AND (publish_date IS NULL OR publish_date <= %s) ORDER BY created_at DESC",
+					"SELECT * FROM %i WHERE status = %s AND (publish_date IS NULL OR publish_date = '' OR publish_date <= %s) ORDER BY created_at DESC",
 					$table,
 					'publish',
 					$now
+				)
+			);
+		}
+
+		if ( $status === 'publish' && $include_future ) {
+			return $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM %i WHERE status IN ('publish', 'future') ORDER BY created_at DESC",
+					$table
 				)
 			);
 		}
@@ -57,25 +66,93 @@ class DLM_DB {
 	}
 
 	/**
+	 * Automatically ensure featured book columns exist in wp_dlm_books
+	 */
+	public function check_featured_books_schema() {
+		global $wpdb;
+		$table = $this->get_table_name( 'books' );
+		
+		if ( get_transient( 'dlm_featured_schema_checked' ) ) {
+			return;
+		}
+
+		$columns = $wpdb->get_col( $wpdb->prepare( "DESCRIBE %i", $table ) );
+		if ( empty( $columns ) ) {
+			return;
+		}
+
+		$needed_columns = array(
+			'is_featured'             => "ALTER TABLE %i ADD COLUMN is_featured tinyint(1) DEFAULT 0",
+			'featured_title'          => "ALTER TABLE %i ADD COLUMN featured_title varchar(255) DEFAULT ''",
+			'featured_description'    => "ALTER TABLE %i ADD COLUMN featured_description text DEFAULT NULL",
+			'featured_banner_id'      => "ALTER TABLE %i ADD COLUMN featured_banner_id bigint(20) DEFAULT 0",
+			'featured_banner_url'     => "ALTER TABLE %i ADD COLUMN featured_banner_url varchar(255) DEFAULT ''",
+			'featured_button_1_label' => "ALTER TABLE %i ADD COLUMN featured_button_1_label varchar(100) DEFAULT ''",
+			'featured_button_2_label' => "ALTER TABLE %i ADD COLUMN featured_button_2_label varchar(100) DEFAULT ''",
+			'featured_order'          => "ALTER TABLE %i ADD COLUMN featured_order int(11) DEFAULT 0",
+		);
+
+		foreach ( $needed_columns as $col => $sql ) {
+			if ( ! in_array( $col, $columns, true ) ) {
+				$wpdb->query( $wpdb->prepare( $sql, $table ) );
+			}
+		}
+
+		set_transient( 'dlm_featured_schema_checked', 1, DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Get featured books for hero slider and widgets
+	 *
+	 * @param int $limit Max number of featured books to return.
+	 * @return array
+	 */
+	public function get_featured_books( $limit = 10 ) {
+		$this->check_featured_books_schema();
+		global $wpdb;
+		$table = $this->get_table_name( 'books' );
+		$limit = max( 1, intval( $limit ) );
+
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE is_featured = 1 AND status IN ('publish', 'future') ORDER BY featured_order ASC, created_at DESC LIMIT %d",
+				$table,
+				$limit
+			)
+		);
+
+		return $results ? $results : array();
+	}
+
+	/**
 	 * Insert/Create book
 	 */
 	public function insert_book( $data ) {
+		$this->check_featured_books_schema();
 		global $wpdb;
 		$table = $this->get_table_name( 'books' );
 		
 		$insert_data = array(
-			'title'           => sanitize_text_field( $data['title'] ),
-			'author'          => sanitize_text_field( $data['author'] ),
-			'description'     => wp_kses_post( $data['description'] ),
-			'cover_image_url' => esc_url_raw( $data['cover_image_url'] ),
-			'file_path'       => sanitize_text_field( $data['file_path'] ),
-			'file_type'       => sanitize_text_field( $data['file_type'] ),
-			'status'          => sanitize_text_field( $data['status'] ),
-			'access_type'     => isset( $data['access_type'] ) ? sanitize_text_field( $data['access_type'] ) : 'subscription_only',
-			'price'           => isset( $data['price'] ) ? floatval( $data['price'] ) : 0.00,
-			'publish_date'    => ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null,
-			'wc_product_id'   => isset( $data['wc_product_id'] ) ? intval( $data['wc_product_id'] ) : 0,
-			'created_at'      => current_time( 'mysql' ),
+			'title'                   => sanitize_text_field( $data['title'] ),
+			'author'                  => sanitize_text_field( $data['author'] ),
+			'description'             => wp_kses_post( $data['description'] ),
+			'cover_image_url'         => esc_url_raw( $data['cover_image_url'] ),
+			'file_path'               => sanitize_text_field( $data['file_path'] ),
+			'file_type'               => sanitize_text_field( $data['file_type'] ),
+			'status'                  => sanitize_text_field( $data['status'] ),
+			'access_type'             => isset( $data['access_type'] ) ? sanitize_text_field( $data['access_type'] ) : 'subscription_only',
+			'price'                   => isset( $data['price'] ) ? floatval( $data['price'] ) : 0.00,
+			'publish_date'            => ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null,
+			'is_featured'             => ! empty( $data['is_featured'] ) ? 1 : 0,
+			'featured_title'          => isset( $data['featured_title'] ) ? sanitize_text_field( $data['featured_title'] ) : '',
+			'featured_description'    => isset( $data['featured_description'] ) ? wp_kses_post( $data['featured_description'] ) : null,
+			'featured_banner_id'      => isset( $data['featured_banner_id'] ) ? intval( $data['featured_banner_id'] ) : 0,
+			'featured_banner_url'     => isset( $data['featured_banner_url'] ) ? esc_url_raw( $data['featured_banner_url'] ) : '',
+			'featured_button_1_label' => isset( $data['featured_button_1_label'] ) ? sanitize_text_field( $data['featured_button_1_label'] ) : '',
+			'featured_button_2_label' => isset( $data['featured_button_2_label'] ) ? sanitize_text_field( $data['featured_button_2_label'] ) : '',
+			'featured_order'          => isset( $data['featured_order'] ) ? intval( $data['featured_order'] ) : 0,
+			'wc_product_id'           => isset( $data['wc_product_id'] ) ? intval( $data['wc_product_id'] ) : 0,
+			'created_at'              => current_time( 'mysql' ),
 		);
 
 		$wpdb->insert( $table, $insert_data );
@@ -432,6 +509,7 @@ class DLM_DB {
 	 * Update existing book metadata
 	 */
 	public function update_book( $id, $data ) {
+		$this->check_featured_books_schema();
 		global $wpdb;
 		$table = $this->get_table_name( 'books' );
 		
@@ -451,6 +529,30 @@ class DLM_DB {
 		}
 		if ( array_key_exists( 'publish_date', $data ) ) {
 			$fields['publish_date'] = ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null;
+		}
+		if ( array_key_exists( 'is_featured', $data ) ) {
+			$fields['is_featured'] = ! empty( $data['is_featured'] ) ? 1 : 0;
+		}
+		if ( array_key_exists( 'featured_title', $data ) ) {
+			$fields['featured_title'] = sanitize_text_field( $data['featured_title'] );
+		}
+		if ( array_key_exists( 'featured_description', $data ) ) {
+			$fields['featured_description'] = wp_kses_post( $data['featured_description'] );
+		}
+		if ( array_key_exists( 'featured_banner_id', $data ) ) {
+			$fields['featured_banner_id'] = intval( $data['featured_banner_id'] );
+		}
+		if ( array_key_exists( 'featured_banner_url', $data ) ) {
+			$fields['featured_banner_url'] = esc_url_raw( $data['featured_banner_url'] );
+		}
+		if ( array_key_exists( 'featured_button_1_label', $data ) ) {
+			$fields['featured_button_1_label'] = sanitize_text_field( $data['featured_button_1_label'] );
+		}
+		if ( array_key_exists( 'featured_button_2_label', $data ) ) {
+			$fields['featured_button_2_label'] = sanitize_text_field( $data['featured_button_2_label'] );
+		}
+		if ( array_key_exists( 'featured_order', $data ) ) {
+			$fields['featured_order'] = intval( $data['featured_order'] );
 		}
 		if ( isset( $data['wc_product_id'] ) ) {
 			$fields['wc_product_id'] = intval( $data['wc_product_id'] );
@@ -567,7 +669,20 @@ class DLM_DB {
 			)
 		);
 
-		return $wpdb->insert_id;
+		$purchase_id = $wpdb->insert_id;
+		if ( $purchase_id && isset( $data['status'] ) && 'completed' === $data['status'] ) {
+			$book = $this->get_book( intval( $data['book_id'] ) );
+			$book_title = $book ? $book->title : __( 'Book', 'digital-library-membership' );
+			$this->create_notification( array(
+				'user_id'   => intval( $data['user_id'] ),
+				'type'      => 'purchase',
+				'title'     => sprintf( __( 'Purchase Confirmed: %s', 'digital-library-membership' ), $book_title ),
+				'message'   => sprintf( __( 'Your purchase is confirmed. You now have permanent access to read and download "%s".', 'digital-library-membership' ), $book_title ),
+				'link_url'  => home_url( '/read/' . intval( $data['book_id'] ) . '/' ),
+			) );
+		}
+
+		return $purchase_id;
 	}
 
 	/**
@@ -788,5 +903,196 @@ class DLM_DB {
 		) );
 
 		return $results;
+	}
+
+	/**
+	 * Create a new user notification
+	 *
+	 * @param array $data Notification data (user_id, type, title, message, link_url, is_read, deduplicate_days)
+	 * @return int|false Notification ID or false
+	 */
+	public function create_notification( $data ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'notifications' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			DLM_Activator::check_and_upgrade_db();
+		}
+
+		$user_id  = isset( $data['user_id'] ) ? intval( $data['user_id'] ) : 0;
+		$type     = isset( $data['type'] ) ? sanitize_key( $data['type'] ) : 'general';
+		$title    = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
+		$message  = isset( $data['message'] ) ? sanitize_textarea_field( $data['message'] ) : '';
+		$link_url = isset( $data['link_url'] ) ? sanitize_text_field( $data['link_url'] ) : '';
+		$is_read  = ! empty( $data['is_read'] ) ? 1 : 0;
+
+		if ( ! $user_id || empty( $title ) ) {
+			return false;
+		}
+
+		// Idempotency check if deduplicate_days is specified
+		if ( ! empty( $data['deduplicate_days'] ) ) {
+			$days  = intval( $data['deduplicate_days'] );
+			$since = gmdate( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$exists = $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM %i WHERE user_id = %d AND type = %s AND title = %s AND created_at >= %s LIMIT 1",
+				$table,
+				$user_id,
+				$type,
+				$title,
+				$since
+			) );
+			if ( $exists ) {
+				return intval( $exists );
+			}
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$inserted = $wpdb->insert(
+			$table,
+			array(
+				'user_id'    => $user_id,
+				'type'       => $type,
+				'title'      => $title,
+				'message'    => $message,
+				'link_url'   => $link_url,
+				'is_read'    => $is_read,
+				'created_at' => current_time( 'mysql' ),
+			)
+		);
+
+		return $inserted ? $wpdb->insert_id : false;
+	}
+
+	/**
+	 * Check if a notification already exists for user
+	 *
+	 * @param int $user_id
+	 * @param string $type
+	 * @param string|null $title_like
+	 * @param string|null $since_date
+	 * @return bool
+	 */
+	public function notification_exists( $user_id, $type, $title_like = null, $since_date = null ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'notifications' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			return false;
+		}
+
+		$sql    = "SELECT id FROM %i WHERE user_id = %d AND type = %s";
+		$params = array( $table, intval( $user_id ), sanitize_key( $type ) );
+
+		if ( ! empty( $title_like ) ) {
+			$sql     .= " AND title LIKE %s";
+			$params[] = '%' . $wpdb->esc_like( $title_like ) . '%';
+		}
+
+		if ( ! empty( $since_date ) ) {
+			$sql     .= " AND created_at >= %s";
+			$params[] = $since_date;
+		}
+
+		$sql .= " LIMIT 1";
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$found = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+		return ! empty( $found );
+	}
+
+	/**
+	 * Get paginated notifications for user
+	 *
+	 * @param int $user_id
+	 * @param int $limit
+	 * @param int $offset
+	 * @return array
+	 */
+	public function get_user_notifications( $user_id, $limit = 20, $offset = 0 ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'notifications' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM %i WHERE user_id = %d ORDER BY created_at DESC LIMIT %d OFFSET %d",
+			$table,
+			intval( $user_id ),
+			intval( $limit ),
+			intval( $offset )
+		) );
+	}
+
+	/**
+	 * Get count of unread notifications for user
+	 *
+	 * @param int $user_id
+	 * @return int
+	 */
+	public function get_unread_notifications_count( $user_id ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'notifications' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			return 0;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$count = $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM %i WHERE user_id = %d AND is_read = 0",
+			$table,
+			intval( $user_id )
+		) );
+
+		return intval( $count );
+	}
+
+	/**
+	 * Mark a single notification as read
+	 *
+	 * @param int $notification_id
+	 * @param int $user_id
+	 * @return int|false
+	 */
+	public function mark_notification_read( $notification_id, $user_id ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'notifications' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->update(
+			$table,
+			array( 'is_read' => 1 ),
+			array(
+				'id'      => intval( $notification_id ),
+				'user_id' => intval( $user_id ),
+			)
+		);
+	}
+
+	/**
+	 * Mark all notifications as read for a user
+	 *
+	 * @param int $user_id
+	 * @return int|false
+	 */
+	public function mark_all_notifications_read( $user_id ) {
+		global $wpdb;
+		$table = $this->get_table_name( 'notifications' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->update(
+			$table,
+			array( 'is_read' => 1 ),
+			array( 'user_id' => intval( $user_id ) )
+		);
 	}
 }

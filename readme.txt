@@ -3,9 +3,9 @@ Contributors: mipallab123
 Donate link: https://profiles.wordpress.org/mipallab123
 Tags: library, membership, flipbook, pdf reader, gutenberg, elementor, access control
 Requires at least: 6.2
-Tested up to: 7.0.4
+Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.2.0
+Stable tag: 2.5.0
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -25,6 +25,7 @@ A secure, premium subscription membership plugin to read digital books with real
 * **Gutenberg & Elementor Ready**:
   * Native Gutenberg blocks and shortcode compatibility across all page templates.
   * Dedicated Elementor Header Navigation widget (`DLM_Elementor_Header_Nav`) with comprehensive styling controls.
+  * Elementor Featured Book Hero Slider (`DLM_Elementor_Featured_Slider`) with 3D perspective floating covers, dynamic cache-safe CTA hydration, and live release countdown timers.
 * **1-Click Social Sign-In**:
   * Seamless "Continue with Google" (OAuth 2.0 / OIDC) and "Continue with Apple" authentication with CSRF state protection and auto-account provisioning.
 * **Dual Payment Gateway Engine**:
@@ -33,8 +34,8 @@ A secure, premium subscription membership plugin to read digital books with real
 * **Hardened DRM & Reading Security**:
   * Chunked range streaming through an authenticated REST API (raw file path never exposed).
   * Anti-copy protections: right-click disable, selection blocking, print media suppression, and dynamic user watermarking.
-* **1-Click Demo Data Suite**:
-  * Instantly populate realistic books across all 3 access models, membership accounts, categories, tags, and orders for rapid testing. Clean 1-click removal.
+* **1-Click Demo Data Suite (Chunked Pipeline)**:
+  * Multi-step batched AJAX import/delete pipeline with live progress indicators, idempotent retries, and comprehensive cleanup safety.
 * **Modern SPA Member Dashboard**:
   * Front-end account portal featuring live reading streaks, reading progress indicators, dark/light themes, and purchase history.
 
@@ -95,13 +96,36 @@ This plugin integrates with the following third-party services to handle authent
 
 == Screenshots ==
 
-1. Admin Library Dashboard - Catalog management and analytics.
-2. Distraction-Free Book Reader - 3D page-flip canvas with responsive spreads.
+1. Dynamic 3D Book Reader Canvas - Physical page-turning feel with custom watermark overlay.
+2. Administrative Control Center - Metrics, subscription managers, and DRM security audit logs.
 3. Front-End Member Dashboard - Bookshelf, achievements, and purchase history.
 4. Settings & Payment Gateways - Stripe, PayPal, and WooCommerce switchers.
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 2.5.0 =
+* Added: First-Time Member Onboarding Tour (Spotlight-style) with pure Vanilla JS engine, smart callout positioning, auto-scroll, single-batch mobile drawer batching, and WCAG accessibility compliance.
+* Added: Server-side onboarding completion, skip, and reset tracking with "Show Me Around Again" replay tour button in Settings.
+* Added: Dedicated standalone `DLM Book Countdown` Elementor widget (`DLM_Elementor_Book_Countdown`) for upcoming book releases.
+* Added: Custom "Digital Library" Elementor category (`elementor/elements/categories_registered`) grouping all DLM visual widgets.
+* Enhanced: `DLM Featured Book Slider` widget with complete typography, text color, text shadow, button normal/hover, countdown styling, and book cover image resizing & 3D tilt controls.
+* Improved: Removed conflicting inline styles in Elementor widgets to ensure 100% full fidelity control customization from the Elementor editor panel.
+
+= 2.4.0 =
+* Added: Elementor Featured Book Hero Slider widget (`DLM_Elementor_Featured_Slider`) with 3D perspective floating covers and customizable banner hero styling.
+* Added: Client-side cache-safe dynamic CTA hydration for featured sliders to ensure instant live access mapping across cached environments.
+* Added: Live 4-box amber countdown timer for upcoming scheduled book releases in featured sliders.
+* Added: Multi-step chunked AJAX pipeline for 1-Click Demo Data Import (5 steps) and Removal (3 steps) with real-time step progress indicators.
+* Fixed: Admin dashboard nonce resolution (`dlmAdminParams.nonce`) preventing false connection timeout / 403 errors during demo data operations.
+* Improved: Precise HTTP error handling (403, 404, 500, 502/504) replacing generic failure alerts with exact server diagnostic feedback.
+
+= 2.3.0 =
+* Added: Mobile-First Member Dashboard UX with left-side sliding menu drawer and 5-item responsive app bar.
+* Added: Custom stacked action buttons ("Read" & "Download") with high-visibility white background and bold typography.
+* Added: Amber & bronze SPA custom-themed scrollbars with smooth scrolling bounds.
+* Improved: Google reCAPTCHA developer testing mode synchronization and error prevention.
+* Improved: Viewport height calculation for WordPress Admin Bar on all screen resolutions.
 
 = 2.2.0 =
 * Added: One-click Social Sign-In with Google & Apple (OAuth2 / OIDC).
@@ -126,5 +150,8 @@ This plugin integrates with the following third-party services to handle authent
 
 == Upgrade Notice ==
 
-= 2.2.0 =
-Upgrade to version 2.2.0 for Google & Apple Social Sign-In, setup guides, and full WordPress.org compliance.
+= 2.5.0 =
+Upgrade to version 2.5.0 for the Member Onboarding Tour, standalone Book Countdown Elementor widget, and full styling/typography controls on Featured Book Slider.
+
+= 2.4.0 =
+Upgrade to version 2.4.0 for the Elementor Featured Hero Slider widget, chunked demo data import/delete pipeline, and enhanced admin AJAX resilience.

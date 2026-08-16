@@ -27,6 +27,13 @@ $pages_to_check = array(
 	'checkout' => array( 'title' => __( 'Library Checkout', 'digital-library-membership' ), 'opt' => 'dlm_checkout_page_id' ),
 );
 
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+$is_elementor_active    = did_action( 'elementor/loaded' ) || is_plugin_active( 'elementor/elementor.php' );
+$is_elementor_installed = file_exists( WP_PLUGIN_DIR . '/elementor/elementor.php' );
+
+$is_wc_active           = class_exists( 'WooCommerce' ) || is_plugin_active( 'woocommerce/woocommerce.php' );
+$is_wc_installed        = file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' );
+
 $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 ?>
 
@@ -41,22 +48,27 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 			<p class="subtitle">Quick setup to configure your digital publication portal.</p>
 		</div>
 
-		<!-- Progress Bar -->
+		<!-- Progress Bar (4 Steps) -->
 		<div class="dlm-progress-bar-container">
 			<div class="dlm-progress-steps">
 				<div class="step-node active" data-step="1">
 					<div class="node-circle">1</div>
-					<span class="node-label">Required Pages</span>
+					<span class="node-label">Pages</span>
 				</div>
 				<div class="step-line" id="line-1-2"></div>
 				<div class="step-node" data-step="2">
 					<div class="node-circle">2</div>
-					<span class="node-label">Legal Pages</span>
+					<span class="node-label">Plugins</span>
 				</div>
 				<div class="step-line" id="line-2-3"></div>
 				<div class="step-node" data-step="3">
 					<div class="node-circle">3</div>
-					<span class="node-label">Bot Protection</span>
+					<span class="node-label">Legal</span>
+				</div>
+				<div class="step-line" id="line-3-4"></div>
+				<div class="step-node" data-step="4">
+					<div class="node-circle">4</div>
+					<span class="node-label">Security</span>
 				</div>
 			</div>
 		</div>
@@ -96,8 +108,79 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 				</div>
 			</div>
 
-			<!-- Step 2: Legal Pages -->
+			<!-- Step 2: Essential Plugins (Elementor & WooCommerce) -->
 			<div class="setup-step-pane" id="pane-step-2">
+				<h2><?php esc_html_e( 'Essential Plugin Integrations', 'digital-library-membership' ); ?></h2>
+				<p class="pane-description"><?php esc_html_e( 'Elevate your digital library with page builder features and e-commerce checkout:', 'digital-library-membership' ); ?></p>
+
+				<div class="plugins-checklist">
+					<!-- Elementor Card -->
+					<div class="plugin-install-card <?php echo $is_elementor_active ? 'verified' : ''; ?>" id="card-plugin-elementor">
+						<div class="plugin-card-left">
+							<div class="plugin-icon-box" style="background: #92003b; color: #fff;">
+								<i class="fa-solid fa-cube"></i>
+							</div>
+							<div class="plugin-meta">
+								<strong>Elementor Page Builder</strong>
+								<p><?php esc_html_e( 'Powers the Featured Books Hero Carousel slider and custom drag-and-drop widgets.', 'digital-library-membership' ); ?></p>
+								<div class="plugin-status-badge <?php echo $is_elementor_active ? 'active' : ( $is_elementor_installed ? 'inactive' : 'missing' ); ?>" id="status-badge-elementor">
+									<i class="fa-solid <?php echo $is_elementor_active ? 'fa-circle-check' : ( $is_elementor_installed ? 'fa-circle-pause' : 'fa-circle-exclamation' ); ?>"></i>
+									<span><?php echo $is_elementor_active ? esc_html__( 'Active & Ready', 'digital-library-membership' ) : ( $is_elementor_installed ? esc_html__( 'Installed (Inactive)', 'digital-library-membership' ) : esc_html__( 'Not Installed', 'digital-library-membership' ) ); ?></span>
+								</div>
+							</div>
+						</div>
+						<div class="plugin-card-action">
+							<?php if ( $is_elementor_active ) : ?>
+								<button class="dlm-wizard-btn btn-installed" disabled>
+									<i class="fa-solid fa-check"></i> <?php esc_html_e( 'Active', 'digital-library-membership' ); ?>
+								</button>
+							<?php else : ?>
+								<button class="dlm-wizard-btn btn-primary dlm-btn-install-plugin" data-slug="elementor">
+									<i class="fa-solid fa-download"></i> <?php echo $is_elementor_installed ? esc_html__( 'Activate', 'digital-library-membership' ) : esc_html__( 'Install & Activate', 'digital-library-membership' ); ?>
+								</button>
+							<?php endif; ?>
+						</div>
+					</div>
+
+					<!-- WooCommerce Card -->
+					<div class="plugin-install-card <?php echo $is_wc_active ? 'verified' : ''; ?>" id="card-plugin-woocommerce">
+						<div class="plugin-card-left">
+							<div class="plugin-icon-box" style="background: #7f54b3; color: #fff;">
+								<i class="fa-solid fa-cart-shopping"></i>
+							</div>
+							<div class="plugin-meta">
+								<strong>WooCommerce</strong>
+								<p><?php esc_html_e( 'Recommended for advanced cart checkout gateways and automated book product syncing.', 'digital-library-membership' ); ?></p>
+								<div class="plugin-status-badge <?php echo $is_wc_active ? 'active' : ( $is_wc_installed ? 'inactive' : 'missing' ); ?>" id="status-badge-woocommerce">
+									<i class="fa-solid <?php echo $is_wc_active ? 'fa-circle-check' : ( $is_wc_installed ? 'fa-circle-pause' : 'fa-circle-exclamation' ); ?>"></i>
+									<span><?php echo $is_wc_active ? esc_html__( 'Active & Ready', 'digital-library-membership' ) : ( $is_wc_installed ? esc_html__( 'Installed (Inactive)', 'digital-library-membership' ) : esc_html__( 'Not Installed', 'digital-library-membership' ) ); ?></span>
+								</div>
+							</div>
+						</div>
+						<div class="plugin-card-action">
+							<?php if ( $is_wc_active ) : ?>
+								<button class="dlm-wizard-btn btn-installed" disabled>
+									<i class="fa-solid fa-check"></i> <?php esc_html_e( 'Active', 'digital-library-membership' ); ?>
+								</button>
+							<?php else : ?>
+								<button class="dlm-wizard-btn btn-primary dlm-btn-install-plugin" data-slug="woocommerce">
+									<i class="fa-solid fa-download"></i> <?php echo $is_wc_installed ? esc_html__( 'Activate', 'digital-library-membership' ) : esc_html__( 'Install & Activate', 'digital-library-membership' ); ?>
+								</button>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+
+				<div class="pane-actions flex-between">
+					<button class="dlm-wizard-btn btn-outline" id="btn-skip-step-2"><?php esc_html_e( 'Skip Step', 'digital-library-membership' ); ?></button>
+					<button class="dlm-wizard-btn btn-primary" id="btn-next-step-2">
+						<?php esc_html_e( 'Continue', 'digital-library-membership' ); ?> <i class="fa-solid fa-arrow-right"></i>
+					</button>
+				</div>
+			</div>
+
+			<!-- Step 3: Legal Pages -->
+			<div class="setup-step-pane" id="pane-step-3">
 				<h2>Legal Page Preferences</h2>
 				<p class="pane-description">Select your Privacy Policy and Terms and Conditions pages. You can setup this in the admin dashboard later.</p>
 
@@ -122,15 +205,15 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 				</div>
 
 				<div class="pane-actions flex-between">
-					<button class="dlm-wizard-btn btn-outline" id="btn-skip-step-2">Skip Step</button>
-					<button class="dlm-wizard-btn btn-primary" id="btn-next-step-2">
+					<button class="dlm-wizard-btn btn-outline" id="btn-skip-step-3">Skip Step</button>
+					<button class="dlm-wizard-btn btn-primary" id="btn-next-step-3">
 						Save & Next <i class="fa-solid fa-arrow-right"></i>
 					</button>
 				</div>
 			</div>
 
-			<!-- Step 3: Google ReCAPTCHA Setup -->
-			<div class="setup-step-pane" id="pane-step-3">
+			<!-- Step 4: Google ReCAPTCHA & Demo Setup -->
+			<div class="setup-step-pane" id="pane-step-4">
 				<h2>Spam & Bot Protection</h2>
 				<p class="pane-description">Enable Google ReCAPTCHA to protect login, registration, and checkout forms from bot attacks. Get your keys from the <a href="https://www.google.com/recaptcha/admin/create" target="_blank" style="color: var(--primary-color); font-weight: bold; text-decoration: underline;">Google ReCAPTCHA Admin Console</a>. You can skip this and configure it later.</p>
 
@@ -198,7 +281,7 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 				</div>
 
 				<div class="pane-actions flex-between">
-					<button class="dlm-wizard-btn btn-outline" id="btn-skip-step-3">Skip & Finish</button>
+					<button class="dlm-wizard-btn btn-outline" id="btn-skip-step-4">Skip & Finish</button>
 					<button class="dlm-wizard-btn btn-primary" id="btn-finish-setup">
 						Complete Setup <i class="fa-solid fa-circle-check"></i>
 					</button>
@@ -604,6 +687,98 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 .dlm-switch input:checked + .dlm-slider:before {
 	transform: translateX(22px);
 }
+
+/* Plugin Installer Cards */
+.plugins-checklist {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin-bottom: 25px;
+}
+
+.plugin-install-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 16px 20px;
+	border-radius: 18px;
+	border: 1px solid #eadecc;
+	background: #fdfcfb;
+	transition: all 0.3s ease;
+}
+
+.plugin-install-card.verified {
+	border-color: rgba(19, 115, 51, 0.25);
+	background: #f6fbf7;
+}
+
+.plugin-card-left {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	flex: 1;
+}
+
+.plugin-icon-box {
+	width: 42px;
+	height: 42px;
+	border-radius: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.plugin-meta strong {
+	font-size: 14.5px;
+	color: #2b1a00;
+	display: block;
+	margin-bottom: 3px;
+}
+
+.plugin-meta p {
+	font-size: 12px;
+	color: #72604d;
+	margin: 0;
+	line-height: 1.4;
+}
+
+.plugin-status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 2px 8px;
+	border-radius: 20px;
+	margin-top: 6px;
+}
+
+.plugin-status-badge.active {
+	background: #e6f4ea;
+	color: #137333;
+}
+
+.plugin-status-badge.inactive {
+	background: #fef7e0;
+	color: #b06000;
+}
+
+.plugin-status-badge.missing {
+	background: #fce8e6;
+	color: #c5221f;
+}
+
+.dlm-wizard-btn.btn-installed {
+	background: #e6f4ea;
+	color: #137333;
+	border: 1px solid rgba(19, 115, 51, 0.3);
+	cursor: default;
+	pointer-events: none;
+}
 </style>
 
 <script>
@@ -611,7 +786,7 @@ jQuery(document).ready(function($) {
 	const ajaxurl = '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
 	const nonce = '<?php echo esc_attr( $public_nonce ); ?>';
 
-	// Step 1 Click
+	// Step 1: Pages Confirmation
 	$('#btn-next-step-1').on('click', function() {
 		const btn = $(this);
 		btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...');
@@ -622,14 +797,7 @@ jQuery(document).ready(function($) {
 			step: 'pages'
 		}, function(res) {
 			if (res.success) {
-				// Mark step 1 completed
-				$('.step-node[data-step="1"]').removeClass('active').addClass('completed');
-				$('#line-1-2').addClass('completed');
-				
-				// Activate step 2
-				$('.step-node[data-step="2"]').addClass('active');
-				$('#pane-step-1').removeClass('active');
-				$('#pane-step-2').addClass('active');
+				goToStep2();
 			} else {
 				alert(res.data.message || 'Verification failed.');
 				btn.prop('disabled', false).html('Confirm & Continue <i class="fa-solid fa-arrow-right"></i>');
@@ -637,8 +805,61 @@ jQuery(document).ready(function($) {
 		});
 	});
 
-	// Step 2 Click (Save)
-	$('#btn-next-step-2').on('click', function() {
+	function goToStep2() {
+		$('.step-node[data-step="1"]').removeClass('active').addClass('completed');
+		$('#line-1-2').addClass('completed');
+		
+		$('.step-node[data-step="2"]').addClass('active');
+		$('#pane-step-1').removeClass('active');
+		$('#pane-step-2').addClass('active');
+	}
+
+	// 1-Click Plugin Installation / Activation
+	$(document).on('click', '.dlm-btn-install-plugin', function(e) {
+		e.preventDefault();
+		const btn = $(this);
+		const slug = btn.data('slug');
+		const originalText = btn.html();
+		
+		btn.prop('disabled', true).html('<i class="fa-solid fa-circle-notch fa-spin"></i> Installing...');
+		
+		$.post(ajaxurl, {
+			action: 'dlm_install_activate_plugin',
+			nonce: nonce,
+			slug: slug
+		}, function(res) {
+			if (res.success) {
+				btn.removeClass('btn-primary dlm-btn-install-plugin').addClass('btn-installed').html('<i class="fa-solid fa-check"></i> Active');
+				const card = $(`#card-plugin-${slug}`);
+				card.addClass('verified');
+				const badge = $(`#status-badge-${slug}`);
+				badge.removeClass('inactive missing').addClass('active').html('<i class="fa-solid fa-circle-check"></i> <span>Active & Ready</span>');
+			} else {
+				alert(res.data.message || 'Failed to install plugin.');
+				btn.prop('disabled', false).html(originalText);
+			}
+		}).fail(function() {
+			alert('Network request failed. Please install manually.');
+			btn.prop('disabled', false).html(originalText);
+		});
+	});
+
+	// Step 2: Plugins Next / Skip
+	$('#btn-next-step-2, #btn-skip-step-2').on('click', function() {
+		goToStep3();
+	});
+
+	function goToStep3() {
+		$('.step-node[data-step="2"]').removeClass('active').addClass('completed');
+		$('#line-2-3').addClass('completed');
+		
+		$('.step-node[data-step="3"]').addClass('active');
+		$('#pane-step-2').removeClass('active');
+		$('#pane-step-3').addClass('active');
+	}
+
+	// Step 3: Legal Pages Save
+	$('#btn-next-step-3').on('click', function() {
 		const btn = $(this);
 		const privacyVal = $('#setup-privacy-page').val();
 		const termsVal = $('#setup-terms-page').val();
@@ -653,7 +874,7 @@ jQuery(document).ready(function($) {
 			terms_page_id: termsVal
 		}, function(res) {
 			if (res.success) {
-				goToStep3();
+				goToStep4();
 			} else {
 				alert(res.data.message || 'Error occurred saving settings.');
 				btn.prop('disabled', false).html('Save & Next <i class="fa-solid fa-arrow-right"></i>');
@@ -661,21 +882,21 @@ jQuery(document).ready(function($) {
 		});
 	});
 
-	// Step 2 Skip
-	$('#btn-skip-step-2').on('click', function() {
-		goToStep3();
+	// Step 3: Legal Pages Skip
+	$('#btn-skip-step-3').on('click', function() {
+		goToStep4();
 	});
 
-	function goToStep3() {
-		$('.step-node[data-step="2"]').removeClass('active').addClass('completed');
-		$('#line-2-3').addClass('completed');
+	function goToStep4() {
+		$('.step-node[data-step="3"]').removeClass('active').addClass('completed');
+		$('#line-3-4').addClass('completed');
 		
-		$('.step-node[data-step="3"]').addClass('active');
-		$('#pane-step-2').removeClass('active');
-		$('#pane-step-3').addClass('active');
+		$('.step-node[data-step="4"]').addClass('active');
+		$('#pane-step-3').removeClass('active');
+		$('#pane-step-4').addClass('active');
 	}
 
-	// Step 3 Click (Complete)
+	// Step 4: Complete Setup
 	$('#btn-finish-setup').on('click', function() {
 		const btn = $(this);
 		const recaptchaVer = $('#setup-recaptcha-version').val();
@@ -707,8 +928,8 @@ jQuery(document).ready(function($) {
 		});
 	});
 
-	// Step 3 Skip & Finish
-	$('#btn-skip-step-3').on('click', function() {
+	// Step 4: Skip & Finish
+	$('#btn-skip-step-4').on('click', function() {
 		const btn = $(this);
 		const importDemo = $('#setup-import-demo-toggle').is(':checked') ? 1 : 0;
 
@@ -732,7 +953,7 @@ jQuery(document).ready(function($) {
 	});
 
 	function finishSetup() {
-		$('.step-node[data-step="3"]').removeClass('active').addClass('completed');
+		$('.step-node[data-step="4"]').removeClass('active').addClass('completed');
 		window.location.href = '<?php echo esc_url( admin_url( 'admin.php?page=dlm-library' ) ); ?>';
 	}
 });

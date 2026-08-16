@@ -35,6 +35,14 @@ class DLM_Activator {
 			access_type varchar(30) DEFAULT 'subscription_only',
 			price decimal(10,2) DEFAULT '0.00',
 			publish_date datetime DEFAULT NULL,
+			is_featured tinyint(1) DEFAULT 0,
+			featured_title varchar(255) DEFAULT '',
+			featured_description text DEFAULT NULL,
+			featured_banner_id bigint(20) DEFAULT 0,
+			featured_banner_url varchar(255) DEFAULT '',
+			featured_button_1_label varchar(100) DEFAULT '',
+			featured_button_2_label varchar(100) DEFAULT '',
+			featured_order int(11) DEFAULT 0,
 			wc_product_id bigint(20) DEFAULT 0,
 			is_demo tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
@@ -125,6 +133,22 @@ class DLM_Activator {
 			KEY order_id (order_id)
 		) $charset_collate;";
 
+		// Table 7: User Notifications Log
+		$table_notifications = $wpdb->prefix . 'dlm_notifications';
+		$sql_notifications = "CREATE TABLE $table_notifications (
+			id bigint(20) NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) NOT NULL,
+			type varchar(50) NOT NULL,
+			title varchar(255) NOT NULL,
+			message text NOT NULL,
+			link_url varchar(255) DEFAULT '',
+			is_read tinyint(1) DEFAULT 0,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY user_id (user_id),
+			KEY is_read (is_read)
+		) $charset_collate;";
+
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql_books );
 		dbDelta( $sql_subscriptions );
@@ -132,9 +156,10 @@ class DLM_Activator {
 		dbDelta( $sql_progress );
 		dbDelta( $sql_analytics );
 		dbDelta( $sql_purchases );
+		dbDelta( $sql_notifications );
 
 		// Update DB version tracking
-		update_option( 'dlm_db_version', '2.1.0' );
+		update_option( 'dlm_db_version', '2.5.0' );
 
 		// Setup secure storage directory
 		self::setup_secure_directory();
@@ -244,7 +269,7 @@ class DLM_Activator {
 	 */
 	public static function check_and_upgrade_db() {
 		$installed_ver = get_option( 'dlm_db_version', '1.0.0' );
-		if ( version_compare( $installed_ver, '2.1.0', '<' ) ) {
+		if ( version_compare( $installed_ver, '2.5.0', '<' ) ) {
 			self::activate();
 		}
 	}
