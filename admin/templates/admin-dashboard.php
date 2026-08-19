@@ -70,6 +70,10 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 					<span class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-auto"><?php echo intval( $pending_members ); ?></span>
 				<?php endif; ?>
 			</a>
+			<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low/50 hover:text-on-surface transition-all rounded-lg cursor-pointer" data-nav="plans" onclick="navigateSpa('plans')">
+				<i class="fa-solid fa-layer-group shrink-0"></i>
+				<span class="text-sm font-semibold sidebar-text">Plans & Packages</span>
+			</a>
 			<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low/50 hover:text-on-surface transition-all rounded-lg cursor-pointer" data-nav="transactions" onclick="navigateSpa('transactions')">
 				<i class="fa-solid fa-receipt shrink-0"></i>
 				<span class="text-sm font-semibold sidebar-text">Transactions</span>
@@ -652,6 +656,184 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 			</div>
 		</section>
 
+		<!-- SECTION: PLANS & PACKAGES -->
+		<section id="sec-plans" class="spa-section pt-10 px-6 md:px-12 space-y-6 max-w-[1440px] mx-auto hidden">
+			<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4">
+				<div>
+					<h2 class="text-2xl font-bold text-on-surface">Subscription Packages</h2>
+					<p class="text-secondary text-sm">Configure membership packages, pricing tiers, billing cycles, and feature lists.</p>
+				</div>
+				<div>
+					<button data-open-modal="add-package-modal" class="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold text-sm hover:shadow-lg transition-all active:scale-95">
+						<i class="fa-solid fa-plus text-sm"></i>
+						Add New Package
+					</button>
+				</div>
+			</div>
+
+			<!-- Packages Metrics Row -->
+			<?php
+			$total_pkg_count  = count( $packages );
+			$active_pkg_count = 0;
+			$total_pkg_subs   = 0;
+			foreach ( $packages as $p_item ) {
+				if ( ! isset( $p_item['status'] ) || 'active' === $p_item['status'] ) {
+					$active_pkg_count++;
+				}
+				$total_pkg_subs += dlm_get_package_subscriber_count( $p_item['id'], isset( $p_item['interval'] ) ? $p_item['interval'] : '' );
+			}
+			?>
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+				<div class="bento-card bg-white p-6 rounded-2xl border border-outline-variant/20 shadow-sm flex flex-col justify-between h-32">
+					<div class="flex justify-between items-start">
+						<p class="text-secondary text-[11px] uppercase tracking-wider font-bold">Total Packages</p>
+						<i class="fa-solid fa-layer-group text-primary"></i>
+					</div>
+					<div class="flex items-baseline gap-2 mt-2">
+						<h3 class="text-3xl font-bold text-on-surface"><?php echo intval( $total_pkg_count ); ?></h3>
+					</div>
+				</div>
+				<div class="bento-card bg-white p-6 rounded-2xl border border-outline-variant/20 shadow-sm flex flex-col justify-between h-32">
+					<div class="flex justify-between items-start">
+						<p class="text-secondary text-[11px] uppercase tracking-wider font-bold">Active Plans (Public)</p>
+						<i class="fa-solid fa-circle-check text-green-600"></i>
+					</div>
+					<div class="flex items-baseline gap-2 mt-2">
+						<h3 class="text-3xl font-bold text-on-surface"><?php echo intval( $active_pkg_count ); ?></h3>
+					</div>
+				</div>
+				<div class="bento-card bg-white p-6 rounded-2xl border border-outline-variant/20 shadow-sm flex flex-col justify-between h-32">
+					<div class="flex justify-between items-start">
+						<p class="text-secondary text-[11px] uppercase tracking-wider font-bold">Total Active Subscribers</p>
+						<i class="fa-solid fa-users-line text-primary"></i>
+					</div>
+					<div class="flex items-baseline gap-2 mt-2">
+						<h3 class="text-3xl font-bold text-on-surface"><?php echo intval( $total_pkg_subs ); ?></h3>
+					</div>
+				</div>
+			</div>
+
+			<!-- Packages Table Card -->
+			<div class="bento-card bg-white rounded-2xl border border-outline-variant/20 shadow-sm overflow-hidden mb-8">
+				<div class="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
+					<h4 class="text-sm font-bold text-on-surface">Configured Subscription Plans</h4>
+					<span class="text-xs text-secondary"><?php echo sprintf( _n( '%d Package', '%d Packages', count( $packages ), 'digital-library-membership' ), count( $packages ) ); ?></span>
+				</div>
+
+				<div class="overflow-x-auto">
+					<table class="w-full text-left">
+						<thead>
+							<tr class="bg-surface-container-low/30">
+								<th class="px-8 py-4 text-[10px] text-secondary font-bold tracking-[0.1em] uppercase">Package Name</th>
+								<th class="px-8 py-4 text-[10px] text-secondary font-bold tracking-[0.1em] uppercase">Billing Cycle</th>
+								<th class="px-8 py-4 text-[10px] text-secondary font-bold tracking-[0.1em] uppercase">Price</th>
+								<th class="px-8 py-4 text-[10px] text-secondary font-bold tracking-[0.1em] uppercase">Active Subscribers</th>
+								<th class="px-8 py-4 text-[10px] text-secondary font-bold tracking-[0.1em] uppercase">Status</th>
+								<th class="px-8 py-4 text-[10px] text-secondary font-bold tracking-[0.1em] uppercase text-right">Actions</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-outline-variant/10">
+							<?php if ( empty( $packages ) ) : ?>
+								<tr>
+									<td colspan="6" class="px-8 py-10 text-center text-secondary text-sm italic">
+										No subscription packages configured. Click "Add New Package" to create one.
+									</td>
+								</tr>
+							<?php else : ?>
+								<?php foreach ( $packages as $pkg_id => $pkg ) : 
+									$is_pkg_active = ! isset( $pkg['status'] ) || 'active' === $pkg['status'];
+									$pkg_interval  = isset( $pkg['interval'] ) ? $pkg['interval'] : 'monthly';
+									$subs_count    = dlm_get_package_subscriber_count( $pkg['id'], $pkg_interval );
+									$features_str  = ! empty( $pkg['features'] ) && is_array( $pkg['features'] ) ? implode( "\n", $pkg['features'] ) : '';
+									
+									$cycle_label   = ( 'lifetime' === $pkg_interval ) ? __( 'Lifetime', 'digital-library-membership' ) : ( ( 'yearly' === $pkg_interval ) ? __( 'Annual / Yearly', 'digital-library-membership' ) : __( 'Monthly', 'digital-library-membership' ) );
+									$cycle_badge_bg = ( 'lifetime' === $pkg_interval ) ? 'bg-purple-50 text-purple-700 border-purple-200' : ( ( 'yearly' === $pkg_interval ) ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200' );
+								?>
+									<tr class="hover:bg-surface-container-lowest transition-colors"
+										data-package-id="<?php echo esc_attr( $pkg['id'] ); ?>"
+										data-name="<?php echo esc_attr( $pkg['name'] ); ?>"
+										data-badge="<?php echo esc_attr( isset( $pkg['badge'] ) ? $pkg['badge'] : '' ); ?>"
+										data-description="<?php echo esc_attr( isset( $pkg['description'] ) ? $pkg['description'] : '' ); ?>"
+										data-interval="<?php echo esc_attr( $pkg_interval ); ?>"
+										data-price="<?php echo esc_attr( $pkg['price'] ); ?>"
+										data-status="<?php echo esc_attr( $is_pkg_active ? 'active' : 'inactive' ); ?>"
+										data-features="<?php echo esc_attr( $features_str ); ?>"
+										data-subscribers="<?php echo intval( $subs_count ); ?>"
+										data-stripe-price="<?php echo esc_attr( isset( $pkg['stripe_price_id'] ) ? $pkg['stripe_price_id'] : '' ); ?>"
+										data-paypal-plan="<?php echo esc_attr( isset( $pkg['paypal_plan_id'] ) ? $pkg['paypal_plan_id'] : '' ); ?>"
+										data-wc-product="<?php echo intval( isset( $pkg['wc_product_id'] ) ? $pkg['wc_product_id'] : 0 ); ?>">
+										<td class="px-8 py-4">
+											<div class="flex flex-col">
+												<div class="flex items-center gap-2">
+													<strong class="font-bold text-sm text-on-surface"><?php echo esc_html( $pkg['name'] ); ?></strong>
+													<?php if ( ! empty( $pkg['badge'] ) ) : ?>
+														<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20"><?php echo esc_html( $pkg['badge'] ); ?></span>
+													<?php endif; ?>
+												</div>
+												<?php if ( ! empty( $pkg['description'] ) ) : ?>
+													<p class="text-xs text-secondary mt-0.5 max-w-sm truncate"><?php echo esc_html( $pkg['description'] ); ?></p>
+												<?php endif; ?>
+												<span class="text-[10px] text-secondary/70 font-mono mt-0.5">ID: <?php echo esc_html( $pkg['id'] ); ?></span>
+											</div>
+										</td>
+										<td class="px-8 py-4">
+											<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border <?php echo esc_attr( $cycle_badge_bg ); ?>">
+												<?php echo esc_html( $cycle_label ); ?>
+											</span>
+										</td>
+										<td class="px-8 py-4 font-bold text-sm text-on-surface">
+											$<?php echo esc_html( number_format( floatval( $pkg['price'] ), 2 ) ); ?> <span class="text-xs font-normal text-secondary"><?php echo esc_html( $currency ); ?></span>
+										</td>
+										<td class="px-8 py-4">
+											<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold <?php echo $subs_count > 0 ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-secondary'; ?>">
+												<i class="fa-solid fa-user-check text-[10px]"></i>
+												<?php echo intval( $subs_count ); ?> <?php echo esc_html( _n( 'Member', 'Members', $subs_count, 'digital-library-membership' ) ); ?>
+											</span>
+										</td>
+										<td class="px-8 py-4">
+											<div class="flex items-center gap-2">
+												<?php if ( $is_pkg_active ) : ?>
+													<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200">
+														<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+														Active
+													</span>
+												<?php else : ?>
+													<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+														<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+														Inactive
+													</span>
+												<?php endif; ?>
+
+												<!-- Quick Toggle Form -->
+												<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="inline-block">
+													<input type="hidden" name="action" value="dlm_toggle_package_status">
+													<input type="hidden" name="package_id" value="<?php echo esc_attr( $pkg['id'] ); ?>">
+													<?php wp_nonce_field( 'dlm_package_action_nonce', 'dlm_nonce' ); ?>
+													<button type="submit" class="text-[11px] font-semibold text-secondary hover:text-primary underline ml-1 cursor-pointer" title="<?php echo $is_pkg_active ? esc_attr__( 'Retire from frontend checkout', 'digital-library-membership' ) : esc_attr__( 'Activate for frontend checkout', 'digital-library-membership' ); ?>">
+														<?php echo $is_pkg_active ? esc_html__( 'Deactivate', 'digital-library-membership' ) : esc_html__( 'Activate', 'digital-library-membership' ); ?>
+													</button>
+												</form>
+											</div>
+										</td>
+										<td class="px-8 py-4 text-right">
+											<div class="flex items-center justify-end gap-2">
+												<button class="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors btn-edit-package" title="Edit Package">
+													<i class="fa-solid fa-pen-to-square text-base"></i>
+												</button>
+												<button class="p-2 text-error-red/75 hover:text-error-red hover:bg-error-container/20 rounded-lg transition-colors btn-delete-package" title="Delete Package">
+													<i class="fa-solid fa-trash-can text-base"></i>
+												</button>
+											</div>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							<?php endif; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</section>
+
 		<!-- SECTION 3B: ORDER TRANSACTIONS -->
 		<section id="sec-transactions" class="spa-section pt-10 px-6 md:px-12 space-y-6 max-w-[1440px] mx-auto hidden">
 			<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4">
@@ -1175,7 +1357,24 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 								</div>
 							</div>
 
-							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Pricing & Parameters</h3>
+							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Parameters & Payment Instructions</h3>
+							
+							<!-- Plans & Packages Callout Banner -->
+							<div class="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+								<div>
+									<h4 class="text-sm font-bold text-primary flex items-center gap-2">
+										<i class="fa-solid fa-layer-group"></i>
+										Subscription Packages & Pricing Management
+									</h4>
+									<p class="text-xs text-secondary mt-1">
+										Membership plans, prices, intervals, and bullet features are now managed centrally in the dedicated <strong>Plans & Packages</strong> manager.
+									</p>
+								</div>
+								<button type="button" onclick="navigateSpa('plans')" class="px-4 py-2 bg-primary text-white font-semibold text-xs rounded-xl hover:shadow-md transition-all shrink-0">
+									Manage Packages &rarr;
+								</button>
+							</div>
+
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">Plugin Currency Code</label>
@@ -1185,35 +1384,6 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 									<label class="text-xs font-bold text-on-surface-variant uppercase">Max Book Upload Size (MB)</label>
 									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="number" name="dlm_max_upload_size" value="<?php echo esc_attr( get_option( 'dlm_max_upload_size', '50' ) ); ?>" required>
 									<span class="text-[11px] text-secondary block mt-1">Server limit: <?php echo esc_html( $this->get_server_max_upload_size() ); ?> MB</span>
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Monthly Plan Price ($)</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="number" step="0.01" name="dlm_pricing_monthly" value="<?php echo esc_attr( get_option( 'dlm_pricing_monthly' ) ); ?>" placeholder="e.g. 9.99">
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Yearly Plan Price ($)</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="number" step="0.01" name="dlm_pricing_yearly" value="<?php echo esc_attr( get_option( 'dlm_pricing_yearly' ) ); ?>" placeholder="e.g. 99.99">
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Lifetime Plan Price ($)</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="number" step="0.01" name="dlm_pricing_lifetime" value="<?php echo esc_attr( get_option( 'dlm_pricing_lifetime' ) ); ?>" placeholder="e.g. 199.99">
-								</div>
-							</div>
-							<div class="border-t border-outline-variant/10 pt-4 space-y-4">
-								<h4 class="text-xs font-bold text-primary uppercase tracking-wider">Configure Frontend Plan Bullet Features (One per line)</h4>
-								<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">Monthly Plan Features</label>
-										<textarea name="dlm_features_monthly" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs font-mono" rows="6" placeholder="One benefit per line..."><?php echo esc_textarea( get_option( 'dlm_features_monthly' ) ); ?></textarea>
-									</div>
-									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">Yearly Plan Features</label>
-										<textarea name="dlm_features_yearly" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs font-mono" rows="6" placeholder="One benefit per line..."><?php echo esc_textarea( get_option( 'dlm_features_yearly' ) ); ?></textarea>
-									</div>
-									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">Lifetime Plan Features</label>
-										<textarea name="dlm_features_lifetime" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs font-mono" rows="6" placeholder="One benefit per line..."><?php echo esc_textarea( get_option( 'dlm_features_lifetime' ) ); ?></textarea>
-									</div>
 								</div>
 							</div>
 							<div class="space-y-2">
@@ -1261,23 +1431,15 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							<div class="space-y-4">
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Publishable Key</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_stripe_publishable_key" value="<?php echo esc_attr( get_option( 'dlm_stripe_publishable_key' ) ); ?>">
+									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_stripe_publishable_key" value="<?php echo esc_attr( get_option( 'dlm_stripe_publishable_key' ) ); ?>" placeholder="pk_test_...">
 								</div>
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Secret Key</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_stripe_secret_key" value="<?php echo esc_attr( get_option( 'dlm_stripe_secret_key' ) ); ?>">
+									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_stripe_secret_key" value="<?php echo esc_attr( get_option( 'dlm_stripe_secret_key' ) ); ?>" placeholder="sk_test_...">
 								</div>
 								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Monthly Price ID</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_stripe_monthly_price_id" value="<?php echo esc_attr( get_option( 'dlm_stripe_monthly_price_id' ) ); ?>" placeholder="price_xxxxx">
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Yearly Price ID</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_stripe_yearly_price_id" value="<?php echo esc_attr( get_option( 'dlm_stripe_yearly_price_id' ) ); ?>" placeholder="price_xxxxx">
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Lifetime Price ID</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_stripe_lifetime_price_id" value="<?php echo esc_attr( get_option( 'dlm_stripe_lifetime_price_id' ) ); ?>" placeholder="price_xxxxx">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Webhook Signing Secret</label>
+									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_stripe_webhook_secret" value="<?php echo esc_attr( get_option( 'dlm_stripe_webhook_secret' ) ); ?>" placeholder="whsec_...">
 								</div>
 							</div>
 						</div>
@@ -1322,16 +1484,8 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_paypal_secret_key" value="<?php echo esc_attr( get_option( 'dlm_paypal_secret_key' ) ); ?>">
 								</div>
 								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">PayPal Monthly Plan ID</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_paypal_monthly_plan_id" value="<?php echo esc_attr( get_option( 'dlm_paypal_monthly_plan_id' ) ); ?>" placeholder="P-xxxxx">
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">PayPal Yearly Plan ID</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_paypal_yearly_plan_id" value="<?php echo esc_attr( get_option( 'dlm_paypal_yearly_plan_id' ) ); ?>" placeholder="P-xxxxx">
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">PayPal Lifetime Plan ID</label>
-									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_paypal_lifetime_plan_id" value="<?php echo esc_attr( get_option( 'dlm_paypal_lifetime_plan_id' ) ); ?>" placeholder="P-xxxxx">
+									<label class="text-xs font-bold text-on-surface-variant uppercase">PayPal Webhook ID</label>
+									<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_paypal_webhook_id" value="<?php echo esc_attr( get_option( 'dlm_paypal_webhook_id' ) ); ?>">
 								</div>
 							</div>
 						</div>
@@ -1339,53 +1493,18 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						<?php if ( class_exists( 'WooCommerce' ) ) : ?>
 						<!-- WooCommerce Configuration Panel -->
 						<div id="panel-settings-woocommerce" class="space-y-6 hidden">
-							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">WooCommerce Setup</h3>
-							<div class="space-y-4">
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Monthly Plan WooCommerce Product</label>
-									<select name="dlm_wc_monthly_product" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
-										<option value=""><?php esc_html_e('— Select Product —', 'digital-library-membership' ); ?></option>
-										<?php 
-										$wc_products = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
-										$selected_monthly = get_option( 'dlm_wc_monthly_product' );
-										foreach ( $wc_products as $prod ) {
-											?>
-											<option value="<?php echo intval( $prod->ID ); ?>" <?php selected( $selected_monthly, $prod->ID ); ?>><?php echo esc_html( $prod->post_title ); ?> (#<?php echo intval( $prod->ID ); ?>)</option>
-											<?php
-										}
-										?>
-									</select>
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Yearly Plan WooCommerce Product</label>
-									<select name="dlm_wc_yearly_product" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
-										<option value=""><?php esc_html_e('— Select Product —', 'digital-library-membership' ); ?></option>
-										<?php 
-										$selected_yearly = get_option( 'dlm_wc_yearly_product' );
-										foreach ( $wc_products as $prod ) {
-											?>
-											<option value="<?php echo intval( $prod->ID ); ?>" <?php selected( $selected_yearly, $prod->ID ); ?>><?php echo esc_html( $prod->post_title ); ?> (#<?php echo intval( $prod->ID ); ?>)</option>
-											<?php
-										}
-										?>
-									</select>
-								</div>
-								<div class="space-y-1">
-									<label class="text-xs font-bold text-on-surface-variant uppercase">Lifetime Plan WooCommerce Product</label>
-									<select name="dlm_wc_lifetime_product" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
-										<option value=""><?php esc_html_e('— Select Product —', 'digital-library-membership' ); ?></option>
-										<?php 
-										$selected_lifetime = get_option( 'dlm_wc_lifetime_product' );
-										foreach ( $wc_products as $prod ) {
-											?>
-											<option value="<?php echo intval( $prod->ID ); ?>" <?php selected( $selected_lifetime, $prod->ID ); ?>><?php echo esc_html( $prod->post_title ); ?> (#<?php echo intval( $prod->ID ); ?>)</option>
-											<?php
-										}
-										?>
-									</select>
-								</div>
+							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">WooCommerce Headless Engine</h3>
+							<div class="p-4 bg-primary/5 border border-primary/20 rounded-2xl text-xs text-on-surface space-y-2">
+								<p>
+									<strong><i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Automated Virtual Product Sync:</strong>
+									When you create or update packages under <strong>Plans & Packages</strong>, hidden WooCommerce virtual products are automatically generated and linked in the background.
+								</p>
+								<p class="text-secondary">
+									Customer checkout skips the standard cart and directs directly to WooCommerce payments. All catalog items remain hidden from public store views.
+								</p>
 							</div>
 						</div>
+						<?php endif; ?>
 						<?php endif; ?>
 
 						<!-- Security & Legal Panel -->
@@ -1733,6 +1852,10 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 		<a class="flex flex-col items-center justify-center text-secondary transition-all cursor-pointer" data-nav="members" onclick="navigateSpa('members')">
 			<i class="fa-solid fa-users"></i>
 			<span class="text-[10px] font-bold mt-0.5">Users</span>
+		</a>
+		<a class="flex flex-col items-center justify-center text-secondary transition-all cursor-pointer" data-nav="plans" onclick="navigateSpa('plans')">
+			<i class="fa-solid fa-layer-group"></i>
+			<span class="text-[10px] font-bold mt-0.5">Plans</span>
 		</a>
 		<a class="flex flex-col items-center justify-center text-secondary transition-all cursor-pointer" data-nav="purchases" onclick="navigateSpa('purchases')">
 			<i class="fa-solid fa-bag-shopping"></i>
@@ -2422,8 +2545,309 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 				</div>
 			</form>
 		</div>
+	<!-- Add Package Modal -->
+	<div id="add-package-modal" class="fixed inset-0 z-[1000] items-center justify-center p-4 hidden">
+		<div class="absolute inset-0 modal-backdrop" data-close-modal="add-package-modal"></div>
+		<div class="relative bg-white w-full max-w-xl rounded-3xl shadow-xl overflow-hidden border border-outline-variant/20 animate-in fade-in zoom-in duration-200 z-10 max-h-[90vh] flex flex-col">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="flex flex-col h-full overflow-hidden">
+				<input type="hidden" name="action" value="dlm_save_package">
+				<?php wp_nonce_field( 'dlm_package_action_nonce', 'dlm_nonce' ); ?>
+
+				<div class="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/30 shrink-0">
+					<h3 class="text-lg font-bold text-on-surface">Add New Subscription Package</h3>
+					<button type="button" data-close-modal="add-package-modal" class="p-1.5 hover:bg-surface-container-high/50 rounded-full transition-colors"><i class="fa-solid fa-xmark"></i></button>
+				</div>
+				
+				<div class="p-8 space-y-4 overflow-y-auto flex-1 dlm-hover-scrollbar">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Package Name *</label>
+							<input name="package_name" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="text" placeholder="e.g. Premium Monthly" required>
+						</div>
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Badge Label (Optional)</label>
+							<input name="package_badge" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="text" placeholder="e.g. The Scholar, BEST VALUE">
+						</div>
+					</div>
+
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Short Description</label>
+						<input name="package_description" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="text" placeholder="e.g. Unlimited monthly reading access to our entire catalog.">
+					</div>
+
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Billing Cycle *</label>
+							<select name="billing_cycle" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+								<option value="monthly">Monthly</option>
+								<option value="yearly">Annual / Yearly</option>
+								<option value="lifetime">Lifetime Access</option>
+							</select>
+						</div>
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Price ($) *</label>
+							<input name="package_price" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="number" step="0.01" min="0" placeholder="e.g. 9.99" required>
+						</div>
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Status *</label>
+							<select name="package_status" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+								<option value="active">Active (Public)</option>
+								<option value="inactive">Inactive (Retired)</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Plan Benefits / Bullet Features (One per line)</label>
+						<textarea name="package_features" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs font-mono" rows="4" placeholder="Unlimited digital reading&#10;Real-time reading journal logs&#10;Saves streaks & achievements"></textarea>
+					</div>
+
+					<!-- Gateway Integrations & Mappings -->
+					<div class="border-t border-outline-variant/10 pt-4 space-y-4">
+						<div>
+							<h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+								<i class="fa-solid fa-wand-magic-sparkles text-primary"></i>
+								Automated Gateway Provisioning & Mappings
+							</h4>
+							<p class="text-[11px] text-secondary mt-0.5">
+								Gateway products and plans are created <strong>automatically</strong> in your payment accounts on save. Leave fields empty to auto-provision, or paste existing IDs to map manually.
+							</p>
+						</div>
+
+						<div class="space-y-3 bg-surface-container-lowest/50 p-4 rounded-2xl border border-outline-variant/20">
+							<!-- Stripe Price ID -->
+							<div class="space-y-1">
+								<div class="flex justify-between items-baseline">
+									<label class="text-[11px] font-bold text-on-surface-variant uppercase flex items-center gap-1">
+										<i class="fa-brands fa-stripe text-primary text-base"></i> Stripe Price ID
+									</label>
+									<span class="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-md">Auto-Sync on Save</span>
+								</div>
+								<input name="stripe_price_id" class="w-full px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs focus:border-primary focus:ring-0 font-mono" type="text" placeholder="Auto-generated (or paste price_...)">
+								<p class="text-[10px] text-secondary leading-relaxed">
+									Leave blank to automatically create a Product & Price on Stripe via API, or enter an existing <code>price_...</code> ID.
+								</p>
+							</div>
+
+							<!-- PayPal Plan ID -->
+							<div class="space-y-1 pt-2 border-t border-outline-variant/10">
+								<div class="flex justify-between items-baseline">
+									<label class="text-[11px] font-bold text-on-surface-variant uppercase flex items-center gap-1">
+										<i class="fa-brands fa-paypal text-blue-600 text-sm"></i> PayPal Plan ID
+									</label>
+									<span class="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Auto-Sync on Save</span>
+								</div>
+								<input name="paypal_plan_id" class="w-full px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs focus:border-primary focus:ring-0 font-mono" type="text" placeholder="Auto-generated (or paste P-...)">
+								<p class="text-[10px] text-secondary leading-relaxed">
+									Leave blank to automatically create an active Catalog Product & Subscription Plan on PayPal, or enter an existing <code>P-...</code> ID.
+								</p>
+							</div>
+
+							<!-- WooCommerce Virtual Product -->
+							<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+								<div class="space-y-1 pt-2 border-t border-outline-variant/10">
+									<div class="flex justify-between items-baseline">
+										<label class="text-[11px] font-bold text-on-surface-variant uppercase flex items-center gap-1">
+											<i class="fa-solid fa-bag-shopping text-purple-600 text-xs"></i> WooCommerce Product
+										</label>
+										<span class="text-[10px] text-green-700 font-bold bg-green-50 px-2 py-0.5 rounded-md">Auto-Generated</span>
+									</div>
+									<select name="wc_product_id" class="w-full px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs focus:border-primary focus:ring-0">
+										<option value="0"><?php esc_html_e( '— Auto-Generate Virtual Product (Recommended) —', 'digital-library-membership' ); ?></option>
+										<?php 
+										$wc_prods = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
+										foreach ( $wc_prods as $wcp ) {
+											echo '<option value="' . intval( $wcp->ID ) . '">' . esc_html( $wcp->post_title ) . ' (#' . intval( $wcp->ID ) . ')</option>';
+										}
+										?>
+									</select>
+									<p class="text-[10px] text-secondary leading-relaxed">
+										Leave as <em>Auto-Generate</em> to automatically create and sync a hidden virtual WooCommerce product upon save.
+									</p>
+								</div>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+
+				<div class="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low/30 flex justify-end gap-3 shrink-0">
+					<button type="button" data-close-modal="add-package-modal" class="px-5 py-2.5 rounded-xl font-bold text-sm text-secondary hover:bg-secondary-container/30 transition-all">Cancel</button>
+					<button type="submit" class="px-5 py-2.5 rounded-xl font-bold text-sm bg-primary text-white hover:opacity-90">Create Package</button>
+				</div>
+			</form>
+		</div>
 	</div>
-</div>
+
+	<!-- Edit Package Modal -->
+	<div id="edit-package-modal" class="fixed inset-0 z-[1000] items-center justify-center p-4 hidden">
+		<div class="absolute inset-0 modal-backdrop" data-close-modal="edit-package-modal"></div>
+		<div class="relative bg-white w-full max-w-xl rounded-3xl shadow-xl overflow-hidden border border-outline-variant/20 animate-in fade-in zoom-in duration-200 z-10 max-h-[90vh] flex flex-col">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="flex flex-col h-full overflow-hidden">
+				<input type="hidden" name="action" value="dlm_edit_package">
+				<input type="hidden" name="package_id" id="edit-package-id" value="">
+				<?php wp_nonce_field( 'dlm_package_action_nonce', 'dlm_nonce' ); ?>
+
+				<div class="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/30 shrink-0">
+					<h3 class="text-lg font-bold text-on-surface">Edit Subscription Package</h3>
+					<button type="button" data-close-modal="edit-package-modal" class="p-1.5 hover:bg-surface-container-high/50 rounded-full transition-colors"><i class="fa-solid fa-xmark"></i></button>
+				</div>
+				
+				<div class="p-8 space-y-4 overflow-y-auto flex-1 dlm-hover-scrollbar">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Package Name *</label>
+							<input name="package_name" id="edit-package-name" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="text" required>
+						</div>
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Badge Label (Optional)</label>
+							<input name="package_badge" id="edit-package-badge" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="text" placeholder="e.g. The Scholar, BEST VALUE">
+						</div>
+					</div>
+
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Short Description</label>
+						<input name="package_description" id="edit-package-description" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="text">
+					</div>
+
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Billing Cycle *</label>
+							<select name="billing_cycle" id="edit-package-interval" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+								<option value="monthly">Monthly</option>
+								<option value="yearly">Annual / Yearly</option>
+								<option value="lifetime">Lifetime Access</option>
+							</select>
+						</div>
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Price ($) *</label>
+							<input name="package_price" id="edit-package-price" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 text-sm focus:border-primary focus:ring-0" type="number" step="0.01" min="0" required>
+						</div>
+						<div class="space-y-1">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Status *</label>
+							<select name="package_status" id="edit-package-status" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
+								<option value="active">Active (Public)</option>
+								<option value="inactive">Inactive (Retired)</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="space-y-1">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Plan Benefits / Bullet Features (One per line)</label>
+						<textarea name="package_features" id="edit-package-features" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-xs font-mono" rows="4"></textarea>
+					</div>
+
+					<!-- Gateway Integrations & Mappings -->
+					<div class="border-t border-outline-variant/10 pt-4 space-y-4">
+						<div>
+							<h4 class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+								<i class="fa-solid fa-wand-magic-sparkles text-primary"></i>
+								Automated Gateway Provisioning & Mappings
+							</h4>
+							<p class="text-[11px] text-secondary mt-0.5">
+								Gateway products and plans are created <strong>automatically</strong> in your payment accounts on save. Leave fields empty to auto-provision, or paste existing IDs to map manually.
+							</p>
+						</div>
+
+						<div class="space-y-3 bg-surface-container-lowest/50 p-4 rounded-2xl border border-outline-variant/20">
+							<!-- Stripe Price ID -->
+							<div class="space-y-1">
+								<div class="flex justify-between items-baseline">
+									<label class="text-[11px] font-bold text-on-surface-variant uppercase flex items-center gap-1">
+										<i class="fa-brands fa-stripe text-primary text-base"></i> Stripe Price ID
+									</label>
+									<span class="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-md">Auto-Sync on Save</span>
+								</div>
+								<input name="stripe_price_id" id="edit-package-stripe-price" class="w-full px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs focus:border-primary focus:ring-0 font-mono" type="text" placeholder="Auto-generated (or paste price_...)">
+								<p class="text-[10px] text-secondary leading-relaxed">
+									Leave blank to automatically create a Product & Price on Stripe via API, or enter an existing <code>price_...</code> ID.
+								</p>
+							</div>
+
+							<!-- PayPal Plan ID -->
+							<div class="space-y-1 pt-2 border-t border-outline-variant/10">
+								<div class="flex justify-between items-baseline">
+									<label class="text-[11px] font-bold text-on-surface-variant uppercase flex items-center gap-1">
+										<i class="fa-brands fa-paypal text-blue-600 text-sm"></i> PayPal Plan ID
+									</label>
+									<span class="text-[10px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Auto-Sync on Save</span>
+								</div>
+								<input name="paypal_plan_id" id="edit-package-paypal-plan" class="w-full px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs focus:border-primary focus:ring-0 font-mono" type="text" placeholder="Auto-generated (or paste P-...)">
+								<p class="text-[10px] text-secondary leading-relaxed">
+									Leave blank to automatically create an active Catalog Product & Subscription Plan on PayPal, or enter an existing <code>P-...</code> ID.
+								</p>
+							</div>
+
+							<!-- WooCommerce Virtual Product -->
+							<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+								<div class="space-y-1 pt-2 border-t border-outline-variant/10">
+									<div class="flex justify-between items-baseline">
+										<label class="text-[11px] font-bold text-on-surface-variant uppercase flex items-center gap-1">
+											<i class="fa-solid fa-bag-shopping text-purple-600 text-xs"></i> WooCommerce Product
+										</label>
+										<span class="text-[10px] text-green-700 font-bold bg-green-50 px-2 py-0.5 rounded-md">Auto-Generated</span>
+									</div>
+									<select name="wc_product_id" id="edit-package-wc-product" class="w-full px-3.5 py-2 rounded-xl border border-outline-variant/30 text-xs focus:border-primary focus:ring-0">
+										<option value="0"><?php esc_html_e( '— Auto-Generate Virtual Product (Recommended) —', 'digital-library-membership' ); ?></option>
+										<?php 
+										$wc_prods = get_posts( array( 'post_type' => 'product', 'posts_per_page' => -1 ) );
+										foreach ( $wc_prods as $wcp ) {
+											echo '<option value="' . intval( $wcp->ID ) . '">' . esc_html( $wcp->post_title ) . ' (#' . intval( $wcp->ID ) . ')</option>';
+										}
+										?>
+									</select>
+									<p class="text-[10px] text-secondary leading-relaxed">
+										Leave as <em>Auto-Generate</em> to automatically create and sync a hidden virtual WooCommerce product upon save.
+									</p>
+								</div>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+
+				<div class="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low/30 flex justify-end gap-3 shrink-0">
+					<button type="button" data-close-modal="edit-package-modal" class="px-5 py-2.5 rounded-xl font-bold text-sm text-secondary hover:bg-secondary-container/30 transition-all">Cancel</button>
+					<button type="submit" class="px-5 py-2.5 rounded-xl font-bold text-sm bg-primary text-white hover:opacity-90">Save Changes</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- Delete Package Modal -->
+	<div id="delete-package-modal" class="fixed inset-0 z-[1000] items-center justify-center p-4 hidden">
+		<div class="absolute inset-0 modal-backdrop" data-close-modal="delete-package-modal"></div>
+		<div class="relative bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden border border-outline-variant/20 animate-in fade-in zoom-in duration-200 z-10">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="dlm_delete_package">
+				<input type="hidden" name="package_id" id="delete-package-id" value="">
+				<?php wp_nonce_field( 'dlm_package_action_nonce', 'dlm_nonce' ); ?>
+
+				<div class="p-8 text-center space-y-4">
+					<div class="w-16 h-16 bg-red-100 text-error-red rounded-full flex items-center justify-center mx-auto text-2xl">
+						<i class="fa-solid fa-trash-can"></i>
+					</div>
+					<h3 class="text-xl font-bold text-on-surface">Delete Subscription Package</h3>
+					<p class="text-sm text-secondary leading-relaxed">
+						Are you sure you want to delete <strong id="delete-package-name-display" class="text-on-surface"></strong>?
+					</p>
+
+					<!-- Informational Active Subscribers Warning -->
+					<div id="delete-package-subscribers-warning" class="hidden text-left p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 leading-relaxed space-y-1.5">
+						<div class="flex items-center gap-2 font-bold text-amber-800">
+							<i class="fa-solid fa-triangle-exclamation"></i>
+							<span>Active Subscribers Note</span>
+						</div>
+						<p>
+							This package currently has <strong id="delete-package-subscribers-count">0</strong> active member(s). Deleting will remove the package configuration from your plans. You can also choose to <strong>Deactivate</strong> it instead so it is hidden from new signups while leaving existing member records untouched.
+						</p>
+					</div>
+				</div>
+				<div class="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low/30 flex justify-end gap-3">
+					<button type="button" data-close-modal="delete-package-modal" class="px-6 py-3 rounded-xl font-bold text-sm text-secondary hover:bg-secondary-container/30 transition-all">Cancel</button>
+					<button type="submit" class="px-6 py-3 rounded-xl font-bold text-sm bg-error-red text-white hover:opacity-90 transition-all shadow-md">Delete Package</button>
+				</div>
+			</form>
+		</div>
+	</div>
 
 	<!-- Global Alert Popup Modal -->
 	<div id="dlmAlertModal" class="fixed inset-0 z-50 items-center justify-center bg-black/40 backdrop-blur-sm hidden" style="align-items: center; justify-content: center;">

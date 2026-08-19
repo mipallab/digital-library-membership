@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf reader, gutenberg, elementor, access co
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -18,6 +18,10 @@ A secure, premium subscription membership plugin to read digital books with real
 
 ### Key Features
 
+* **Subscription Package Management & Multi-Gateway Auto-Sync**:
+  * Create, edit, activate, deactivate, and delete custom subscription tiers and membership plans.
+  * 100% automated gateway provisioning: auto-generates Stripe Products & Prices, PayPal Catalog Products & Billing Plans, and hidden virtual WooCommerce products.
+  * Real-time active subscriber metrics and non-blocking plan administration.
 * **3-Tier Book Access Control**:
   * **Subscription Only**: Exclusively accessible to active members with recurring subscription plans.
   * **Purchase Only**: Individual direct sales with permanent read & download access.
@@ -103,6 +107,13 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 2.6.0 =
+* Added: Subscription Package Management Admin Screen (`sec-plans`) with Bento KPI metrics, table management, live subscriber counts, and 1-click active/inactive toggle.
+* Added: Automated Multi-Gateway Provisioning for Stripe (Products & Prices), PayPal (Catalog Products & Billing Plans), and WooCommerce (Virtual Simple Products).
+* Added: Dynamic Frontend Plan Grid Rendering in pricing sections and checkout pages reading from the single source of truth package registry.
+* Improved: Eliminated dual-writes and consolidated all pricing/feature storage into `dlm_subscription_packages`.
+* Improved: Streamlined admin settings by removing redundant scalar pricing fields and adding direct links to the plan manager.
 
 = 2.5.0 =
 * Added: First-Time Member Onboarding Tour (Spotlight-style) with pure Vanilla JS engine, smart callout positioning, auto-scroll, single-batch mobile drawer batching, and WCAG accessibility compliance.

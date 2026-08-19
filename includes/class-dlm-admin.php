@@ -107,24 +107,11 @@ class DLM_Admin {
 		$settings = array(
 			'dlm_stripe_secret_key',
 			'dlm_stripe_publishable_key',
-			'dlm_stripe_monthly_price_id',
-			'dlm_stripe_yearly_price_id',
-			'dlm_stripe_lifetime_price_id',
+			'dlm_stripe_webhook_secret',
 			'dlm_paypal_client_id',
 			'dlm_paypal_secret_key',
-			'dlm_paypal_monthly_plan_id',
-			'dlm_paypal_yearly_plan_id',
-			'dlm_paypal_lifetime_plan_id',
-			'dlm_pricing_monthly',
-			'dlm_pricing_yearly',
-			'dlm_pricing_lifetime',
+			'dlm_paypal_webhook_id',
 			'dlm_manual_payment_instructions',
-			'dlm_features_monthly',
-			'dlm_features_yearly',
-			'dlm_features_lifetime',
-			'dlm_wc_monthly_product',
-			'dlm_wc_yearly_product',
-			'dlm_wc_lifetime_product',
 			'dlm_privacy_policy_page_id',
 			'dlm_terms_page_id',
 			'dlm_recaptcha_version',
@@ -488,6 +475,7 @@ class DLM_Admin {
 		}
 		$total_authors = count( array_unique( $authors_list ) );
 		$subscribers   = isset( $summary['subscribers_list'] ) ? $summary['subscribers_list'] : array();
+		$packages      = dlm_get_packages();
 
 		// Render SPA dashboard template
 		include DLM_PATH . 'admin/templates/admin-dashboard.php';
@@ -926,14 +914,8 @@ class DLM_Admin {
 		);
 
 		// Record Transaction
-		$price = 0.00;
-		if ( $sub->plan_interval === 'monthly' ) {
-			$price = get_option( 'dlm_pricing_monthly', '9.99' );
-		} elseif ( $sub->plan_interval === 'yearly' ) {
-			$price = get_option( 'dlm_pricing_yearly', '99.99' );
-		} elseif ( $sub->plan_interval === 'lifetime' ) {
-			$price = get_option( 'dlm_pricing_lifetime', '199.99' );
-		}
+		$pkg   = dlm_get_package( $sub->plan_interval );
+		$price = ( $pkg && isset( $pkg['price'] ) ) ? floatval( $pkg['price'] ) : 0.00;
 
 		$this->db->insert_transaction( array(
 			'user_id'         => $sub->user_id,
@@ -1441,6 +1423,348 @@ class DLM_Admin {
 
 		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=settings&success=pages_recreated' ) );
 		exit;
+	}
+
+	/**
+	 * Process form submission to add a new subscription package
+	 */
+	public function handle_save_package() {
+		DLM_Security::check_admin_capabilities();
+		DLM_Security::verify_nonce( 'dlm_package_action_nonce', 'dlm_nonce' );
+
+		$name        = isset( $_POST['package_name'] ) ? sanitize_text_field( wp_unslash( $_POST['package_name'] ) ) : '';
+		$badge       = isset( $_POST['package_badge'] ) ? sanitize_text_field( wp_unslash( $_POST['package_badge'] ) ) : '';
+		$description = isset( $_POST['package_description'] ) ? sanitize_text_field( wp_unslash( $_POST['package_description'] ) ) : '';
+		$interval    = isset( $_POST['billing_cycle'] ) ? sanitize_key( $_POST['billing_cycle'] ) : 'monthly';
+		$price       = isset( $_POST['package_price'] ) ? floatval( $_POST['package_price'] ) : 0.00;
+		$status      = isset( $_POST['package_status'] ) && 'inactive' === $_POST['package_status'] ? 'inactive' : 'active';
+		$features_raw = isset( $_POST['package_features'] ) ? sanitize_textarea_field( wp_unslash( $_POST['package_features'] ) ) : '';
+
+		if ( empty( $name ) ) {
+			wp_die( esc_html__( 'Please provide a valid package name.', 'digital-library-membership' ) );
+		}
+
+		if ( ! in_array( $interval, array( 'monthly', 'yearly', 'lifetime' ), true ) ) {
+			$interval = 'monthly';
+		}
+
+		$features = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_raw ) ) ) );
+
+		$packages = dlm_get_packages();
+
+		// Generate unique package ID
+		$base_id = sanitize_title( $name );
+		if ( empty( $base_id ) ) {
+			$base_id = 'pkg_' . $interval;
+		}
+		$package_id = $base_id;
+		$suffix = 1;
+		while ( isset( $packages[ $package_id ] ) ) {
+			$package_id = $base_id . '_' . $suffix;
+			$suffix++;
+		}
+
+		$new_package = array(
+			'id'              => $package_id,
+			'name'            => $name,
+			'badge'           => $badge,
+			'description'     => $description,
+			'interval'        => $interval,
+			'price'           => $price,
+			'features'        => array_values( $features ),
+			'status'          => $status,
+			'stripe_price_id' => isset( $_POST['stripe_price_id'] ) ? sanitize_text_field( wp_unslash( $_POST['stripe_price_id'] ) ) : '',
+			'paypal_plan_id'  => isset( $_POST['paypal_plan_id'] ) ? sanitize_text_field( wp_unslash( $_POST['paypal_plan_id'] ) ) : '',
+			'wc_product_id'   => isset( $_POST['wc_product_id'] ) ? intval( $_POST['wc_product_id'] ) : 0,
+		);
+
+		// Automated Multi-Gateway Sync (WooCommerce, Stripe, PayPal)
+		$this->auto_sync_package_gateways( $new_package );
+
+		$packages[ $package_id ] = $new_package;
+		dlm_save_packages( $packages );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_saved' ) );
+		exit;
+	}
+
+	/**
+	 * Process form submission to edit an existing subscription package
+	 */
+	public function handle_edit_package() {
+		DLM_Security::check_admin_capabilities();
+		DLM_Security::verify_nonce( 'dlm_package_action_nonce', 'dlm_nonce' );
+
+		$package_id = isset( $_POST['package_id'] ) ? sanitize_text_field( wp_unslash( $_POST['package_id'] ) ) : '';
+		if ( empty( $package_id ) ) {
+			wp_die( esc_html__( 'Invalid package ID.', 'digital-library-membership' ) );
+		}
+
+		$packages = dlm_get_packages();
+		if ( ! isset( $packages[ $package_id ] ) ) {
+			wp_die( esc_html__( 'Package not found.', 'digital-library-membership' ) );
+		}
+
+		$name        = isset( $_POST['package_name'] ) ? sanitize_text_field( wp_unslash( $_POST['package_name'] ) ) : $packages[ $package_id ]['name'];
+		$badge       = isset( $_POST['package_badge'] ) ? sanitize_text_field( wp_unslash( $_POST['package_badge'] ) ) : '';
+		$description = isset( $_POST['package_description'] ) ? sanitize_text_field( wp_unslash( $_POST['package_description'] ) ) : '';
+		$interval    = isset( $_POST['billing_cycle'] ) ? sanitize_key( $_POST['billing_cycle'] ) : $packages[ $package_id ]['interval'];
+		$price       = isset( $_POST['package_price'] ) ? floatval( $_POST['package_price'] ) : $packages[ $package_id ]['price'];
+		$status      = isset( $_POST['package_status'] ) && 'inactive' === $_POST['package_status'] ? 'inactive' : 'active';
+		$features_raw = isset( $_POST['package_features'] ) ? sanitize_textarea_field( wp_unslash( $_POST['package_features'] ) ) : '';
+
+		if ( ! in_array( $interval, array( 'monthly', 'yearly', 'lifetime' ), true ) ) {
+			$interval = $packages[ $package_id ]['interval'];
+		}
+
+		$features = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_raw ) ) ) );
+
+		$packages[ $package_id ]['name']            = $name;
+		$packages[ $package_id ]['badge']           = $badge;
+		$packages[ $package_id ]['description']     = $description;
+		$packages[ $package_id ]['interval']        = $interval;
+		$packages[ $package_id ]['price']           = $price;
+		$packages[ $package_id ]['features']        = array_values( $features );
+		$packages[ $package_id ]['status']          = $status;
+		$packages[ $package_id ]['stripe_price_id'] = isset( $_POST['stripe_price_id'] ) ? sanitize_text_field( wp_unslash( $_POST['stripe_price_id'] ) ) : '';
+		$packages[ $package_id ]['paypal_plan_id']  = isset( $_POST['paypal_plan_id'] ) ? sanitize_text_field( wp_unslash( $_POST['paypal_plan_id'] ) ) : '';
+		$packages[ $package_id ]['wc_product_id']   = isset( $_POST['wc_product_id'] ) ? intval( $_POST['wc_product_id'] ) : 0;
+
+		// Automated Multi-Gateway Sync (WooCommerce, Stripe, PayPal)
+		$this->auto_sync_package_gateways( $packages[ $package_id ] );
+
+		dlm_save_packages( $packages );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_updated' ) );
+		exit;
+	}
+
+	/**
+	 * Automatically sync and create gateway objects (Stripe Price, PayPal Plan, WooCommerce Virtual Product)
+	 *
+	 * @param array $package Package reference array.
+	 */
+	public function auto_sync_package_gateways( &$package ) {
+		// 1. Auto-create WooCommerce virtual product if WooCommerce is active and not already linked
+		if ( class_exists( 'WooCommerce' ) && empty( $package['wc_product_id'] ) ) {
+			$wc_mgr = new DLM_WooCommerce( $this->db, $this->checkout );
+			$package['wc_product_id'] = $wc_mgr->get_or_create_subscription_wc_product( $package['id'] );
+		}
+
+		// 2. Auto-create Stripe Product and Price if Stripe secret key is configured and stripe_price_id is empty
+		if ( empty( $package['stripe_price_id'] ) ) {
+			$secret_key = get_option( 'dlm_stripe_secret_key' );
+			if ( ! empty( $secret_key ) && class_exists( '\Stripe\Stripe' ) ) {
+				try {
+					\Stripe\Stripe::setApiKey( $secret_key );
+
+					// Create Stripe Product
+					$product = \Stripe\Product::create( array(
+						'name'        => 'Digital Library - ' . $package['name'],
+						'description' => ! empty( $package['description'] ) ? $package['description'] : ( 'Subscription package: ' . $package['name'] ),
+						'metadata'    => array(
+							'dlm_package_id' => $package['id'],
+							'dlm_interval'   => $package['interval'],
+						),
+					) );
+
+					if ( ! empty( $product->id ) ) {
+						$price_args = array(
+							'product'     => $product->id,
+							'unit_amount' => intval( round( floatval( $package['price'] ) * 100 ) ),
+							'currency'    => strtolower( get_option( 'dlm_currency', 'USD' ) ),
+						);
+
+						if ( $package['interval'] !== 'lifetime' ) {
+							$price_args['recurring'] = array(
+								'interval' => ( $package['interval'] === 'yearly' ) ? 'year' : 'month',
+							);
+						}
+
+						$price = \Stripe\Price::create( $price_args );
+						if ( ! empty( $price->id ) ) {
+							$package['stripe_price_id'] = $price->id;
+						}
+					}
+				} catch ( Exception $e ) {
+					// Gracefully capture Stripe error without blocking package persistence
+					error_log( 'DLM Stripe auto-sync error: ' . $e->getMessage() );
+				}
+			}
+		}
+
+		// 3. Auto-create PayPal Catalog Product and Billing Plan if PayPal credentials configured and plan_id is empty
+		if ( empty( $package['paypal_plan_id'] ) && $package['interval'] !== 'lifetime' ) {
+			$client_id = get_option( 'dlm_paypal_client_id' );
+			$secret    = get_option( 'dlm_paypal_secret_key' );
+
+			if ( ! empty( $client_id ) && ! empty( $secret ) ) {
+				$mode     = get_option( 'dlm_paypal_mode', 'live' );
+				$base_url = ( $mode === 'sandbox' ) ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+
+				// 3a. Get OAuth2 Token
+				$auth_response = wp_remote_post( $base_url . '/v1/oauth2/token', array(
+					'headers' => array(
+						'Accept'        => 'application/json',
+						'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ),
+					),
+					'body'    => array(
+						'grant_type' => 'client_credentials',
+					),
+				) );
+
+				if ( ! is_wp_error( $auth_response ) ) {
+					$auth_body = json_decode( wp_remote_retrieve_body( $auth_response ) );
+					$token     = ! empty( $auth_body->access_token ) ? $auth_body->access_token : '';
+
+					if ( ! empty( $token ) ) {
+						// 3b. Create Catalog Product
+						$prod_response = wp_remote_post( $base_url . '/v1/catalogs/products', array(
+							'headers' => array(
+								'Content-Type'  => 'application/json',
+								'Authorization' => 'Bearer ' . $token,
+							),
+							'body'    => wp_json_encode( array(
+								'name'        => 'Digital Library - ' . $package['name'],
+								'description' => ! empty( $package['description'] ) ? $package['description'] : ( 'Membership plan: ' . $package['name'] ),
+								'type'        => 'DIGITAL',
+								'category'    => 'DIGITAL_MEDIA_BOOKS_MOVIES_MUSIC',
+							) ),
+						) );
+
+						$prod_id = '';
+						if ( ! is_wp_error( $prod_response ) ) {
+							$prod_body = json_decode( wp_remote_retrieve_body( $prod_response ) );
+							$prod_id   = ! empty( $prod_body->id ) ? $prod_body->id : '';
+						}
+
+						// 3c. Create Billing Plan
+						if ( ! empty( $prod_id ) ) {
+							$interval_unit = ( $package['interval'] === 'yearly' ) ? 'YEAR' : 'MONTH';
+							$currency      = strtoupper( get_option( 'dlm_currency', 'USD' ) );
+							$price_str     = number_format( floatval( $package['price'] ), 2, '.', '' );
+
+							$plan_response = wp_remote_post( $base_url . '/v1/billing/plans', array(
+								'headers' => array(
+									'Content-Type'      => 'application/json',
+									'Authorization'     => 'Bearer ' . $token,
+									'PayPal-Request-Id' => 'DLM-PLAN-' . $package['id'] . '-' . time(),
+								),
+								'body'    => wp_json_encode( array(
+									'product_id'          => $prod_id,
+									'name'                => $package['name'] . ' Subscription',
+									'description'         => 'Digital library recurring subscription for ' . $package['name'],
+									'status'              => 'ACTIVE',
+									'billing_cycles'      => array(
+										array(
+											'frequency'      => array(
+												'interval_unit'  => $interval_unit,
+												'interval_count' => 1,
+											),
+											'tenure_type'    => 'REGULAR',
+											'sequence'       => 1,
+											'total_cycles'   => 0,
+											'pricing_scheme' => array(
+												'fixed_price' => array(
+													'value'         => $price_str,
+													'currency_code' => $currency,
+												),
+											),
+										),
+									),
+									'payment_preferences' => array(
+										'auto_bill_outstanding'     => true,
+										'setup_fee'                 => array(
+											'value'         => '0',
+											'currency_code' => $currency,
+										),
+										'setup_fee_failure_action'  => 'CONTINUE',
+										'payment_failure_threshold' => 3,
+									),
+								) ),
+							) );
+
+							if ( ! is_wp_error( $plan_response ) ) {
+								$plan_body = json_decode( wp_remote_retrieve_body( $plan_response ) );
+								if ( ! empty( $plan_body->id ) ) {
+									$package['paypal_plan_id'] = $plan_body->id;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+		dlm_save_packages( $packages );
+
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_updated' ) );
+		exit;
+	}
+
+	/**
+	 * Process form submission to delete a subscription package
+	 * (Deletes immediately without blocking, showing warning in UI only)
+	 */
+	public function handle_delete_package() {
+		DLM_Security::check_admin_capabilities();
+		DLM_Security::verify_nonce( 'dlm_package_action_nonce', 'dlm_nonce' );
+
+		$package_id = isset( $_POST['package_id'] ) ? sanitize_text_field( wp_unslash( $_POST['package_id'] ) ) : '';
+		if ( empty( $package_id ) ) {
+			wp_die( esc_html__( 'Invalid package ID.', 'digital-library-membership' ) );
+		}
+
+		$packages = dlm_get_packages();
+		if ( isset( $packages[ $package_id ] ) ) {
+			unset( $packages[ $package_id ] );
+			dlm_save_packages( $packages );
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_deleted' ) );
+		exit;
+	}
+
+	/**
+	 * Process request to toggle active/inactive status of a subscription package
+	 */
+	public function handle_toggle_package_status() {
+		DLM_Security::check_admin_capabilities();
+		DLM_Security::verify_nonce( 'dlm_package_action_nonce', 'dlm_nonce' );
+
+		$package_id = isset( $_POST['package_id'] ) ? sanitize_text_field( wp_unslash( $_POST['package_id'] ) ) : '';
+		if ( empty( $package_id ) ) {
+			wp_die( esc_html__( 'Invalid package ID.', 'digital-library-membership' ) );
+		}
+
+		$packages = dlm_get_packages();
+		if ( isset( $packages[ $package_id ] ) ) {
+			$current_status = isset( $packages[ $package_id ]['status'] ) ? $packages[ $package_id ]['status'] : 'active';
+			$packages[ $package_id ]['status'] = ( 'active' === $current_status ) ? 'inactive' : 'active';
+			dlm_save_packages( $packages );
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_status_toggled' ) );
+		exit;
+	}
+
+	/**
+	 * Hide unused WooCommerce admin menus for headless payment setup
+	 * Hides Products, Analytics, and Marketing sidebar menus for all admins
+	 * while keeping Orders and WooCommerce > Settings > Payments fully visible.
+	 */
+	public function hide_headless_wc_admin_menus() {
+		// Hide Products and all product submenus (Add New, Categories, Tags, Attributes)
+		remove_menu_page( 'edit.php?post_type=product' );
+
+		// Hide Marketing top-level and submenu
+		remove_menu_page( 'woocommerce-marketing' );
+		remove_submenu_page( 'woocommerce', 'woocommerce-marketing' );
+
+		// Hide Analytics top-level and submenu
+		remove_menu_page( 'wc-admin&path=/analytics/overview' );
+		remove_submenu_page( 'woocommerce', 'wc-admin&path=/analytics/overview' );
 	}
 }
 

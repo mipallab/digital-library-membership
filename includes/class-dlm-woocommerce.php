@@ -140,18 +140,24 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Get or create a WooCommerce virtual product for subscription intervals
+	 * Get or create a WooCommerce virtual product for any subscription package
 	 *
-	 * @param string $interval ('monthly', 'yearly', 'lifetime')
+	 * @param string $package_id_or_interval Package ID or interval ('monthly', 'yearly', 'lifetime', etc.)
 	 * @return int Product ID
 	 */
-	public function get_or_create_subscription_wc_product( $interval ) {
+	public function get_or_create_subscription_wc_product( $package_id_or_interval ) {
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			return 0;
 		}
 
-		$option_key = 'dlm_wc_' . $interval . '_product';
-		$product_id = intval( get_option( $option_key ) );
+		$pkg = dlm_get_package( $package_id_or_interval );
+		if ( ! $pkg ) {
+			$packages = dlm_get_packages();
+			$pkg      = reset( $packages );
+		}
+
+		$package_id = $pkg ? $pkg['id'] : $package_id_or_interval;
+		$product_id = ( $pkg && ! empty( $pkg['wc_product_id'] ) ) ? intval( $pkg['wc_product_id'] ) : 0;
 
 		if ( $product_id ) {
 			$product = wc_get_product( $product_id );
@@ -160,19 +166,10 @@ class DLM_WooCommerce {
 			}
 		}
 
-		// Auto-generate virtual product for subscription plan if none configured
-		$price = '9.99';
-		$name  = 'Digital Library - Monthly Membership';
-
-		if ( $interval === 'yearly' ) {
-			$price = get_option( 'dlm_pricing_yearly', '99.99' );
-			$name  = 'Digital Library - Yearly Membership';
-		} elseif ( $interval === 'lifetime' ) {
-			$price = get_option( 'dlm_pricing_lifetime', '199.99' );
-			$name  = 'Digital Library - Lifetime Access';
-		} else {
-			$price = get_option( 'dlm_pricing_monthly', '9.99' );
-		}
+		// Auto-generate virtual product for subscription package
+		$name     = $pkg && ! empty( $pkg['name'] ) ? ( 'Digital Library - ' . $pkg['name'] ) : ( 'Digital Library - ' . ucfirst( $package_id_or_interval ) . ' Membership' );
+		$price    = $pkg && isset( $pkg['price'] ) ? strval( $pkg['price'] ) : '9.99';
+		$interval = $pkg && ! empty( $pkg['interval'] ) ? $pkg['interval'] : ( in_array( $package_id_or_interval, array( 'monthly', 'yearly', 'lifetime' ), true ) ? $package_id_or_interval : 'monthly' );
 
 		$product = new WC_Product_Simple();
 		$product->set_name( $name );
@@ -180,12 +177,25 @@ class DLM_WooCommerce {
 		$product->set_price( strval( $price ) );
 		$product->set_virtual( true );
 		$product->set_status( 'publish' );
-		$product->set_catalog_visibility( 'hidden' );
+		$product->set_catalog_visibility( 'hidden' ); // Hidden from shop catalog
+
+		if ( $pkg && ! empty( $pkg['description'] ) ) {
+			$product->set_short_description( wp_strip_all_tags( $pkg['description'] ) );
+		}
 
 		$new_product_id = $product->save();
 		if ( $new_product_id ) {
+			update_post_meta( $new_product_id, '_dlm_package_id', $package_id );
 			update_post_meta( $new_product_id, '_dlm_subscription_interval', $interval );
-			update_option( $option_key, $new_product_id );
+			update_post_meta( $new_product_id, '_dlm_virtual_subscription', 'yes' );
+
+			// Link newly created WC product back to package registry
+			$packages = dlm_get_packages();
+			if ( isset( $packages[ $package_id ] ) ) {
+				$packages[ $package_id ]['wc_product_id'] = $new_product_id;
+				dlm_save_packages( $packages );
+			}
+
 			return $new_product_id;
 		}
 
@@ -296,12 +306,17 @@ class DLM_WooCommerce {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce payment engine is not available.', 'digital-library-membership' ) ) );
 		}
 
-		$interval = isset( $_POST['interval'] ) ? sanitize_text_field( wp_unslash( $_POST['interval'] ) ) : 'monthly';
-		if ( ! in_array( $interval, array( 'monthly', 'yearly', 'lifetime' ), true ) ) {
-			$interval = 'monthly';
+		$plan    = isset( $_POST['interval'] ) ? sanitize_text_field( wp_unslash( $_POST['interval'] ) ) : 'monthly';
+		$package = dlm_get_package( $plan );
+		if ( ! $package ) {
+			$packages = dlm_get_packages();
+			$package  = reset( $packages );
 		}
 
-		$product_id = $this->get_or_create_subscription_wc_product( $interval );
+		$package_id = $package ? $package['id'] : $plan;
+		$interval   = ( $package && ! empty( $package['interval'] ) ) ? $package['interval'] : 'monthly';
+
+		$product_id = $this->get_or_create_subscription_wc_product( $package_id );
 		$product    = $product_id ? wc_get_product( $product_id ) : null;
 
 		if ( ! $product ) {
@@ -322,6 +337,7 @@ class DLM_WooCommerce {
 			), 'billing' );
 
 			$order->update_meta_data( '_dlm_order_type', 'subscription' );
+			$order->update_meta_data( '_dlm_package_id', $package_id );
 			$order->update_meta_data( '_dlm_plan_interval', $interval );
 			$order->calculate_totals();
 			$order->update_status( 'pending', __( 'DLM headless subscription order initialized.', 'digital-library-membership' ) );
@@ -419,8 +435,17 @@ class DLM_WooCommerce {
 				}
 			}
 		} elseif ( $order_type === 'subscription' ) {
-			$interval = sanitize_text_field( $order->get_meta( '_dlm_plan_interval' ) );
-			if ( empty( $interval ) ) {
+			$package_id = sanitize_text_field( $order->get_meta( '_dlm_package_id' ) );
+			$interval   = sanitize_text_field( $order->get_meta( '_dlm_plan_interval' ) );
+
+			if ( empty( $package_id ) ) {
+				$package_id = $interval ?: 'monthly';
+			}
+
+			$pkg = dlm_get_package( $package_id );
+			if ( $pkg && ! empty( $pkg['interval'] ) ) {
+				$interval = $pkg['interval'];
+			} elseif ( empty( $interval ) ) {
 				$interval = 'monthly';
 			}
 
@@ -438,7 +463,7 @@ class DLM_WooCommerce {
 				'subscription_id' => $sub_id,
 				'customer_id'     => (string) $user_id,
 				'status'          => 'active',
-				'plan_interval'   => $interval,
+				'plan_interval'   => $package_id,
 				'expires_at'      => $expires_at,
 			);
 

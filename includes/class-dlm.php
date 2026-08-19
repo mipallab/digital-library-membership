@@ -124,6 +124,11 @@ class DLM {
 			add_action( 'admin_post_dlm_delete_transaction', array( $this->admin, 'handle_delete_transaction' ) );
 			add_action( 'admin_post_dlm_goto_members', array( $this->admin, 'handle_goto_members' ) );
 			add_action( 'admin_post_dlm_recreate_pages', array( $this->admin, 'handle_recreate_pages' ) );
+			add_action( 'admin_post_dlm_save_package', array( $this->admin, 'handle_save_package' ) );
+			add_action( 'admin_post_dlm_edit_package', array( $this->admin, 'handle_edit_package' ) );
+			add_action( 'admin_post_dlm_delete_package', array( $this->admin, 'handle_delete_package' ) );
+			add_action( 'admin_post_dlm_toggle_package_status', array( $this->admin, 'handle_toggle_package_status' ) );
+			add_action( 'admin_menu', array( $this->admin, 'hide_headless_wc_admin_menus' ), 999 );
 		}
 
 		// Public shortcodes
@@ -1172,5 +1177,164 @@ function dlm_verify_download_token( $user_id, $book_id, $token, $expires ) {
 	return hash_equals( $expected, $token );
 }
 
+/**
+ * Get all subscription packages from single source of truth
+ *
+ * @return array
+ */
+function dlm_get_packages() {
+	$packages = get_option( 'dlm_subscription_packages' );
 
+	if ( ! is_array( $packages ) || empty( $packages ) ) {
+		// One-time initial seeding from existing scalar options
+		$features_monthly_raw = get_option( 'dlm_features_monthly', '' );
+		if ( ! empty( $features_monthly_raw ) ) {
+			$features_monthly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_monthly_raw ) ) ) );
+		} else {
+			$features_monthly = array(
+				__( 'Unlimited digital reading', 'digital-library-membership' ),
+				__( 'Real-time reading journal logs', 'digital-library-membership' ),
+				__( 'Saves streaks & achievements', 'digital-library-membership' ),
+			);
+		}
 
+		$features_yearly_raw = get_option( 'dlm_features_yearly', '' );
+		if ( ! empty( $features_yearly_raw ) ) {
+			$features_yearly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_yearly_raw ) ) ) );
+		} else {
+			$features_yearly = array(
+				__( 'Everything in Monthly', 'digital-library-membership' ),
+				__( 'Save ~30% annually', 'digital-library-membership' ),
+				__( 'Collector badges unlocked', 'digital-library-membership' ),
+			);
+		}
+
+		$features_lifetime_raw = get_option( 'dlm_features_lifetime', '' );
+		if ( ! empty( $features_lifetime_raw ) ) {
+			$features_lifetime = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_lifetime_raw ) ) ) );
+		} else {
+			$features_lifetime = array(
+				__( 'Unlimited permanent access', 'digital-library-membership' ),
+				__( 'No recurring bills or fees', 'digital-library-membership' ),
+				__( 'All future books included', 'digital-library-membership' ),
+			);
+		}
+
+		$packages = array(
+			'monthly' => array(
+				'id'              => 'monthly',
+				'name'            => __( 'Monthly Access', 'digital-library-membership' ),
+				'badge'           => __( 'The Reader', 'digital-library-membership' ),
+				'description'     => __( 'Instant access to all digital books billed every month.', 'digital-library-membership' ),
+				'interval'        => 'monthly',
+				'price'           => floatval( get_option( 'dlm_pricing_monthly', '9.99' ) ),
+				'features'        => array_values( $features_monthly ),
+				'status'          => 'active',
+				'stripe_price_id' => get_option( 'dlm_stripe_monthly_price_id', '' ),
+				'paypal_plan_id'  => get_option( 'dlm_paypal_monthly_plan_id', '' ),
+				'wc_product_id'   => intval( get_option( 'dlm_wc_monthly_product', 0 ) ),
+			),
+			'yearly' => array(
+				'id'              => 'yearly',
+				'name'            => __( 'Yearly Membership', 'digital-library-membership' ),
+				'badge'           => __( 'The Scholar', 'digital-library-membership' ),
+				'description'     => __( 'Full year of unlimited reading. Best value for avid readers.', 'digital-library-membership' ),
+				'interval'        => 'yearly',
+				'price'           => floatval( get_option( 'dlm_pricing_yearly', '99.99' ) ),
+				'features'        => array_values( $features_yearly ),
+				'status'          => 'active',
+				'stripe_price_id' => get_option( 'dlm_stripe_yearly_price_id', '' ),
+				'paypal_plan_id'  => get_option( 'dlm_paypal_yearly_plan_id', '' ),
+				'wc_product_id'   => intval( get_option( 'dlm_wc_yearly_product', 0 ) ),
+			),
+			'lifetime' => array(
+				'id'              => 'lifetime',
+				'name'            => __( 'Lifetime Access', 'digital-library-membership' ),
+				'badge'           => __( 'The Collector', 'digital-library-membership' ),
+				'description'     => __( 'One-time payment for permanent access to all current and future books.', 'digital-library-membership' ),
+				'interval'        => 'lifetime',
+				'price'           => floatval( get_option( 'dlm_pricing_lifetime', '199.99' ) ),
+				'features'        => array_values( $features_lifetime ),
+				'status'          => 'active',
+				'stripe_price_id' => get_option( 'dlm_stripe_lifetime_price_id', '' ),
+				'paypal_plan_id'  => get_option( 'dlm_paypal_lifetime_plan_id', '' ),
+				'wc_product_id'   => intval( get_option( 'dlm_wc_lifetime_product', 0 ) ),
+			),
+		);
+
+		update_option( 'dlm_subscription_packages', $packages );
+	}
+
+	return $packages;
+}
+
+/**
+ * Get single subscription package by ID or interval
+ *
+ * @param string $id
+ * @return array|null
+ */
+function dlm_get_package( $id ) {
+	$packages = dlm_get_packages();
+	if ( isset( $packages[ $id ] ) ) {
+		return $packages[ $id ];
+	}
+	foreach ( $packages as $pkg ) {
+		if ( isset( $pkg['id'] ) && $pkg['id'] === $id ) {
+			return $pkg;
+		}
+		if ( isset( $pkg['interval'] ) && $pkg['interval'] === $id ) {
+			return $pkg;
+		}
+	}
+	return null;
+}
+
+/**
+ * Get live active subscriber count for a package
+ *
+ * @param string $package_id
+ * @param string $interval
+ * @return int
+ */
+function dlm_get_package_subscriber_count( $package_id, $interval = '' ) {
+	global $wpdb;
+	$table = $wpdb->prefix . 'dlm_subscriptions';
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+		return 0;
+	}
+
+	if ( empty( $interval ) ) {
+		$pkg = dlm_get_package( $package_id );
+		$interval = $pkg && ! empty( $pkg['interval'] ) ? $pkg['interval'] : $package_id;
+	}
+
+	$count = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM %i WHERE status = %s AND (plan_interval = %s OR plan_interval = %s)",
+			$table,
+			'active',
+			$package_id,
+			$interval
+		)
+	);
+
+	return intval( $count );
+}
+
+/**
+ * Save packages array to options (single source of truth)
+ *
+ * @param array $packages
+ * @return bool
+ */
+function dlm_save_packages( $packages ) {
+	if ( ! is_array( $packages ) ) {
+		return false;
+	}
+
+	$updated = update_option( 'dlm_subscription_packages', $packages );
+	delete_transient( 'dlm_analytics_summary' );
+
+	return $updated;
+}

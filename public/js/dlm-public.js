@@ -1,11 +1,13 @@
 // Public JS - Digital Library Membership Checkout, Auth forms and interactions
 jQuery(document).ready(function($) {
+    window.dlmParams = window.dlmParams || window.dlmDashboardParams || {};
     var selectedInterval = 'monthly';
     var paypalButtonsInstance = null;
 
     // Google ReCAPTCHA Token retriever
     function dlmGetRecaptchaToken($form, actionName, callback) {
-        if (!dlmParams.recaptchaSiteKey) {
+        var params = window.dlmParams || window.dlmDashboardParams || {};
+        if (!params.recaptchaSiteKey) {
             callback('');
             return;
         }
@@ -425,7 +427,11 @@ jQuery(document).ready(function($) {
             });
 
             if (libState.sort === 'recent') {
-                filtered.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+                filtered.sort(function(a, b) {
+                    var timeA = a.created_at_iso ? new Date(a.created_at_iso).getTime() : (a.date ? Date.parse(a.date) : 0);
+                    var timeB = b.created_at_iso ? new Date(b.created_at_iso).getTime() : (b.date ? Date.parse(b.date) : 0);
+                    return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+                });
             } else if (libState.sort === 'title-asc') {
                 filtered.sort(function(a, b) { return a.title.localeCompare(b.title); });
             } else if (libState.sort === 'progress-desc') {

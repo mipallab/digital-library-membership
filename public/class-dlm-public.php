@@ -95,6 +95,7 @@ class DLM_Public {
 					'progress'          => $progress_percent,
 					'cover'             => ! empty( $b->cover_image_url ) ? $b->cover_image_url : '',
 					'date'              => ! empty( $b->created_at ) ? date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) : '',
+					'created_at_iso'    => ! empty( $b->created_at ) ? wp_date( 'c', strtotime( $b->created_at ) ) : '',
 					'read_url'          => home_url( '/read/' . $b->id . '/' ),
 					'access_type'       => $access_type,
 					'price'             => $price,
@@ -556,45 +557,15 @@ class DLM_Public {
 		$user_id      = $is_logged_in ? get_current_user_id() : 0;
 		$is_active    = $is_logged_in ? $this->db->has_active_membership( $user_id ) : false;
 
-		$monthly_price  = get_option( 'dlm_pricing_monthly', '9.99' );
-		$yearly_price   = get_option( 'dlm_pricing_yearly', '99.99' );
-		$lifetime_price = get_option( 'dlm_pricing_lifetime', '199.99' );
-		$currency       = get_option( 'dlm_currency', 'USD' );
-
-		// Fetch configured or default benefits lists
-		$features_monthly_raw = get_option( 'dlm_features_monthly', '' );
-		if ( ! empty( $features_monthly_raw ) ) {
-			$features_monthly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", "", $features_monthly_raw ) ) ) );
-		} else {
-			$features_monthly = array(
-				__( 'Unlimited digital reading', 'digital-library-membership' ),
-				__( 'Real-time reading journal logs', 'digital-library-membership' ),
-				__( 'Saves streaks & achievements', 'digital-library-membership' ),
-			);
+		$all_packages    = dlm_get_packages();
+		$active_packages = array();
+		foreach ( $all_packages as $pkg ) {
+			if ( ! isset( $pkg['status'] ) || 'active' === $pkg['status'] ) {
+				$active_packages[] = $pkg;
+			}
 		}
 
-		$features_yearly_raw = get_option( 'dlm_features_yearly', '' );
-		if ( ! empty( $features_yearly_raw ) ) {
-			$features_yearly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", "", $features_yearly_raw ) ) ) );
-		} else {
-			$features_yearly = array(
-				__( 'Everything in Monthly', 'digital-library-membership' ),
-				__( 'Save ~30% annually', 'digital-library-membership' ),
-				__( 'Collector badges unlocked', 'digital-library-membership' ),
-			);
-		}
-
-		$features_lifetime_raw = get_option( 'dlm_features_lifetime', '' );
-		if ( ! empty( $features_lifetime_raw ) ) {
-			$features_lifetime = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", "", $features_lifetime_raw ) ) ) );
-		} else {
-			$features_lifetime = array(
-				__( 'Unlimited permanent access', 'digital-library-membership' ),
-				__( 'No recurring bills or fees', 'digital-library-membership' ),
-				__( 'All future books included', 'digital-library-membership' ),
-			);
-		}
-
+		$currency     = get_option( 'dlm_currency', 'USD' );
 		$checkout_url = dlm_get_page_url( 'checkout' );
 
 		ob_start();
@@ -633,63 +604,52 @@ class DLM_Public {
 				</div>
 			<?php endif; ?>
 
-			<!-- Pricing Tiers Grid -->
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-				<!-- Monthly Plan Card -->
-				<div class="bg-white border border-outline-variant/30 rounded-[32px] p-8 flex flex-col shadow-sm book-card-shadow transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-					<div class="mb-8">
-						<span class="text-secondary bg-[#f5f5f7] px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Reader</span>
-						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'Monthly Access', 'digital-library-membership' ); ?></h3>
-						<div class="flex items-baseline gap-1 mt-4">
-							<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $monthly_price ); ?></span>
-							<span class="text-secondary text-xs">/month</span>
-						</div>
-					</div>
-					<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
-						<?php foreach ( $features_monthly as $feat ) : ?>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> <?php echo esc_html( $feat ); ?></li>
-						<?php endforeach; ?>
-					</ul>
-					<a href="<?php echo esc_url( add_query_arg( 'plan', 'monthly', $checkout_url ) ); ?>" class="w-full py-3.5 bg-[#f5f5f7] hover:bg-[#e5e5ea] text-on-surface font-semibold rounded-2xl text-center transition-all block text-sm" style="text-decoration: none; box-sizing: border-box;"><?php esc_html_e( 'Select Plan', 'digital-library-membership' ); ?></a>
+			<?php if ( empty( $active_packages ) ) : ?>
+				<div class="p-8 text-center bg-white rounded-3xl border border-outline-variant/20 max-w-md mx-auto">
+					<p class="text-secondary text-sm"><?php esc_html_e( 'No membership plans are currently active. Please check back soon!', 'digital-library-membership' ); ?></p>
 				</div>
+			<?php else : 
+				$cols_class = count( $active_packages ) === 1 ? 'grid-cols-1 max-w-md' : ( count( $active_packages ) === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-3xl' : 'grid-cols-1 md:grid-cols-3 max-w-5xl' );
+			?>
+				<!-- Pricing Tiers Grid -->
+				<div class="grid <?php echo esc_attr( $cols_class ); ?> gap-8 mx-auto">
+					<?php foreach ( $active_packages as $pkg ) : 
+						$is_highlighted = ! empty( $pkg['badge'] ) && ( stripos( $pkg['badge'], 'best' ) !== false || stripos( $pkg['badge'], 'scholar' ) !== false || 'yearly' === $pkg['interval'] );
+						$period_suffix  = ( 'lifetime' === $pkg['interval'] ) ? __( '/one-time', 'digital-library-membership' ) : ( ( 'yearly' === $pkg['interval'] ) ? __( '/year', 'digital-library-membership' ) : __( '/month', 'digital-library-membership' ) );
+						$cta_label      = ( 'lifetime' === $pkg['interval'] ) ? __( 'Unlock Lifetime', 'digital-library-membership' ) : ( ( 'yearly' === $pkg['interval'] ) ? __( 'Subscribe Yearly', 'digital-library-membership' ) : __( 'Select Plan', 'digital-library-membership' ) );
+					?>
+						<div class="bg-white <?php echo $is_highlighted ? 'border-2 border-primary shadow-xl hover:shadow-2xl' : 'border border-outline-variant/30 shadow-sm hover:shadow-lg'; ?> rounded-[32px] p-8 flex flex-col relative book-card-shadow transition-all duration-300 hover:-translate-y-1">
+							<?php if ( $is_highlighted && ! empty( $pkg['badge'] ) && stripos( $pkg['badge'], 'best' ) !== false ) : ?>
+								<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap"><?php echo esc_html( $pkg['badge'] ); ?></div>
+							<?php endif; ?>
 
-				<!-- Yearly Plan Card -->
-				<div class="bg-white border-2 border-primary rounded-[32px] p-8 flex flex-col relative shadow-xl book-card-shadow transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-					<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap">BEST VALUE</div>
-					<div class="mb-8">
-						<span class="text-primary bg-primary/10 px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Scholar</span>
-						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'Yearly Membership', 'digital-library-membership' ); ?></h3>
-						<div class="flex items-baseline gap-1 mt-4">
-							<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $yearly_price ); ?></span>
-							<span class="text-secondary text-xs">/year</span>
-						</div>
-					</div>
-					<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
-						<?php foreach ( $features_yearly as $feat ) : ?>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> <?php echo esc_html( $feat ); ?></li>
-						<?php endforeach; ?>
-					</ul>
-					<a href="<?php echo esc_url( add_query_arg( 'plan', 'yearly', $checkout_url ) ); ?>" class="w-full py-3.5 bg-primary hover:bg-primary-container text-white font-semibold rounded-2xl text-center transition-all block text-sm shadow-md" style="text-decoration: none; box-sizing: border-box;"><?php esc_html_e( 'Subscribe Yearly', 'digital-library-membership' ); ?></a>
-				</div>
+							<div class="mb-8">
+								<?php if ( ! empty( $pkg['badge'] ) && stripos( $pkg['badge'], 'best' ) === false ) : ?>
+									<span class="<?php echo $is_highlighted ? 'text-primary bg-primary/10' : 'text-secondary bg-[#f5f5f7]'; ?> px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block"><?php echo esc_html( $pkg['badge'] ); ?></span>
+								<?php endif; ?>
+								<h3 class="font-bold text-xl text-on-surface mb-2"><?php echo esc_html( $pkg['name'] ); ?></h3>
+								<?php if ( ! empty( $pkg['description'] ) ) : ?>
+									<p class="text-xs text-secondary mb-3 leading-relaxed"><?php echo esc_html( $pkg['description'] ); ?></p>
+								<?php endif; ?>
+								<div class="flex items-baseline gap-1 mt-4">
+									<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( number_format( floatval( $pkg['price'] ), 2 ) ); ?></span>
+									<span class="text-secondary text-xs"><?php echo esc_html( $period_suffix ); ?></span>
+								</div>
+							</div>
 
-				<!-- Lifetime Plan Card -->
-				<div class="bg-white border border-outline-variant/30 rounded-[32px] p-8 flex flex-col shadow-sm book-card-shadow transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-					<div class="mb-8">
-						<span class="text-secondary bg-[#f5f5f7] px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Collector</span>
-						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'Lifetime Access', 'digital-library-membership' ); ?></h3>
-						<div class="flex items-baseline gap-1 mt-4">
-							<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $lifetime_price ); ?></span>
-							<span class="text-secondary text-xs">/one-time</span>
+							<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
+								<?php if ( ! empty( $pkg['features'] ) && is_array( $pkg['features'] ) ) : ?>
+									<?php foreach ( $pkg['features'] as $feat ) : ?>
+										<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary shrink-0"></i> <span><?php echo esc_html( $feat ); ?></span></li>
+									<?php endforeach; ?>
+								<?php endif; ?>
+							</ul>
+
+							<a href="<?php echo esc_url( add_query_arg( 'plan', $pkg['id'], $checkout_url ) ); ?>" class="w-full py-3.5 <?php echo $is_highlighted ? 'bg-primary hover:bg-primary-container text-white shadow-md' : 'bg-[#f5f5f7] hover:bg-[#e5e5ea] text-on-surface'; ?> font-semibold rounded-2xl text-center transition-all block text-sm" style="text-decoration: none; box-sizing: border-box;"><?php echo esc_html( $cta_label ); ?></a>
 						</div>
-					</div>
-					<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
-						<?php foreach ( $features_lifetime as $feat ) : ?>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> <?php echo esc_html( $feat ); ?></li>
-						<?php endforeach; ?>
-					</ul>
-					<a href="<?php echo esc_url( add_query_arg( 'plan', 'lifetime', $checkout_url ) ); ?>" class="w-full py-3.5 bg-[#f5f5f7] hover:bg-[#e5e5ea] text-on-surface font-semibold rounded-2xl text-center transition-all block text-sm" style="text-decoration: none; box-sizing: border-box;"><?php esc_html_e( 'Unlock Lifetime', 'digital-library-membership' ); ?></a>
+					<?php endforeach; ?>
 				</div>
-			</div>
+			<?php endif; ?>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -701,32 +661,23 @@ class DLM_Public {
 	public function render_checkout() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$selected_plan = isset( $_GET['plan'] ) ? sanitize_key( $_GET['plan'] ) : 'monthly';
-		if ( ! in_array( $selected_plan, array( 'monthly', 'yearly', 'lifetime' ), true ) ) {
-			$selected_plan = 'monthly';
+		$package       = dlm_get_package( $selected_plan );
+
+		if ( ! $package ) {
+			// Fallback to first active package or default monthly
+			$packages = dlm_get_packages();
+			$package  = reset( $packages );
 		}
 
-		$monthly_price  = get_option( 'dlm_pricing_monthly', '9.99' );
-		$yearly_price   = get_option( 'dlm_pricing_yearly', '99.99' );
-		$lifetime_price = get_option( 'dlm_pricing_lifetime', '199.99' );
-		$currency       = get_option( 'dlm_currency', 'USD' );
+		$plan_name     = $package ? $package['name'] : __( 'Monthly Membership', 'digital-library-membership' );
+		$plan_price    = $package ? number_format( floatval( $package['price'] ), 2 ) : '9.99';
+		$plan_interval = $package && ! empty( $package['interval'] ) ? $package['interval'] : 'monthly';
+		$plan_period   = ( 'lifetime' === $plan_interval ) ? __( '/one-time', 'digital-library-membership' ) : ( ( 'yearly' === $plan_interval ) ? __( '/yr', 'digital-library-membership' ) : __( '/mo', 'digital-library-membership' ) );
 
-		$plan_name   = __( 'Monthly Membership', 'digital-library-membership' );
-		$plan_price  = $monthly_price;
-		$plan_period = __( '/mo', 'digital-library-membership' );
-
-		if ( $selected_plan === 'yearly' ) {
-			$plan_name   = __( 'Yearly Membership', 'digital-library-membership' );
-			$plan_price  = $yearly_price;
-			$plan_period = __( '/yr', 'digital-library-membership' );
-		} elseif ( $selected_plan === 'lifetime' ) {
-			$plan_name   = __( 'Lifetime Access', 'digital-library-membership' );
-			$plan_price  = $lifetime_price;
-			$plan_period = __( '/one-time', 'digital-library-membership' );
-		}
-
-		$user_id   = get_current_user_id();
-		$sub       = $user_id ? $this->db->get_subscription_by_user( $user_id ) : null;
-		$is_active = $user_id ? $this->db->has_active_membership( $user_id ) : false;
+		$currency      = get_option( 'dlm_currency', 'USD' );
+		$user_id       = get_current_user_id();
+		$sub           = $user_id ? $this->db->get_subscription_by_user( $user_id ) : null;
+		$is_active     = $user_id ? $this->db->has_active_membership( $user_id ) : false;
 
 		if ( $sub && $sub->status === 'pending_approval' ) {
 			return '<div class="dlm-msg-box info" style="background:#fff9e6; border:1px solid #ffe0b3; color:#b36b00; padding:15px; border-radius:12px; margin-bottom:20px;">
@@ -741,7 +692,11 @@ class DLM_Public {
 		// Check if WooCommerce product is configured for this plan
 		$wc_product_id = 0;
 		if ( class_exists( 'WooCommerce' ) ) {
-			$wc_product_id = intval( get_option( 'dlm_wc_' . $selected_plan . '_product' ) );
+			if ( ! empty( $package['wc_product_id'] ) ) {
+				$wc_product_id = intval( $package['wc_product_id'] );
+			} else {
+				$wc_product_id = intval( get_option( 'dlm_wc_' . $plan_interval . '_product' ) );
+			}
 		}
 
 		ob_start();

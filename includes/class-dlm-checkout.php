@@ -27,15 +27,19 @@ class DLM_Checkout {
 
 		$interval = isset( $_POST['interval'] ) ? sanitize_text_field( wp_unslash( $_POST['interval'] ) ) : 'monthly';
 		$secret_key = get_option( 'dlm_stripe_secret_key' );
+		$pkg        = dlm_get_package( $interval );
 		
-		if ( $interval === 'lifetime' ) {
+		if ( $pkg && ! empty( $pkg['stripe_price_id'] ) ) {
+			$price_id = $pkg['stripe_price_id'];
+			$mode     = ( 'lifetime' === $pkg['interval'] ) ? 'payment' : 'subscription';
+		} elseif ( $interval === 'lifetime' ) {
 			$price_id = get_option( 'dlm_stripe_lifetime_price_id' );
-			$mode = 'payment'; // One-time payment
+			$mode     = 'payment'; // One-time payment
 		} else {
 			$price_id = ( $interval === 'yearly' ) 
 				? get_option( 'dlm_stripe_yearly_price_id' ) 
 				: get_option( 'dlm_stripe_monthly_price_id' );
-			$mode = 'subscription'; // Recurring subscription
+			$mode     = 'subscription'; // Recurring subscription
 		}
 
 		if ( empty( $secret_key ) || empty( $price_id ) ) {
@@ -555,13 +559,17 @@ class DLM_Checkout {
 
 		if ( $db_id ) {
 			// Record Transaction as waiting_approval
-			$price = 0.00;
-			if ( $interval === 'monthly' ) {
-				$price = get_option( 'dlm_pricing_monthly', '9.99' );
+			$pkg = dlm_get_package( $interval );
+			if ( $pkg && isset( $pkg['price'] ) ) {
+				$price = floatval( $pkg['price'] );
+			} elseif ( $interval === 'monthly' ) {
+				$price = floatval( get_option( 'dlm_pricing_monthly', '9.99' ) );
 			} elseif ( $interval === 'yearly' ) {
-				$price = get_option( 'dlm_pricing_yearly', '99.99' );
+				$price = floatval( get_option( 'dlm_pricing_yearly', '99.99' ) );
 			} elseif ( $interval === 'lifetime' ) {
-				$price = get_option( 'dlm_pricing_lifetime', '199.99' );
+				$price = floatval( get_option( 'dlm_pricing_lifetime', '199.99' ) );
+			} else {
+				$price = 0.00;
 			}
 
 			$db->insert_transaction( array(

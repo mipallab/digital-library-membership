@@ -77,6 +77,7 @@ if ( '1' === $delete_data || true === $delete_data ) {
 		'dlm_apple_team_id',
 		'dlm_apple_key_id',
 		'dlm_apple_private_key',
+		'dlm_subscription_packages',
 		'dlm_delete_data_on_uninstall',
 	);
 

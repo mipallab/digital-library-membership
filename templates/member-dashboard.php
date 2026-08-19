@@ -114,14 +114,19 @@ if ( $is_logged_in ) {
 // Pricing options
 $currency = get_option( 'dlm_currency', 'USD' );
 $payment_engine = dlm_get_payment_engine();
-$price_monthly = get_option( 'dlm_pricing_monthly', '12.00' );
-$price_yearly = get_option( 'dlm_pricing_yearly', '99.00' );
-$price_lifetime = get_option( 'dlm_pricing_lifetime', '199.00' );
+$pkg_monthly  = dlm_get_package( 'monthly' );
+$pkg_yearly   = dlm_get_package( 'yearly' );
+$pkg_lifetime = dlm_get_package( 'lifetime' );
+
+$price_monthly  = $pkg_monthly ? $pkg_monthly['price'] : '9.99';
+$price_yearly   = $pkg_yearly ? $pkg_yearly['price'] : '99.99';
+$price_lifetime = $pkg_lifetime ? $pkg_lifetime['price'] : '199.99';
+
 $stripe_publishable_key = get_option( 'dlm_stripe_publishable_key' );
-$paypal_client_id = get_option( 'dlm_paypal_client_id' );
-$paypal_monthly_plan = get_option( 'dlm_paypal_monthly_plan_id' );
-$paypal_yearly_plan = get_option( 'dlm_paypal_yearly_plan_id' );
-$paypal_lifetime_plan = get_option( 'dlm_paypal_lifetime_plan_id' );
+$paypal_client_id       = get_option( 'dlm_paypal_client_id' );
+$paypal_monthly_plan    = ( $pkg_monthly && ! empty( $pkg_monthly['paypal_plan_id'] ) ) ? $pkg_monthly['paypal_plan_id'] : '';
+$paypal_yearly_plan     = ( $pkg_yearly && ! empty( $pkg_yearly['paypal_plan_id'] ) ) ? $pkg_yearly['paypal_plan_id'] : '';
+$paypal_lifetime_plan   = ( $pkg_lifetime && ! empty( $pkg_lifetime['paypal_plan_id'] ) ) ? $pkg_lifetime['paypal_plan_id'] : '';
 
 // Public parameters localize
 $dlm_public_nonce = wp_create_nonce( 'dlm_public_nonce' );
@@ -1950,6 +1955,13 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			shouldShowOnboarding: <?php echo $should_show_onboarding ? 'true' : 'false'; ?>,
 			onboardingCompleted: '<?php echo esc_js( $onboarding_completed ); ?>'
 		};
+		// Immediately populate and synchronize window.dlmParams for all inline handlers & closures
+		window.dlmParams = window.dlmParams || {};
+		for (var k in window.dlmDashboardParams) {
+			if (Object.prototype.hasOwnProperty.call(window.dlmDashboardParams, k)) {
+				window.dlmParams[k] = window.dlmDashboardParams[k];
+			}
+		}
 	</script>
 <?php else : ?>
 	<script>
@@ -1957,6 +1969,12 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			ajaxUrl: '<?php echo esc_js( $ajax_url ); ?>',
 			nonce: '<?php echo esc_js( $dlm_public_nonce ); ?>'
 		};
+		window.dlmParams = window.dlmParams || {};
+		for (var k in window.dlmDashboardParams) {
+			if (Object.prototype.hasOwnProperty.call(window.dlmDashboardParams, k)) {
+				window.dlmParams[k] = window.dlmDashboardParams[k];
+			}
+		}
 	</script>
 <?php endif; ?>
 
@@ -2272,12 +2290,26 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		// TAB NAVIGATION LAYER
 		// -------------------------------------------------------------
 		function showTab(tabName) {
+			const validTabs = ['library', 'discover', 'journal', 'collections', 'membership', 'achievements', 'settings', 'checkout'];
+			if (!validTabs.includes(tabName)) {
+				tabName = 'library';
+			}
+
 			// Auto close mobile drawer on tab switch
 			closeMobileDrawer();
 
 			// Toggle views
 			jQuery('.spa-page').addClass('hidden');
 			jQuery('#section-' + tabName).removeClass('hidden');
+
+			// Sync URL hash without page jump
+			try {
+				if (window.history && window.history.replaceState) {
+					const currentUrl = new URL(window.location.href);
+					currentUrl.hash = tabName;
+					window.history.replaceState(null, '', currentUrl.toString());
+				}
+			} catch (err) {}
 
 			// Update title
 			let pageTitle = 'Library';
@@ -2320,6 +2352,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				window.scrollTo({ top: 0, behavior: 'smooth' });
 			}
 		}
+		window.showTab = showTab;
 
 		// -------------------------------------------------------------
 		// LIBRARY FILTERING & SEARCH
@@ -2331,10 +2364,13 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				jQuery(btnEl).addClass('active-chip active');
 			}
 
+			const params = window.dlmParams || window.dlmDashboardParams || {};
+			const favList = Array.isArray(params.favoriteBooks) ? params.favoriteBooks : [];
+
 			jQuery('.book-card-el').each(function() {
 				const rawCats = jQuery(this).data('categories') || '';
 				const cardCat = rawCats.toString().toLowerCase().split(' ');
-				const isFav = dlmParams.favoriteBooks.includes(jQuery(this).data('book-id'));
+				const isFav = favList.includes(jQuery(this).data('book-id'));
 				const readPct = parseInt(jQuery(this).data('pct'), 10) || 0;
 				const targetCat = cat.toString().toLowerCase();
 
@@ -2369,13 +2405,17 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 
 		// Toggle book bookmark / favorite status
 		function toggleFavoriteBook(bookId, btnEl) {
-			jQuery.post(dlmParams.ajaxUrl, {
+			const params = window.dlmParams || window.dlmDashboardParams || {};
+			if (!params.ajaxUrl || !params.nonce) return;
+			jQuery.post(params.ajaxUrl, {
 				action: 'dlm_toggle_favorite',
-				nonce: dlmParams.nonce,
+				nonce: params.nonce,
 				book_id: bookId
 			}, function(res) {
 				if (res.success) {
-					dlmParams.favoriteBooks = res.data.favorites;
+					params.favoriteBooks = res.data.favorites;
+					if (window.dlmParams) window.dlmParams.favoriteBooks = res.data.favorites;
+					if (window.dlmDashboardParams) window.dlmDashboardParams.favoriteBooks = res.data.favorites;
 					const icon = jQuery(btnEl).find('i');
 					if (res.data.is_favorite) {
 						icon.removeClass('fa-regular').addClass('fa-solid');
@@ -2391,7 +2431,10 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 
 		// Sync helper
 		function syncSmartShelvesCount() {
-			jQuery('#favorites-count').text(dlmParams.favoriteBooks.length + ' books');
+			const params = window.dlmParams || window.dlmDashboardParams || {};
+			const favList = Array.isArray(params.favoriteBooks) ? params.favoriteBooks : [];
+			const notesList = Array.isArray(params.userNotes) ? params.userNotes : [];
+			jQuery('#favorites-count').text(favList.length + ' books');
 			
 			let readingCount = 0;
 			jQuery('.book-card-el').each(function() {
@@ -2399,7 +2442,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				if (readPct > 0 && readPct < 100) readingCount++;
 			});
 			jQuery('#currently-reading-count').text(readingCount + ' books');
-			jQuery('#journal-logs-count').text(dlmParams.userNotes.length + ' logs');
+			jQuery('#journal-logs-count').text(notesList.length + ' logs');
 		}
 
 		// -------------------------------------------------------------
@@ -2409,7 +2452,10 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			const container = jQuery('#journal-notes-grid');
 			container.html('');
 
-			if (dlmParams.userNotes.length === 0) {
+			const params = window.dlmParams || window.dlmDashboardParams || {};
+			const notesList = Array.isArray(params.userNotes) ? params.userNotes : [];
+
+			if (notesList.length === 0) {
 				container.html(`
 					<div class="col-span-full py-16 text-center bg-white border border-outline-variant/30 rounded-3xl book-card-shadow">
 						<i class="fa-solid fa-pen-to-square text-secondary/40 text-4xl mb-3 block"></i>
@@ -2899,7 +2945,8 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			}
 
 			function loadState() {
-				let state = dlmParams.userAchievements;
+				const params = window.dlmParams || window.dlmDashboardParams || {};
+				let state = params.userAchievements;
 				if (!state || Object.keys(state).length === 0) {
 					try {
 						state = JSON.parse(localStorage.getItem(STORE_KEY));
@@ -2927,9 +2974,12 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			function saveState(state) {
 				localStorage.setItem(STORE_KEY, JSON.stringify(state));
 				
-				jQuery.post(dlmParams.ajaxUrl, {
+				const params = window.dlmParams || window.dlmDashboardParams || {};
+				if (!params.ajaxUrl || !params.nonce) return;
+
+				jQuery.post(params.ajaxUrl, {
 					action: 'dlm_sync_achievements',
-					nonce: dlmParams.nonce,
+					nonce: params.nonce,
 					state: JSON.stringify(state)
 				});
 			}
@@ -3170,6 +3220,34 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				showTab('membership');
 			}
 
+			function initTabFromUrl() {
+				const validTabs = ['library', 'discover', 'journal', 'collections', 'membership', 'achievements', 'settings', 'checkout'];
+				let targetTab = null;
+
+				// Check URL hash (#membership, #library, etc.)
+				if (window.location.hash) {
+					const hash = window.location.hash.replace('#', '').toLowerCase().trim();
+					if (validTabs.includes(hash)) {
+						targetTab = hash;
+					}
+				}
+
+				// Check URL query parameter (?tab=membership, etc.)
+				if (!targetTab) {
+					try {
+						const urlParams = new URLSearchParams(window.location.search);
+						const tabParam = urlParams.get('tab');
+						if (tabParam && validTabs.includes(tabParam.toLowerCase().trim())) {
+							targetTab = tabParam.toLowerCase().trim();
+						}
+					} catch (e) {}
+				}
+
+				if (targetTab && targetTab !== 'library') {
+					showTab(targetTab);
+				}
+			}
+
 			function init() {
 				const state = loadState();
 				const result = bumpStreakOnVisit(state);
@@ -3188,6 +3266,18 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				}
 
 				handlePaymentRedirectStatus();
+				initTabFromUrl();
+
+				// Responsive back/forward and hash navigation listener
+				window.addEventListener('hashchange', function() {
+					if (window.location.hash) {
+						const h = window.location.hash.replace('#', '').toLowerCase().trim();
+						const valid = ['library', 'discover', 'journal', 'collections', 'membership', 'achievements', 'settings', 'checkout'];
+						if (valid.includes(h)) {
+							showTab(h);
+						}
+					}
+				});
 
 				// Real-time countdown timer for scheduled release books
 				function parseReleaseTime(str) {

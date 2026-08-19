@@ -298,6 +298,56 @@ function initModalSystem() {
         }
     });
 
+    // Populate Edit Package Modal
+    jQuery(document).on('click', '.btn-edit-package', function() {
+        const card = jQuery(this).closest('[data-package-id]');
+        const id = card.attr('data-package-id');
+        const name = card.attr('data-name') || '';
+        const badge = card.attr('data-badge') || '';
+        const desc = card.attr('data-description') || '';
+        const interval = card.attr('data-interval') || 'monthly';
+        const price = card.attr('data-price') || '0.00';
+        const status = card.attr('data-status') || 'active';
+        const features = card.attr('data-features') || '';
+        const stripePrice = card.attr('data-stripe-price') || '';
+        const paypalPlan = card.attr('data-paypal-plan') || '';
+        const wcProduct = card.attr('data-wc-product') || '0';
+
+        jQuery('#edit-package-id').val(id);
+        jQuery('#edit-package-name').val(name);
+        jQuery('#edit-package-badge').val(badge);
+        jQuery('#edit-package-description').val(desc);
+        jQuery('#edit-package-interval').val(interval);
+        jQuery('#edit-package-price').val(parseFloat(price).toFixed(2));
+        jQuery('#edit-package-status').val(status);
+        jQuery('#edit-package-features').val(features);
+        jQuery('#edit-package-stripe-price').val(stripePrice);
+        jQuery('#edit-package-paypal-plan').val(paypalPlan);
+        jQuery('#edit-package-wc-product').val(wcProduct);
+
+        window.openModal('edit-package-modal');
+    });
+
+    // Populate Delete Package Modal
+    jQuery(document).on('click', '.btn-delete-package', function() {
+        const card = jQuery(this).closest('[data-package-id]');
+        const id = card.attr('data-package-id');
+        const name = card.attr('data-name') || id;
+        const subscribers = parseInt(card.attr('data-subscribers') || '0', 10);
+
+        jQuery('#delete-package-id').val(id);
+        jQuery('#delete-package-name-display').text(name);
+        jQuery('#delete-package-subscribers-count').text(subscribers);
+
+        if (subscribers > 0) {
+            jQuery('#delete-package-subscribers-warning').removeClass('hidden');
+        } else {
+            jQuery('#delete-package-subscribers-warning').addClass('hidden');
+        }
+
+        window.openModal('delete-package-modal');
+    });
+
     // Populate Delete Member Modal
     jQuery(document).on('click', '.btn-delete-member', function() {
         const tr = jQuery(this).closest('tr');
