@@ -1700,12 +1700,6 @@ class DLM_Admin {
 		}
 	}
 
-		dlm_save_packages( $packages );
-
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_updated' ) );
-		exit;
-	}
-
 	/**
 	 * Process form submission to delete a subscription package
 	 * (Deletes immediately without blocking, showing warning in UI only)
