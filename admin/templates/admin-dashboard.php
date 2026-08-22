@@ -1505,7 +1505,6 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 							</div>
 						</div>
 						<?php endif; ?>
-						<?php endif; ?>
 
 						<!-- Security & Legal Panel -->
 						<div id="panel-settings-security" class="space-y-6 hidden">
