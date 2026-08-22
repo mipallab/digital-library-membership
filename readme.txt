@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf reader, gutenberg, elementor, access co
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.6.2
+Stable tag: 2.6.3
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -107,6 +107,10 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 2.6.3 =
+* Security: Converted database queries (DLM_DB::get_book_purchases and DLM_DB::notification_exists) to inline string literal $wpdb->prepare() queries to satisfy strict PluginCheck static analysis.
+* Improved: Updated Elementor Book Countdown target date control to site-timezone-safe wp_date().
 
 = 2.6.2 =
 * Fixed: Resolved duplicate endif statement in admin dashboard settings template.
