@@ -735,36 +735,36 @@ class DLM_DB {
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_pur ) ) !== $t_pur ) {
 			return array();
 		}
+		$has_access = ( ! empty( $filters['access_type'] ) && $filters['access_type'] !== 'all' ) ? 1 : 0;
+		$access_val = $has_access ? sanitize_text_field( $filters['access_type'] ) : '';
 
-		$where = array( '1=1' );
-		$args  = array( $t_pur, $t_bks, $wpdb->users );
+		$has_book   = ( ! empty( $filters['book_id'] ) ) ? 1 : 0;
+		$book_val   = $has_book ? intval( $filters['book_id'] ) : 0;
 
-		if ( ! empty( $filters['access_type'] ) && $filters['access_type'] !== 'all' ) {
-			$where[] = 'b.access_type = %s';
-			$args[]  = sanitize_text_field( $filters['access_type'] );
-		}
+		$has_status = ( ! empty( $filters['status'] ) && $filters['status'] !== 'all' ) ? 1 : 0;
+		$status_val = $has_status ? sanitize_text_field( $filters['status'] ) : '';
 
-		if ( ! empty( $filters['book_id'] ) ) {
-			$where[] = 'p.book_id = %d';
-			$args[]  = intval( $filters['book_id'] );
-		}
-
-		if ( ! empty( $filters['status'] ) && $filters['status'] !== 'all' ) {
-			$where[] = 'p.status = %s';
-			$args[]  = sanitize_text_field( $filters['status'] );
-		}
-
-		$where_clause = implode( ' AND ', $where );
-
-		$query = "SELECT p.*, b.title as book_title, b.access_type, b.cover_image_url, u.display_name, u.user_email 
-			FROM %i p
-			LEFT JOIN %i b ON p.book_id = b.id
-			LEFT JOIN %i u ON p.user_id = u.ID
-			WHERE {$where_clause}
-			ORDER BY p.created_at DESC";
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		return $wpdb->get_results( $wpdb->prepare( $query, $args ) );
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT p.*, b.title as book_title, b.access_type, b.cover_image_url, u.display_name, u.user_email 
+				FROM %i p
+				LEFT JOIN %i b ON p.book_id = b.id
+				LEFT JOIN %i u ON p.user_id = u.ID
+				WHERE (%d = 0 OR b.access_type = %s)
+				  AND (%d = 0 OR p.book_id = %d)
+				  AND (%d = 0 OR p.status = %s)
+				ORDER BY p.created_at DESC",
+				$t_pur,
+				$t_bks,
+				$wpdb->users,
+				$has_access,
+				$access_val,
+				$has_book,
+				$book_val,
+				$has_status,
+				$status_val
+			)
+		);
 	}
 
 	/**
@@ -781,21 +781,25 @@ class DLM_DB {
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_pur ) ) === $t_pur ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					"UPDATE %i SET status = 'cancelled', updated_at = %s WHERE status = 'pending' AND created_at < %s",
+					"UPDATE %i SET status = %s, updated_at = %s WHERE status = %s AND created_at < %s",
 					$t_pur,
+					'failed',
 					current_time( 'mysql' ),
+					'pending_payment',
 					$cutoff
 				)
 			);
 		}
 
-		// Clean up stale pending manual subscriptions older than 24 hours
+		// Clean up stale subscriptions
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_subs ) ) === $t_subs ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					"UPDATE %i SET status = 'expired', updated_at = %s WHERE status = 'pending' AND created_at < %s",
+					"UPDATE %i SET status = %s, updated_at = %s WHERE status = %s AND created_at < %s",
 					$t_subs,
+					'cancelled',
 					current_time( 'mysql' ),
+					'pending',
 					$cutoff
 				)
 			);
@@ -805,8 +809,11 @@ class DLM_DB {
 		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $t_tx ) ) === $t_tx ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					"UPDATE %i SET status = 'cancelled' WHERE status IN ('pending', 'waiting_approval') AND created_at < %s",
+					"UPDATE %i SET status = %s, updated_at = %s WHERE status = %s AND created_at < %s",
 					$t_tx,
+					'failed',
+					current_time( 'mysql' ),
+					'pending',
 					$cutoff
 				)
 			);
@@ -987,23 +994,55 @@ class DLM_DB {
 			return false;
 		}
 
-		$sql    = "SELECT id FROM %i WHERE user_id = %d AND type = %s";
-		$params = array( $table, intval( $user_id ), sanitize_key( $type ) );
+		$uid        = intval( $user_id );
+		$type_clean = sanitize_key( $type );
 
-		if ( ! empty( $title_like ) ) {
-			$sql     .= " AND title LIKE %s";
-			$params[] = '%' . $wpdb->esc_like( $title_like ) . '%';
+		if ( ! empty( $title_like ) && ! empty( $since_date ) ) {
+			$title_param = '%' . $wpdb->esc_like( $title_like ) . '%';
+			$since_param = sanitize_text_field( $since_date );
+			$found = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM %i WHERE user_id = %d AND type = %s AND title LIKE %s AND created_at >= %s LIMIT 1",
+					$table,
+					$uid,
+					$type_clean,
+					$title_param,
+					$since_param
+				)
+			);
+		} elseif ( ! empty( $title_like ) ) {
+			$title_param = '%' . $wpdb->esc_like( $title_like ) . '%';
+			$found = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM %i WHERE user_id = %d AND type = %s AND title LIKE %s LIMIT 1",
+					$table,
+					$uid,
+					$type_clean,
+					$title_param
+				)
+			);
+		} elseif ( ! empty( $since_date ) ) {
+			$since_param = sanitize_text_field( $since_date );
+			$found = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM %i WHERE user_id = %d AND type = %s AND created_at >= %s LIMIT 1",
+					$table,
+					$uid,
+					$type_clean,
+					$since_param
+				)
+			);
+		} else {
+			$found = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM %i WHERE user_id = %d AND type = %s LIMIT 1",
+					$table,
+					$uid,
+					$type_clean
+				)
+			);
 		}
 
-		if ( ! empty( $since_date ) ) {
-			$sql     .= " AND created_at >= %s";
-			$params[] = sanitize_text_field( $since_date );
-		}
-
-		$sql .= " LIMIT 1";
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$found = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
 		return ! empty( $found );
 	}
 

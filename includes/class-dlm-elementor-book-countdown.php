@@ -99,7 +99,7 @@ class DLM_Elementor_Book_Countdown extends \Elementor\Widget_Base {
 			array(
 				'label'       => __( 'Target Date & Time', 'digital-library-membership' ),
 				'type'        => \Elementor\Controls_Manager::DATE_TIME,
-				'default'     => date( 'Y-m-d H:i', strtotime( '+7 days' ) ),
+				'default'     => wp_date( 'Y-m-d H:i', strtotime( '+7 days' ) ),
 				'description' => __( 'Set the target date and time for the countdown.', 'digital-library-membership' ),
 				'condition'   => array(
 					'countdown_source' => 'custom',
