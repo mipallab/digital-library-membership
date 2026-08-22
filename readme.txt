@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf reader, gutenberg, elementor, access co
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.6.0
+Stable tag: 2.6.1
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -107,6 +107,13 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 2.6.1 =
+* Security: Hardened database queries with strict $wpdb->prepare() parameter bindings and identifier placeholders (%i).
+* Security: Added output escaping (esc_attr(), esc_html()) on notification unread badges, time diffs, and subscription package counters.
+* Security: Added wp_unslash() and absint integer sanitization on AJAX featured book access IDs.
+* Security: Guarded Stripe error logging with WP_DEBUG check for production safety.
+* Improved: Timezone-safe ISO date generation with wp_date() and gmdate() fallbacks.
 
 = 2.6.0 =
 * Added: Subscription Package Management Admin Screen (`sec-plans`) with Bento KPI metrics, table management, live subscriber counts, and 1-click active/inactive toggle.

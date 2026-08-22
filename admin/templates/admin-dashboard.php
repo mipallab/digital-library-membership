@@ -716,8 +716,8 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 			<!-- Packages Table Card -->
 			<div class="bento-card bg-white rounded-2xl border border-outline-variant/20 shadow-sm overflow-hidden mb-8">
 				<div class="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
-					<h4 class="text-sm font-bold text-on-surface">Configured Subscription Plans</h4>
-					<span class="text-xs text-secondary"><?php echo sprintf( _n( '%d Package', '%d Packages', count( $packages ), 'digital-library-membership' ), count( $packages ) ); ?></span>
+					<h4 class="font-bold text-on-surface text-sm">Configured Subscription Plans</h4>
+					<span class="text-xs text-secondary"><?php echo esc_html( sprintf( _n( '%d Package', '%d Packages', count( $packages ), 'digital-library-membership' ), count( $packages ) ) ); ?></span>
 				</div>
 
 				<div class="overflow-x-auto">

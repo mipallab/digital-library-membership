@@ -81,21 +81,29 @@ class DLM_DB {
 			return;
 		}
 
-		$needed_columns = array(
-			'is_featured'             => "ALTER TABLE %i ADD COLUMN is_featured tinyint(1) DEFAULT 0",
-			'featured_title'          => "ALTER TABLE %i ADD COLUMN featured_title varchar(255) DEFAULT ''",
-			'featured_description'    => "ALTER TABLE %i ADD COLUMN featured_description text DEFAULT NULL",
-			'featured_banner_id'      => "ALTER TABLE %i ADD COLUMN featured_banner_id bigint(20) DEFAULT 0",
-			'featured_banner_url'     => "ALTER TABLE %i ADD COLUMN featured_banner_url varchar(255) DEFAULT ''",
-			'featured_button_1_label' => "ALTER TABLE %i ADD COLUMN featured_button_1_label varchar(100) DEFAULT ''",
-			'featured_button_2_label' => "ALTER TABLE %i ADD COLUMN featured_button_2_label varchar(100) DEFAULT ''",
-			'featured_order'          => "ALTER TABLE %i ADD COLUMN featured_order int(11) DEFAULT 0",
-		);
-
-		foreach ( $needed_columns as $col => $sql ) {
-			if ( ! in_array( $col, $columns, true ) ) {
-				$wpdb->query( $wpdb->prepare( $sql, $table ) );
-			}
+		if ( ! in_array( 'is_featured', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN is_featured tinyint(1) DEFAULT 0", $table ) );
+		}
+		if ( ! in_array( 'featured_title', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_title varchar(255) DEFAULT ''", $table ) );
+		}
+		if ( ! in_array( 'featured_description', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_description text DEFAULT NULL", $table ) );
+		}
+		if ( ! in_array( 'featured_banner_id', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_banner_id bigint(20) DEFAULT 0", $table ) );
+		}
+		if ( ! in_array( 'featured_banner_url', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_banner_url varchar(255) DEFAULT ''", $table ) );
+		}
+		if ( ! in_array( 'featured_button_1_label', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_button_1_label varchar(100) DEFAULT ''", $table ) );
+		}
+		if ( ! in_array( 'featured_button_2_label', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_button_2_label varchar(100) DEFAULT ''", $table ) );
+		}
+		if ( ! in_array( 'featured_order', $columns, true ) ) {
+			$wpdb->query( $wpdb->prepare( "ALTER TABLE %i ADD COLUMN featured_order int(11) DEFAULT 0", $table ) );
 		}
 
 		set_transient( 'dlm_featured_schema_checked', 1, DAY_IN_SECONDS );
@@ -729,11 +737,11 @@ class DLM_DB {
 		}
 
 		$where = array( '1=1' );
-		$args  = array();
+		$args  = array( $t_pur, $t_bks, $wpdb->users );
 
 		if ( ! empty( $filters['access_type'] ) && $filters['access_type'] !== 'all' ) {
 			$where[] = 'b.access_type = %s';
-			$args[]  = $filters['access_type'];
+			$args[]  = sanitize_text_field( $filters['access_type'] );
 		}
 
 		if ( ! empty( $filters['book_id'] ) ) {
@@ -743,25 +751,20 @@ class DLM_DB {
 
 		if ( ! empty( $filters['status'] ) && $filters['status'] !== 'all' ) {
 			$where[] = 'p.status = %s';
-			$args[]  = $filters['status'];
+			$args[]  = sanitize_text_field( $filters['status'] );
 		}
 
 		$where_clause = implode( ' AND ', $where );
 
 		$query = "SELECT p.*, b.title as book_title, b.access_type, b.cover_image_url, u.display_name, u.user_email 
-			FROM {$t_pur} p
-			LEFT JOIN {$t_bks} b ON p.book_id = b.id
-			LEFT JOIN {$wpdb->users} u ON p.user_id = u.ID
+			FROM %i p
+			LEFT JOIN %i b ON p.book_id = b.id
+			LEFT JOIN %i u ON p.user_id = u.ID
 			WHERE {$where_clause}
 			ORDER BY p.created_at DESC";
 
-		if ( ! empty( $args ) ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			return $wpdb->get_results( $wpdb->prepare( $query, $args ) );
-		}
-
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		return $wpdb->get_results( $query );
+		return $wpdb->get_results( $wpdb->prepare( $query, $args ) );
 	}
 
 	/**
@@ -994,12 +997,12 @@ class DLM_DB {
 
 		if ( ! empty( $since_date ) ) {
 			$sql     .= " AND created_at >= %s";
-			$params[] = $since_date;
+			$params[] = sanitize_text_field( $since_date );
 		}
 
 		$sql .= " LIMIT 1";
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$found = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
 		return ! empty( $found );
 	}

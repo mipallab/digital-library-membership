@@ -1588,7 +1588,10 @@ class DLM_Admin {
 					}
 				} catch ( Exception $e ) {
 					// Gracefully capture Stripe error without blocking package persistence
-					error_log( 'DLM Stripe auto-sync error: ' . $e->getMessage() );
+					if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+						// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+						error_log( 'DLM Stripe auto-sync error: ' . $e->getMessage() );
+					}
 				}
 			}
 		}

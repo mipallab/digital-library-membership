@@ -78,7 +78,7 @@ class DLM_Public {
 				if ( ! empty( $b->publish_date ) ) {
 					$publish_iso = wp_date( 'c', strtotime( $b->publish_date ) );
 					if ( empty( $publish_iso ) ) {
-						$publish_iso = date( 'c', strtotime( $b->publish_date ) );
+						$publish_iso = gmdate( 'c', strtotime( $b->publish_date ) );
 					}
 					if ( empty( $publish_iso ) ) {
 						$publish_iso = str_replace( ' ', 'T', trim( $b->publish_date ) );
@@ -1644,8 +1644,8 @@ class DLM_Public {
 		$is_logged = is_user_logged_in();
 		
 		// Sanitize array of book IDs to safe positive integers
-		$raw_ids = isset( $_POST['book_ids'] ) ? (array) $_POST['book_ids'] : array();
-		$book_ids = array_filter( array_map( 'intval', $raw_ids ) );
+		$raw_ids  = isset( $_POST['book_ids'] ) ? (array) wp_unslash( $_POST['book_ids'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$book_ids = array_filter( array_map( 'absint', $raw_ids ) );
 
 		$currency = get_option( 'dlm_currency', 'USD' );
 		$pricing_url = get_permalink( get_option( 'dlm_pricing_page_id' ) );

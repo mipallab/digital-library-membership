@@ -899,7 +899,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 					$notifs_list = ! empty( $db_notifications ) ? $db_notifications : array();
 					$unread_total = isset( $unread_notif_count ) ? intval( $unread_notif_count ) : 0;
 					?>
-					<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative cursor-pointer" type="button" aria-haspopup="true" aria-expanded="false" aria-label="<?php echo $unread_total > 0 ? sprintf( esc_attr__( 'Notifications (%d unread)', 'digital-library-membership' ), $unread_total ) : esc_attr__( 'Notifications (No unread)', 'digital-library-membership' ); ?>">
+					<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative cursor-pointer" type="button" aria-haspopup="true" aria-expanded="false" aria-label="<?php echo esc_attr( $unread_total > 0 ? sprintf( __( 'Notifications (%d unread)', 'digital-library-membership' ), $unread_total ) : __( 'Notifications (No unread)', 'digital-library-membership' ) ); ?>">
 						<i class="fa-regular fa-bell text-[18px] md:text-[20px]"></i>
 						<span id="notification-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-surface shadow-sm<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo intval( $unread_total ); ?></span>
 					</button>
@@ -908,7 +908,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						<div class="px-3 pb-2.5 border-b border-outline-variant/20 flex justify-between items-center">
 							<div class="flex items-center gap-2">
 								<h4 class="font-bold text-on-surface text-sm"><?php esc_html_e( 'Notifications', 'digital-library-membership' ); ?></h4>
-								<span id="notification-unread-pill" class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo sprintf( esc_html__( '%d new', 'digital-library-membership' ), $unread_total ); ?></span>
+								<span id="notification-unread-pill" class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo esc_html( sprintf( __( '%d new', 'digital-library-membership' ), $unread_total ) ); ?></span>
 							</div>
 							<button type="button" class="text-xs font-bold text-primary hover:underline cursor-pointer transition-colors p-1" id="mark-all-read-btn"><?php esc_html_e( 'Mark all read', 'digital-library-membership' ); ?></button>
 						</div>
@@ -952,7 +952,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center justify-between gap-1 mb-0.5">
 												<p class="text-xs font-bold text-on-surface truncate leading-tight"><?php echo esc_html( $notif->title ); ?></p>
-												<span class="text-[10px] text-secondary shrink-0 opacity-80"><?php echo sprintf( esc_html__( '%s ago', 'digital-library-membership' ), $time_diff ); ?></span>
+												<span class="text-[10px] text-secondary shrink-0 opacity-80"><?php echo esc_html( sprintf( __( '%s ago', 'digital-library-membership' ), $time_diff ) ); ?></span>
 											</div>
 											<p class="text-[11px] text-secondary leading-snug line-clamp-2"><?php echo esc_html( $notif->message ); ?></p>
 										</div>
@@ -1002,7 +1002,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 							$f_is_future = ( ! empty( $fb->publish_date ) && strtotime( $fb->publish_date ) > current_time( 'timestamp' ) ) || ( isset( $fb->status ) && $fb->status === 'future' );
 							$f_publish_iso = ! empty( $fb->publish_date ) ? wp_date( 'c', strtotime( $fb->publish_date ) ) : '';
 							if ( empty( $f_publish_iso ) && ! empty( $fb->publish_date ) ) {
-								$f_publish_iso = date( 'c', strtotime( $fb->publish_date ) );
+								$f_publish_iso = gmdate( 'c', strtotime( $fb->publish_date ) );
 							}
 							if ( empty( $f_publish_iso ) && ! empty( $fb->publish_date ) ) {
 								$f_publish_iso = str_replace( ' ', 'T', trim( $fb->publish_date ) );
@@ -1202,7 +1202,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						if ( ! empty( $book->publish_date ) ) {
 							$publish_iso = wp_date( 'c', strtotime( $book->publish_date ) );
 							if ( empty( $publish_iso ) ) {
-								$publish_iso = date( 'c', strtotime( $book->publish_date ) );
+								$publish_iso = gmdate( 'c', strtotime( $book->publish_date ) );
 							}
 							if ( empty( $publish_iso ) ) {
 								$publish_iso = str_replace( ' ', 'T', trim( $book->publish_date ) );
