@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf reader, gutenberg, elementor, access co
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 2.6.1
+Stable tag: 2.6.2
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -107,6 +107,11 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 2.6.2 =
+* Fixed: Resolved duplicate endif statement in admin dashboard settings template.
+* Fixed: Cleaned up stray duplicate handler code in DLM_Admin package manager.
+* Security: Full audit completed with 100% prepared queries, sanitized inputs, and escaped template outputs.
 
 = 2.6.1 =
 * Security: Hardened database queries with strict $wpdb->prepare() parameter bindings and identifier placeholders (%i).
