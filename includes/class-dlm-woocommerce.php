@@ -62,10 +62,13 @@ class DLM_WooCommerce {
 		add_action( 'woocommerce_order_status_refunded', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 
-		// Headless template override for checkout/order-pay
+		// Headless template override for checkout/order-pay and checkout/form-checkout
 		add_filter( 'wc_get_template', array( $this, 'override_order_pay_template' ), 20, 5 );
 		add_filter( 'woocommerce_locate_template', array( $this, 'locate_order_pay_template' ), 20, 3 );
 		add_filter( 'the_content', array( $this, 'ensure_order_pay_rendered' ), 1 );
+
+		// Enqueue luxury Library Checkout styles on WooCommerce checkout page
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_styles' ), 20 );
 
 		// Register order-pay rewrite endpoint and ensure essential WooCommerce pages exist
 		add_action( 'init', array( $this, 'register_order_pay_rewrite' ) );
@@ -818,9 +821,25 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Template override: locate checkout/form-pay.php
+	 * Enqueue luxury Library Checkout styles on WooCommerce checkout page
+	 */
+	public function enqueue_checkout_styles() {
+		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+			wp_enqueue_style( 'dlm-font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css', array(), '6.4.0' );
+			wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
+		}
+	}
+
+	/**
+	 * Template override: locate checkout/form-checkout.php and checkout/form-pay.php
 	 */
 	public function locate_order_pay_template( $template, $template_name, $template_path ) {
+		if ( 'checkout/form-checkout.php' === $template_name ) {
+			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
+			if ( file_exists( $custom_checkout_template ) ) {
+				return $custom_checkout_template;
+			}
+		}
 		if ( 'checkout/form-pay.php' === $template_name ) {
 			$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
 			if ( file_exists( $custom_pay_template ) ) {
@@ -834,6 +853,12 @@ class DLM_WooCommerce {
 	 * Template override filter via wc_get_template
 	 */
 	public function override_order_pay_template( $located, $template_name, $args, $template_path, $default_path ) {
+		if ( 'checkout/form-checkout.php' === $template_name ) {
+			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
+			if ( file_exists( $custom_checkout_template ) ) {
+				return $custom_checkout_template;
+			}
+		}
 		if ( 'checkout/form-pay.php' === $template_name ) {
 			$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
 			if ( file_exists( $custom_pay_template ) ) {

@@ -1,0 +1,456 @@
+/**
+ * Digital Library Membership - WooCommerce Checkout Page Luxury Styling
+ * Matches the Member Dashboard `#checkout` design system pixel-for-pixel.
+ *
+ * @package    DLM
+ * @subpackage DLM/public/css
+ * @version    3.2.1
+ */
+
+/* Import Inter Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+/* ==========================================================================
+   1. Root Container & Wrapper
+   ========================================================================== */
+.dlm-checkout-page-root {
+    width: 100%;
+    min-height: 100vh;
+    background-color: #FAFAFA;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #1a1c1c;
+    padding: 40px 16px 80px;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+.dlm-checkout-container {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+/* ==========================================================================
+   2. Page Header
+   ========================================================================== */
+.dlm-checkout-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 36px;
+}
+
+.dlm-checkout-back-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #53433a;
+    font-size: 14px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.dlm-checkout-back-btn:hover {
+    background: #f3f3f3;
+    color: #855300;
+    border-color: #855300;
+    transform: translateX(-2px);
+}
+
+.dlm-checkout-header-content .dlm-badge-eyebrow {
+    color: #855300;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.dlm-checkout-header-content h1.dlm-checkout-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a1c1c;
+    margin: 0;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+/* ==========================================================================
+   3. Main 2-Column Grid Layout
+   ========================================================================== */
+.dlm-checkout-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: start;
+}
+
+@media (min-width: 992px) {
+    .dlm-checkout-grid {
+        grid-template-columns: 7fr 5fr;
+        gap: 40px;
+    }
+}
+
+/* ==========================================================================
+   4. Left Column: Billing Details & Payment Methods
+   ========================================================================== */
+.dlm-checkout-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.dlm-checkout-section-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 20px;
+    padding: 28px 32px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.dlm-checkout-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1c1c;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dlm-checkout-section-title .dlm-step-num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fdf6e9;
+    color: #855300;
+    font-size: 13px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Form Fields Styling */
+.dlm-checkout-left-col .form-row {
+    margin-bottom: 16px;
+    padding: 0;
+}
+
+.dlm-checkout-left-col label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #53433a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.dlm-checkout-left-col .input-text,
+.dlm-checkout-left-col input[type="text"],
+.dlm-checkout-left-col input[type="email"],
+.dlm-checkout-left-col input[type="tel"],
+.dlm-checkout-left-col input[type="password"],
+.dlm-checkout-left-col textarea,
+.dlm-checkout-left-col select,
+.dlm-checkout-left-col .select2-container--default .select2-selection--single {
+    width: 100% !important;
+    height: 48px !important;
+    padding: 0 16px !important;
+    background-color: #fcfcfc !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    color: #1a1c1c !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+.dlm-checkout-left-col textarea {
+    height: 90px !important;
+    padding: 12px 16px !important;
+}
+
+.dlm-checkout-left-col .input-text:focus,
+.dlm-checkout-left-col input:focus,
+.dlm-checkout-left-col select:focus,
+.dlm-checkout-left-col textarea:focus,
+.dlm-checkout-left-col .select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #855300 !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(133, 83, 0, 0.12) !important;
+}
+
+/* ==========================================================================
+   5. Payment Methods Styling (Interactive Cards)
+   ========================================================================== */
+.dlm-checkout-left-col .woocommerce-checkout-payment {
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+.dlm-checkout-left-col ul.wc_payment_methods {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 0 24px 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+.dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 14px !important;
+    padding: 16px 20px !important;
+    margin: 0 !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}
+
+.dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method:hover {
+    border-color: rgba(133, 83, 0, 0.4) !important;
+    background-color: #fdfaf6 !important;
+}
+
+.dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method input[type="radio"]:checked ~ label,
+.dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method:has(input[type="radio"]:checked) {
+    border-color: #855300 !important;
+    background-color: #fffbf2 !important;
+    box-shadow: 0 4px 14px rgba(133, 83, 0, 0.08) !important;
+}
+
+.dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method label {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #1a1c1c !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0 !important;
+}
+
+.dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method input[type="radio"] {
+    accent-color: #855300 !important;
+    margin-right: 8px !important;
+    transform: scale(1.15) !important;
+}
+
+.dlm-checkout-left-col .payment_box {
+    margin-top: 14px !important;
+    padding: 14px 16px !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(133, 83, 0, 0.15) !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    color: #53433a !important;
+    line-height: 1.5 !important;
+}
+
+.dlm-checkout-left-col .payment_box::before {
+    display: none !important;
+}
+
+/* ==========================================================================
+   6. Place Order Button
+   ========================================================================== */
+.dlm-checkout-left-col #place_order,
+.dlm-checkout-left-col button.button.alt,
+.dlm-checkout-left-col input[type="submit"].button.alt {
+    width: 100% !important;
+    height: 56px !important;
+    background: #855300 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 14px !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    text-transform: none !important;
+    letter-spacing: 0.02em !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    box-shadow: 0 4px 20px rgba(133, 83, 0, 0.3) !important;
+    margin-top: 12px !important;
+}
+
+.dlm-checkout-left-col #place_order:hover,
+.dlm-checkout-left-col button.button.alt:hover {
+    background: #704600 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 24px rgba(133, 83, 0, 0.4) !important;
+}
+
+.dlm-checkout-left-col #place_order:active {
+    transform: scale(0.98) !important;
+}
+
+/* ==========================================================================
+   7. Right Column: Sticky Order Summary Card
+   ========================================================================== */
+.dlm-checkout-right-col {
+    position: sticky;
+    top: 32px;
+}
+
+.dlm-summary-card {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+}
+
+.dlm-summary-header-banner {
+    position: relative;
+    height: 140px;
+    background: linear-gradient(135deg, #855300 0%, #3e2600 100%);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    color: #ffffff;
+}
+
+.dlm-summary-badge {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border-radius: 20px;
+    align-self: flex-start;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dlm-summary-plan-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+}
+
+.dlm-summary-body {
+    padding: 28px 24px;
+}
+
+.dlm-summary-items-list {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dlm-summary-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.dlm-summary-item-row:last-child {
+    margin-bottom: 0;
+}
+
+.dlm-summary-item-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1c1c;
+}
+
+.dlm-summary-item-desc {
+    font-size: 12px;
+    color: #71717a;
+}
+
+.dlm-summary-item-price {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1c1c;
+}
+
+.dlm-summary-calc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #53433a;
+    margin-bottom: 10px;
+}
+
+.dlm-summary-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dlm-summary-total-label {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1a1c1c;
+}
+
+.dlm-summary-total-amount {
+    font-size: 24px;
+    font-weight: 800;
+    color: #855300;
+    letter-spacing: -0.02em;
+}
+
+/* Trust / Feature List */
+.dlm-summary-trust-list {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dlm-summary-trust-item {
+    font-size: 12px;
+    color: #53433a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dlm-summary-trust-item span.dlm-check {
+    color: #16a34a;
+    font-weight: bold;
+}
+
+/* Security Footer Badges */
+.dlm-checkout-security-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+    font-size: 12px;
+    color: #a1a1aa;
+    text-align: center;
+}
