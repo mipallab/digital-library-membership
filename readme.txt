@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.1.0
+Stable tag: 3.2.0
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -108,6 +108,13 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.2.0 =
+* Security: Enforced strict direct script execution checks (`defined('ABSPATH')`) across all plugin bootstrap and class files.
+* Security: Hardened protected file repository with dual Apache 2.4+ (`Require all denied`) and Apache 2.2 (`Order Deny,Allow / Deny from all`) directives.
+* Security: Implemented `realpath()`, `is_file()`, and `is_readable()` validation on file downloads and reader streams to eliminate path-traversal vulnerabilities.
+* Fixed: Added missing global helper functions (`dlm_user_can_access_book`, `dlm_get_payment_engine`, `dlm_get_recaptcha_connection_status`) with defensive fallbacks.
+* Standards: Aligned Tested up to: 7.1 and achieved 100% compliance with WordPress Plugin Developer Handbook & Security Hardening guidelines.
 
 = 3.1.0 =
 * Security & Standards: 100% WordPress Plugin Check and PHPCS compliance passed.

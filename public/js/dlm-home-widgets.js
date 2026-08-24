@@ -4,7 +4,7 @@
  *
  * @package    DLM
  * @subpackage DLM/public/js
- * @version    3.1.0
+ * @version    3.2.0
  */
 
 (function () {
