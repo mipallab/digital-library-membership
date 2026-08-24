@@ -142,4 +142,4 @@ function dlm_run_digital_library_membership() {
 		$github_token
 	);
 }
-run_digital_library_membership();
+dlm_run_digital_library_membership();
