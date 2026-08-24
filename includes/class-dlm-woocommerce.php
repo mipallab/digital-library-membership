@@ -618,7 +618,7 @@ class DLM_WooCommerce {
 			return;
 		}
 
-		// 1. Ensure published Checkout page exists
+		// 1. Ensure published Checkout page exists with classic [woocommerce_checkout] shortcode
 		$checkout_page_id = (int) get_option( 'woocommerce_checkout_page_id', 0 );
 		$checkout_page    = ( $checkout_page_id > 0 ) ? get_post( $checkout_page_id ) : null;
 
@@ -626,20 +626,30 @@ class DLM_WooCommerce {
 			$existing_checkout = get_page_by_path( 'checkout' );
 			if ( $existing_checkout && 'publish' === $existing_checkout->post_status ) {
 				update_option( 'woocommerce_checkout_page_id', (int) $existing_checkout->ID );
+				$checkout_page = $existing_checkout;
 			} else {
 				$new_checkout_id = wp_insert_post( array(
 					'post_title'     => __( 'Checkout', 'digital-library-membership' ),
 					'post_name'      => 'checkout',
 					'post_status'    => 'publish',
 					'post_type'      => 'page',
-					'post_content'   => '<!-- wp:woocommerce/checkout /-->[woocommerce_checkout]',
+					'post_content'   => '[woocommerce_checkout]',
 					'comment_status' => 'closed',
 					'ping_status'    => 'closed',
 				) );
 				if ( ! is_wp_error( $new_checkout_id ) && $new_checkout_id > 0 ) {
 					update_option( 'woocommerce_checkout_page_id', (int) $new_checkout_id );
+					$checkout_page = get_post( $new_checkout_id );
 				}
 			}
+		}
+
+		// Ensure checkout page doesn't have Gutenberg Block which ignores PHP template overrides
+		if ( $checkout_page && false !== strpos( $checkout_page->post_content, 'wp:woocommerce/checkout' ) ) {
+			wp_update_post( array(
+				'ID'           => $checkout_page->ID,
+				'post_content' => '[woocommerce_checkout]',
+			) );
 		}
 
 		// 2. Ensure published Cart page exists
@@ -656,7 +666,7 @@ class DLM_WooCommerce {
 					'post_name'      => 'cart',
 					'post_status'    => 'publish',
 					'post_type'      => 'page',
-					'post_content'   => '<!-- wp:woocommerce/cart /-->[woocommerce_cart]',
+					'post_content'   => '[woocommerce_cart]',
 					'comment_status' => 'closed',
 					'ping_status'    => 'closed',
 				) );
@@ -801,11 +811,16 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Ensure WooCommerce Order Pay form renders if current request is a validated order-pay action
+	 * Ensure WooCommerce Order Pay and Classic Checkout form renders if current request is on checkout
 	 */
 	public function ensure_order_pay_rendered( $content ) {
+		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+			return $content;
+		}
+
+		// 1. Check for pay_for_order screen
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) && function_exists( 'is_checkout' ) && is_checkout() ) {
+		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) ) {
 			if ( ! shortcode_exists( 'woocommerce_checkout' ) || false === strpos( $content, 'woocommerce-checkout' ) ) {
 				ob_start();
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -817,6 +832,14 @@ class DLM_WooCommerce {
 				}
 			}
 		}
+
+		// 2. If checkout page content has Gutenberg WooCommerce Blocks, replace with classic [woocommerce_checkout]
+		if ( ! is_wc_endpoint_url( 'order-pay' ) && ! is_wc_endpoint_url( 'order-received' ) ) {
+			if ( false !== strpos( $content, 'wp:woocommerce/checkout' ) ) {
+				return do_shortcode( '[woocommerce_checkout]' );
+			}
+		}
+
 		return $content;
 	}
 
@@ -834,13 +857,13 @@ class DLM_WooCommerce {
 	 * Template override: locate checkout/form-checkout.php and checkout/form-pay.php
 	 */
 	public function locate_order_pay_template( $template, $template_name, $template_path ) {
-		if ( 'checkout/form-checkout.php' === $template_name ) {
+		if ( false !== strpos( $template_name, 'form-checkout.php' ) ) {
 			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
 			if ( file_exists( $custom_checkout_template ) ) {
 				return $custom_checkout_template;
 			}
 		}
-		if ( 'checkout/form-pay.php' === $template_name ) {
+		if ( false !== strpos( $template_name, 'form-pay.php' ) ) {
 			$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
 			if ( file_exists( $custom_pay_template ) ) {
 				return $custom_pay_template;
@@ -853,13 +876,13 @@ class DLM_WooCommerce {
 	 * Template override filter via wc_get_template
 	 */
 	public function override_order_pay_template( $located, $template_name, $args, $template_path, $default_path ) {
-		if ( 'checkout/form-checkout.php' === $template_name ) {
+		if ( false !== strpos( $template_name, 'form-checkout.php' ) ) {
 			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
 			if ( file_exists( $custom_checkout_template ) ) {
 				return $custom_checkout_template;
 			}
 		}
-		if ( 'checkout/form-pay.php' === $template_name ) {
+		if ( false !== strpos( $template_name, 'form-pay.php' ) ) {
 			$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
 			if ( file_exists( $custom_pay_template ) ) {
 				return $custom_pay_template;
