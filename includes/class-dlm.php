@@ -1095,11 +1095,11 @@ if ( ! function_exists( 'dlm_is_gateway_enabled' ) ) {
 if ( ! function_exists( 'dlm_get_order_pay_url' ) ) {
 	function dlm_get_order_pay_url( $order ) {
 		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
-			return home_url( '/' );
+			return dlm_get_page_url( 'checkout' );
 		}
-		$order_id    = $order->get_id();
-		$order_key   = $order->get_order_key();
-		$account_url = dlm_get_page_url( 'account' );
+		$order_id     = $order->get_id();
+		$order_key    = $order->get_order_key();
+		$checkout_url = dlm_get_page_url( 'checkout' );
 
 		$pay_url = add_query_arg(
 			array(
@@ -1108,7 +1108,7 @@ if ( ! function_exists( 'dlm_get_order_pay_url' ) ) {
 				'pay_for_order' => 'true',
 				'key'           => $order_key,
 			),
-			$account_url
+			$checkout_url
 		);
 
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound

@@ -353,6 +353,25 @@ class DLM_WooCommerce {
 
 		$package_id = $package ? $package['id'] : $plan;
 		$interval   = ( $package && ! empty( $package['interval'] ) ) ? $package['interval'] : 'monthly';
+		$plan_name  = $package ? $package['name'] : ucfirst( $interval );
+
+		// Same-plan detection: if user already has an active subscription on the same interval, reject
+		$user_id    = get_current_user_id();
+		$existing   = $this->db->get_subscription_by_user( $user_id );
+		if ( $existing && in_array( $existing->status, array( 'active', 'trialing' ), true ) ) {
+			$existing_interval = ! empty( $existing->plan_interval ) ? $existing->plan_interval : '';
+			if ( $existing_interval === $interval ) {
+				$dashboard_url = dlm_get_page_url( 'account' );
+				wp_send_json_error( array(
+					'message' => sprintf(
+						/* translators: 1: Plan name, 2: Dashboard URL */
+						__( 'You are already subscribed to the %1$s plan. To switch plans, please visit your <a href="%2$s#membership" style="color:#855300;font-weight:600;text-decoration:underline;">Membership Dashboard</a>.', 'digital-library-membership' ),
+						esc_html( $plan_name ),
+						esc_url( $dashboard_url )
+					),
+				) );
+			}
+		}
 
 		$product_id = $this->get_or_create_subscription_wc_product( $package_id );
 		$product    = $product_id ? wc_get_product( $product_id ) : null;
@@ -1001,44 +1020,10 @@ class DLM_WooCommerce {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$is_dlm_pay_action = isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( $is_dlm_pay_action || isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) || isset( $_GET['key'] ) ) {
-			$order_id = 0;
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( isset( $_GET['order-pay'] ) ) {
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				$order_id = absint( $_GET['order-pay'] );
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			} elseif ( isset( $_GET['order_id'] ) ) {
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				$order_id = absint( $_GET['order_id'] );
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			} elseif ( isset( $_GET['dlm_order_pay'] ) ) {
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				$order_id = absint( $_GET['dlm_order_pay'] );
-			} else {
-				$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-				if ( preg_match( '#/order-pay/(\d+)#', $req_uri, $matches ) ) {
-					$order_id = absint( $matches[1] );
-				}
-			}
-
-			if ( $order_id > 0 ) {
-				$order = wc_get_order( $order_id );
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				$key   = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
-				if ( $order && ! empty( $key ) && hash_equals( $order->get_order_key(), $key ) ) {
-					// Ensure 404 is cleared
-					global $wp_query;
-					if ( is_object( $wp_query ) ) {
-						$wp_query->is_404 = false;
-					}
-					status_header( 200 );
-
-					// Render standalone headless order pay screen directly
-					$this->render_standalone_order_pay_template( $order );
-					exit;
-				}
-			}
+		if ( $is_dlm_pay_action || isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) ) {
+			// Order-pay requests are handled by the [dlm_checkout] shortcode's render_order_pay_inline().
+			// Let the request pass through to the library-checkout-template.php without redirect.
+			return;
 		}
 
 		// Never redirect if on DLM dedicated checkout page or library account page

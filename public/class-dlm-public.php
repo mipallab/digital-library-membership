@@ -667,6 +667,22 @@ class DLM_Public {
 	 * Shortcode dlm_checkout - Renders luxury checkout & payment options for the selected plan
 	 */
 	public function render_checkout() {
+		// ── ORDER PAY: Render WooCommerce payment gateways when order-pay params are present ──
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$is_order_pay = isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $is_order_pay && isset( $_GET['order-pay'] ) && isset( $_GET['key'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order_id = absint( $_GET['order-pay'] );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order_key = sanitize_text_field( wp_unslash( $_GET['key'] ) );
+			$order = wc_get_order( $order_id );
+
+			if ( $order && hash_equals( $order->get_order_key(), $order_key ) ) {
+				return $this->render_order_pay_inline( $order );
+			}
+		}
+
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$selected_plan = isset( $_GET['plan'] ) ? sanitize_key( $_GET['plan'] ) : 'monthly';
 		$package       = dlm_get_package( $selected_plan );
@@ -1136,6 +1152,141 @@ class DLM_Public {
 				});
 			});
 		</script>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Render WooCommerce order payment form inline within the [dlm_checkout] shortcode.
+	 * Called when ?dlm_action=order_pay&order-pay=ID&key=KEY are present.
+	 *
+	 * @param WC_Order $order The WooCommerce order to pay for.
+	 * @return string HTML output.
+	 */
+	private function render_order_pay_inline( $order ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! $order || ! $order->needs_payment() ) {
+			$account_url = dlm_get_page_url( 'account' );
+			return '<div style="max-width:640px;margin:40px auto;padding:0 16px;text-align:center;font-family:Inter,sans-serif;">
+				<div style="background:#e6f4ea;border:1px solid #ceead6;color:#137333;padding:24px;border-radius:16px;">
+					<i class="fa-solid fa-circle-check" style="font-size:28px;margin-bottom:12px;display:block;"></i>
+					<h3 style="margin:0 0 8px;font-size:18px;font-weight:700;">' . esc_html__( 'Order Already Completed', 'digital-library-membership' ) . '</h3>
+					<p style="margin:0;font-size:14px;">' . esc_html__( 'This order has already been paid or does not require payment.', 'digital-library-membership' ) . '</p>
+					<a href="' . esc_url( $account_url ) . '" style="display:inline-block;margin-top:15px;padding:8px 20px;background:#137333;color:#fff;border-radius:10px;font-weight:600;text-decoration:none;font-size:13px;">' . esc_html__( 'Go to Library Account', 'digital-library-membership' ) . '</a>
+				</div>
+			</div>';
+		}
+
+		// Prime WooCommerce globals for payment gateways
+		global $wp;
+		$wp->query_vars['order-pay'] = $order->get_id();
+
+		// Enqueue WooCommerce scripts
+		if ( class_exists( 'WC_Frontend_Scripts' ) ) {
+			WC_Frontend_Scripts::load_scripts();
+		}
+		wp_enqueue_script( 'wc-checkout' );
+		wp_enqueue_style( 'woocommerce-general' );
+		wp_enqueue_style( 'woocommerce-layout' );
+		wp_enqueue_style( 'dashicons' );
+
+		$order_type      = $order->get_meta( '_dlm_order_type' );
+		$book_id         = intval( $order->get_meta( '_dlm_book_id' ) );
+		$book            = $book_id ? $this->db->get_book( $book_id ) : null;
+		$currency_symbol = function_exists( 'get_woocommerce_currency_symbol' ) ? get_woocommerce_currency_symbol( $order->get_currency() ) : '$';
+
+		$pay_form_action = function_exists( 'dlm_get_order_pay_url' ) ? dlm_get_order_pay_url( $order ) : $order->get_checkout_payment_url();
+
+		ob_start();
+		?>
+		<div class="dlm-pay-wrapper" style="max-width: 640px; margin: 40px auto; padding: 0 16px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+			<div class="dlm-pay-card" style="background: #ffffff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); border: 1px solid #e8e8e8; overflow: hidden; padding: 32px 36px;">
+
+				<!-- Header -->
+				<div style="text-align: center; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid #f0f0f0;">
+					<div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: #fdf6e9; color: #855300; margin-bottom: 16px; font-size: 26px;">
+						<span class="dashicons dashicons-shield-alt" style="font-size: 28px; width: 28px; height: 28px; line-height: 1;"></span>
+					</div>
+					<h2 style="font-size: 24px; font-weight: 700; color: #1a1c1c; margin: 0 0 6px 0; letter-spacing: -0.5px;">
+						<?php esc_html_e( 'Secure Checkout', 'digital-library-membership' ); ?>
+					</h2>
+					<p style="color: #6c757d; font-size: 14px; margin: 0;">
+						<?php esc_html_e( 'Complete your payment to unlock instant digital access.', 'digital-library-membership' ); ?>
+					</p>
+				</div>
+
+				<!-- Item Summary -->
+				<div style="background: #f9f9fb; border-radius: 14px; padding: 20px; margin-bottom: 28px; display: flex; align-items: center; gap: 18px; border: 1px solid #f0f0f4;">
+					<?php if ( $book && ! empty( $book->cover_image_url ) ) : ?>
+						<img src="<?php echo esc_url( $book->cover_image_url ); ?>" alt="<?php echo esc_attr( $book->title ); ?>" style="width: 64px; height: 90px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); flex-shrink: 0;">
+					<?php else : ?>
+						<div style="width: 64px; height: 90px; background: #855300; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 28px; flex-shrink: 0;">📚</div>
+					<?php endif; ?>
+
+					<div style="flex-grow: 1;">
+						<span style="display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: #fdf6e9; color: #855300; padding: 3px 8px; border-radius: 6px; margin-bottom: 6px;">
+							<?php echo ( 'subscription' === $order_type ) ? esc_html__( 'Membership Subscription', 'digital-library-membership' ) : esc_html__( 'Digital Book Access', 'digital-library-membership' ); ?>
+						</span>
+						<h3 style="font-size: 17px; font-weight: 700; color: #1a1c1c; margin: 0 0 4px 0; line-height: 1.3;">
+							<?php
+							if ( $book ) {
+								echo esc_html( $book->title );
+							} else {
+								foreach ( $order->get_items() as $item ) {
+									echo esc_html( $item->get_name() );
+									break;
+								}
+							}
+							?>
+						</h3>
+						<p style="font-size: 12px; color: #16a34a; font-weight: 600; margin: 0;">✓ <?php esc_html_e( 'Instant Online Flipbook + PDF Download', 'digital-library-membership' ); ?></p>
+					</div>
+
+					<div style="text-align: right; flex-shrink: 0;">
+						<span style="display: block; font-size: 12px; color: #71717a;"><?php esc_html_e( 'Total Amount', 'digital-library-membership' ); ?></span>
+						<span style="font-size: 22px; font-weight: 800; color: #855300;"><?php echo wp_kses_post( $order->get_formatted_order_total() ); ?></span>
+					</div>
+				</div>
+
+				<!-- Payment Form -->
+				<form id="order_review" method="post" action="<?php echo esc_url( $pay_form_action ); ?>">
+					<div id="payment" style="background: transparent; padding: 0;">
+						<h4 style="font-size: 15px; font-weight: 700; color: #1a1c1c; margin: 0 0 16px 0;">
+							<?php esc_html_e( 'Select Payment Method', 'digital-library-membership' ); ?>
+						</h4>
+
+						<ul class="wc_payment_methods payment_methods methods" style="list-style: none; padding: 0; margin: 0 0 24px 0;">
+							<?php
+							$available_gateways = WC()->payment_gateways->get_available_payment_gateways();
+							if ( ! empty( $available_gateways ) ) {
+								current( $available_gateways )->set_current();
+								foreach ( $available_gateways as $gateway ) {
+									wc_get_template( 'checkout/payment-method.php', array( 'gateway' => $gateway ) );
+								}
+							} else {
+								echo '<li class="woocommerce-notice woocommerce-notice--info woocommerce-info" style="padding: 14px 18px; border-radius: 10px; background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; font-size: 14px;">' . esc_html__( 'No payment methods are available. Please contact library support.', 'digital-library-membership' ) . '</li>';
+							}
+							?>
+						</ul>
+
+						<div class="form-row" style="margin-top: 24px;">
+							<input type="hidden" name="woocommerce_pay" value="1" />
+							<?php wp_nonce_field( 'woocommerce-pay', 'woocommerce-pay-nonce' ); ?>
+
+							<button type="submit" class="button alt" id="place_order" value="<?php esc_attr_e( 'Complete Payment', 'digital-library-membership' ); ?>" data-value="<?php esc_attr_e( 'Complete Payment', 'digital-library-membership' ); ?>" style="width: 100%; padding: 16px 24px; background: #855300; color: #ffffff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(133, 83, 0, 0.25);">
+								🔒 <?php esc_html_e( 'Pay Securely Now', 'digital-library-membership' ); ?> &mdash; <?php echo wp_kses_post( $order->get_formatted_order_total() ); ?>
+							</button>
+						</div>
+					</div>
+				</form>
+
+				<!-- Security footer badge -->
+				<div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #f0f0f0; color: #a1a1aa; font-size: 12px;">
+					<span>🔒 256-Bit SSL Encryption</span>
+					<span>•</span>
+					<span>Verified Headless Gateway</span>
+				</div>
+			</div>
+		</div>
 		<?php
 		return ob_get_clean();
 	}
