@@ -646,7 +646,9 @@ class DLM_WooCommerce {
 		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) && function_exists( 'is_checkout' ) && is_checkout() ) {
 			if ( ! shortcode_exists( 'woocommerce_checkout' ) || false === strpos( $content, 'woocommerce-checkout' ) ) {
 				ob_start();
-				woocommerce_order_pay( isset( $_GET['order-pay'] ) ? absint( $_GET['order-pay'] ) : 0 );
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$order_pay_id = isset( $_GET['order-pay'] ) ? absint( wp_unslash( $_GET['order-pay'] ) ) : 0;
+				woocommerce_order_pay( $order_pay_id );
 				$pay_html = ob_get_clean();
 				if ( ! empty( $pay_html ) ) {
 					return $pay_html;
@@ -717,10 +719,14 @@ class DLM_WooCommerce {
 		$order_id = 0;
 		if ( $order && is_a( $order, 'WC_Order' ) ) {
 			$order_id = $order->get_id();
-		} elseif ( isset( $_GET['order_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			$order_id = absint( $_GET['order_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		} elseif ( isset( $_GET['order-pay'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			$order_id = absint( $_GET['order-pay'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		} elseif ( isset( $_GET['order_id'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order_id = absint( wp_unslash( $_GET['order_id'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		} elseif ( isset( $_GET['order-pay'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order_id = absint( wp_unslash( $_GET['order-pay'] ) );
 		}
 
 		$account_url = dlm_get_page_url( 'account' );

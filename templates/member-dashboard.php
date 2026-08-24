@@ -1805,7 +1805,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 								<p class="text-xs text-secondary"><?php esc_html_e( 'Please contact the site administration to complete your subscription.', 'digital-library-membership' ); ?></p>
 							</div>
 						<?php else : ?>
-						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-<?php echo max( 1, min( 4, count( $active_gateways ) ) ); ?> gap-4">
+						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-<?php echo esc_attr( (string) max( 1, min( 4, count( $active_gateways ) ) ) ); ?> gap-4">
 							<?php if ( $enable_wc ) : ?>
 							<!-- WooCommerce Option -->
 							<button class="flex items-center justify-between p-4 border <?php echo ( 'woocommerce' === $default_gateway ) ? 'border-2 border-primary' : 'border-outline-variant/30'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-woocommerce" onclick="toggleCheckoutPaymentMethod('woocommerce')">
