@@ -1792,7 +1792,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 									<i class="fa-solid fa-bag-shopping text-primary text-lg shrink-0"></i>
 									<div>
 										<p class="font-bold text-sm text-on-surface">WooCommerce</p>
-										<p class="text-[10px] text-secondary">bKash, Nagad & Gateways</p>
+										<p class="text-[10px] text-secondary">Store Payment Gateway</p>
 									</div>
 								</div>
 								<div class="w-4 h-4 rounded-full border border-primary flex items-center justify-center shrink-0">
@@ -1855,7 +1855,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 								</div>
 								<div>
 									<h4 class="font-bold text-sm text-on-surface"><?php esc_html_e( 'WooCommerce Secure Gateway', 'digital-library-membership' ); ?></h4>
-									<p class="text-xs text-secondary"><?php esc_html_e( 'Pay safely via your preferred site gateway (bKash, Nagad, Credit/Debit Cards, Rocket, etc.)', 'digital-library-membership' ); ?></p>
+									<p class="text-xs text-secondary"><?php esc_html_e( 'Pay safely via payment methods configured in your store checkout.', 'digital-library-membership' ); ?></p>
 								</div>
 							</div>
 							<p class="text-xs text-secondary leading-relaxed pt-2 border-t border-outline-variant/20">
