@@ -1,9 +1,3 @@
-# OS & Editor files
+*.zip
 .DS_Store
 Thumbs.db
-*.log
-*.zip
-*.tar.gz
-*.crdownload
-.idea/
-.vscode/

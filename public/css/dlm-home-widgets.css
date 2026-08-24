@@ -1,0 +1,503 @@
+/**
+ * Digital Library Membership - Home Widgets & Addons Stylesheet
+ * High-fidelity, pixel-perfect responsive styling for Elementor widgets, Swiper carousels, and standalone shortcodes.
+ *
+ * @package    DLM
+ * @subpackage DLM/public/css
+ * @version    3.1.0
+ */
+
+/* ==========================================================================
+   1. Master Reset & Scoped Container Normalization
+   ========================================================================== */
+.dlm-hero-section,
+.dlm-author-section,
+.dlm-library-section,
+.dlm-membership-section,
+.dlm-review-section,
+.dlm-contact-section,
+.dlm-review-switcher-wrapper,
+.mipallab-hero-section,
+.mipallab-author-section,
+.mipallab-library-section,
+.mipallab-membership-section,
+.mipallab-review-section,
+.mipallab-contact-section,
+.mipallab-review-switcher-wrapper {
+    box-sizing: border-box !important;
+    position: relative;
+    width: 100%;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    line-height: 1.5 !important;
+    letter-spacing: normal !important;
+    color: #1a1c1c;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.dlm-hero-section *,
+.dlm-author-section *,
+.dlm-library-section *,
+.dlm-membership-section *,
+.dlm-review-section *,
+.dlm-contact-section *,
+.mipallab-hero-section *,
+.mipallab-author-section *,
+.mipallab-library-section *,
+.mipallab-membership-section *,
+.mipallab-review-section *,
+.mipallab-contact-section * {
+    box-sizing: border-box !important;
+}
+
+/* Headings Typography */
+.dlm-hero-section h1,
+.dlm-hero-section h2,
+.dlm-hero-section h3,
+.dlm-library-section h2,
+.dlm-library-section h3,
+.dlm-author-section h2,
+.dlm-author-section h3,
+.dlm-membership-section h2,
+.dlm-membership-section h3,
+.dlm-review-section h2,
+.dlm-review-section h3,
+.dlm-contact-section h2,
+.dlm-contact-section h3,
+.mipallab-hero-section h1,
+.mipallab-hero-section h2,
+.mipallab-hero-section h3,
+.mipallab-library-section h2,
+.mipallab-library-section h3,
+.mipallab-author-section h2,
+.mipallab-author-section h3,
+.mipallab-membership-section h2,
+.mipallab-membership-section h3,
+.mipallab-review-section h2,
+.mipallab-review-section h3,
+.mipallab-contact-section h2,
+.mipallab-contact-section h3 {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    letter-spacing: -0.02em !important;
+    margin-top: 0 !important;
+}
+
+/* Anchors */
+.dlm-hero-section a,
+.dlm-library-section a,
+.dlm-author-section a,
+.dlm-membership-section a,
+.dlm-review-section a,
+.dlm-contact-section a,
+.mipallab-hero-section a,
+.mipallab-library-section a,
+.mipallab-author-section a,
+.mipallab-membership-section a,
+.mipallab-review-section a,
+.mipallab-contact-section a {
+    text-decoration: none !important;
+    box-shadow: none;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+/* ==========================================================================
+   2. Swiper Touch Carousel Engine Styles
+   ========================================================================== */
+.dlm-swiper-container,
+.mipallab-swiper-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    padding: 10px 0 24px 0;
+}
+
+.dlm-swiper-container .swiper-wrapper,
+.mipallab-swiper-container .swiper-wrapper {
+    display: flex;
+    align-items: stretch;
+}
+
+.dlm-swiper-container .swiper-slide,
+.mipallab-swiper-container .swiper-slide {
+    height: auto !important;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+/* Custom Navigation Buttons */
+.dlm-swiper-nav-btn,
+.mipallab-swiper-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1.5px solid rgba(133, 83, 0, 0.18);
+    color: #855300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    user-select: none;
+    -webkit-user-select: none;
+    outline: none;
+}
+
+.dlm-swiper-nav-btn:hover,
+.mipallab-swiper-nav-btn:hover {
+    background: #855300;
+    color: #ffffff;
+    border-color: #855300;
+    box-shadow: 0 10px 25px rgba(133, 83, 0, 0.28);
+    transform: translateY(-50%) scale(1.08);
+}
+
+.dlm-swiper-nav-btn:active,
+.mipallab-swiper-nav-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.dlm-swiper-nav-btn.swiper-button-disabled,
+.mipallab-swiper-nav-btn.swiper-button-disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.dlm-swiper-nav-btn svg,
+.mipallab-swiper-nav-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.dlm-swiper-nav-prev,
+.mipallab-swiper-nav-prev {
+    left: -16px;
+}
+
+.dlm-swiper-nav-next,
+.mipallab-swiper-nav-next {
+    right: -16px;
+}
+
+/* Swiper Pagination Bullets */
+.dlm-swiper-container .swiper-pagination,
+.mipallab-swiper-container .swiper-pagination {
+    position: relative;
+    margin-top: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.dlm-swiper-container .swiper-pagination-bullet,
+.mipallab-swiper-container .swiper-pagination-bullet {
+    width: 10px;
+    height: 10px;
+    background: #855300;
+    opacity: 0.25;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    margin: 0 !important;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+.dlm-swiper-container .swiper-pagination-bullet:hover,
+.mipallab-swiper-container .swiper-pagination-bullet:hover {
+    opacity: 0.6;
+    transform: scale(1.2);
+}
+
+.dlm-swiper-container .swiper-pagination-bullet-active,
+.mipallab-swiper-container .swiper-pagination-bullet-active {
+    opacity: 1;
+    width: 30px;
+    border-radius: 6px;
+    background: #855300;
+}
+
+/* ==========================================================================
+   3. Micro-Interactions & Hover Lift
+   ========================================================================== */
+.dlm-hover-lift,
+.mipallab-hover-lift {
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform, box-shadow;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .dlm-hover-lift:hover,
+    .mipallab-hover-lift:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px rgba(133, 83, 0, 0.14) !important;
+    }
+}
+
+/* ==========================================================================
+   4. Review Switcher Tabs & Animated Panes
+   ========================================================================== */
+.dlm-rev-pane,
+.dlm-review-content-pane,
+.mipallab-rev-pane,
+.mipallab-review-content-pane {
+    animation: dlmFadeIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes dlmFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dlm-review-tab-btn,
+.mipallab-review-tab-btn {
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    outline: none;
+    user-select: none;
+}
+
+.dlm-review-tab-btn:hover:not(.active),
+.mipallab-review-tab-btn:hover:not(.active) {
+    background: rgba(133, 83, 0, 0.12) !important;
+}
+
+/* ==========================================================================
+   5. Interactive Contact Form Feedback Alerts
+   ========================================================================== */
+.dlm-form-message,
+.mipallab-form-message {
+    margin-top: 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.5;
+    border-radius: 12px;
+    display: none;
+    padding: 14px 18px;
+}
+
+.dlm-form-message.success,
+.mipallab-form-message.success {
+    display: block;
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.dlm-form-message.error,
+.mipallab-form-message.error {
+    display: block;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.dlm-btn-loading,
+.mipallab-btn-loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+    cursor: wait !important;
+}
+
+/* ==========================================================================
+   6. Elementor Editor Safe Overrides
+   ========================================================================== */
+body.elementor-editor-active .gsap-fade-up,
+body.elementor-editor-active .gsap-fade-left,
+body.elementor-editor-active .gsap-fade-right,
+body.elementor-editor-preview .gsap-fade-up,
+body.elementor-editor-preview .gsap-fade-left,
+body.elementor-editor-preview .gsap-fade-right {
+    opacity: 1 !important;
+    transform: none !important;
+    visibility: visible !important;
+}
+
+/* ==========================================================================
+   7. Responsive Breakpoints & Device Optimizations
+   ========================================================================== */
+@media (max-width: 1280px) {
+    .dlm-swiper-nav-prev,
+    .mipallab-swiper-nav-prev { left: -8px; }
+    .dlm-swiper-nav-next,
+    .mipallab-swiper-nav-next { right: -8px; }
+}
+
+@media (max-width: 1024px) {
+    .dlm-hero-section,
+    .dlm-author-section,
+    .dlm-library-section,
+    .dlm-membership-section,
+    .dlm-review-section,
+    .dlm-contact-section,
+    .mipallab-hero-section,
+    .mipallab-author-section,
+    .mipallab-library-section,
+    .mipallab-membership-section,
+    .mipallab-review-section,
+    .mipallab-contact-section {
+        padding: 70px 24px !important;
+    }
+    .dlm-swiper-nav-btn,
+    .mipallab-swiper-nav-btn {
+        width: 42px;
+        height: 42px;
+    }
+    .dlm-swiper-nav-prev,
+    .mipallab-swiper-nav-prev { left: 4px; }
+    .dlm-swiper-nav-next,
+    .mipallab-swiper-nav-next { right: 4px; }
+}
+
+@media (max-width: 991px) {
+    .dlm-hero-section,
+    .dlm-author-section,
+    .dlm-library-section,
+    .dlm-membership-section,
+    .dlm-review-section,
+    .dlm-contact-section,
+    .mipallab-hero-section,
+    .mipallab-author-section,
+    .mipallab-library-section,
+    .mipallab-membership-section,
+    .mipallab-review-section,
+    .mipallab-contact-section {
+        padding: 60px 20px !important;
+    }
+    .dlm-swiper-nav-prev,
+    .mipallab-swiper-nav-prev { left: 0px; }
+    .dlm-swiper-nav-next,
+    .mipallab-swiper-nav-next { right: 0px; }
+}
+
+@media (max-width: 767px) {
+    .dlm-hero-section,
+    .dlm-author-section,
+    .dlm-library-section,
+    .dlm-membership-section,
+    .dlm-review-section,
+    .dlm-contact-section,
+    .mipallab-hero-section,
+    .mipallab-author-section,
+    .mipallab-library-section,
+    .mipallab-membership-section,
+    .mipallab-review-section,
+    .mipallab-contact-section {
+        padding: 50px 16px !important;
+        border-radius: 18px !important;
+    }
+    .dlm-hero-section .dlm-hero-title,
+    .mipallab-hero-section .mipallab-hero-title {
+        font-size: 2.2rem !important;
+        line-height: 1.18 !important;
+        text-align: center;
+    }
+    .dlm-hero-section .dlm-hero-badge,
+    .dlm-hero-section .dlm-hero-rating,
+    .mipallab-hero-section .mipallab-hero-badge,
+    .mipallab-hero-section .mipallab-hero-rating {
+        justify-content: center !important;
+    }
+    .dlm-hero-section p,
+    .mipallab-hero-section p {
+        text-align: center !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+    .dlm-hero-section .dlm-hero-cta,
+    .mipallab-hero-section .mipallab-hero-cta {
+        justify-content: center !important;
+    }
+    .dlm-hero-section img,
+    .mipallab-hero-section img {
+        max-height: 320px !important;
+        margin-top: 16px !important;
+    }
+    .dlm-author-section img,
+    .mipallab-author-section img {
+        max-height: 340px !important;
+        height: auto !important;
+    }
+    .dlm-review-switcher-wrapper .dlm-review-tab-btn,
+    .mipallab-review-switcher-wrapper .mipallab-review-tab-btn {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+    }
+    .dlm-contact-form-el input,
+    .dlm-contact-form-el textarea,
+    .dlm-contact-form-el select,
+    .mipallab-contact-form-el input,
+    .mipallab-contact-form-el textarea,
+    .mipallab-contact-form-el select {
+        font-size: 16px !important;
+    }
+    .dlm-swiper-nav-btn,
+    .mipallab-swiper-nav-btn {
+        width: 38px;
+        height: 38px;
+        background: rgba(255, 255, 255, 0.95);
+    }
+    .dlm-swiper-nav-prev,
+    .mipallab-swiper-nav-prev { left: 4px; }
+    .dlm-swiper-nav-next,
+    .mipallab-swiper-nav-next { right: 4px; }
+}
+
+@media (max-width: 480px) {
+    .dlm-hero-section,
+    .dlm-author-section,
+    .dlm-library-section,
+    .dlm-membership-section,
+    .dlm-review-section,
+    .dlm-contact-section,
+    .mipallab-hero-section,
+    .mipallab-author-section,
+    .mipallab-library-section,
+    .mipallab-membership-section,
+    .mipallab-review-section,
+    .mipallab-contact-section {
+        padding: 40px 14px !important;
+    }
+    .dlm-hero-section .dlm-hero-title,
+    .mipallab-hero-section .mipallab-hero-title {
+        font-size: 1.85rem !important;
+    }
+    .dlm-hero-section a,
+    .mipallab-hero-section a {
+        width: 100% !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+    .dlm-review-switcher-wrapper .dlm-review-tab-btn,
+    .mipallab-review-switcher-wrapper .mipallab-review-tab-btn {
+        flex: 1 1 100%;
+        text-align: center;
+    }
+    .dlm-swiper-nav-btn,
+    .mipallab-swiper-nav-btn {
+        display: none;
+    }
+    .dlm-books-grid,
+    .mipallab-books-grid {
+        grid-template-columns: 1fr !important;
+    }
+}

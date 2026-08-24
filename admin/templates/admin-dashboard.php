@@ -717,7 +717,11 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 			<div class="bento-card bg-white rounded-2xl border border-outline-variant/20 shadow-sm overflow-hidden mb-8">
 				<div class="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
 					<h4 class="font-bold text-on-surface text-sm">Configured Subscription Plans</h4>
-					<span class="text-xs text-secondary"><?php echo esc_html( sprintf( _n( '%d Package', '%d Packages', count( $packages ), 'digital-library-membership' ), count( $packages ) ) ); ?></span>
+					<?php
+					/* translators: %d: number of packages */
+					$pkg_count_str = _n( '%d Package', '%d Packages', count( $packages ), 'digital-library-membership' );
+					?>
+					<span class="text-xs text-secondary"><?php echo esc_html( sprintf( $pkg_count_str, count( $packages ) ) ); ?></span>
 				</div>
 
 				<div class="overflow-x-auto">
@@ -1678,7 +1682,7 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
 									<div class="space-y-1">
 										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Google Client ID', 'digital-library-membership' ); ?></label>
-										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_google_client_id" value="<?php echo esc_attr( get_option( 'dlm_google_client_id' ) ); ?>" placeholder="e.g. 123456789-xxx.apps.googleusercontent.com">
+										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_google_client_id" value="<?php echo esc_attr( get_option( 'dlm_google_client_id' ) ); ?>" placeholder="<?php esc_attr_e( 'Enter your Google OAuth Client ID', 'digital-library-membership' ); ?>">
 									</div>
 									<div class="space-y-1">
 										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'Google Client Secret', 'digital-library-membership' ); ?></label>

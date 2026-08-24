@@ -299,9 +299,11 @@ class DLM_Admin {
 
 		// 1. Check if already active
 		if ( is_plugin_active( $plugin_file ) ) {
+			/* translators: %s: plugin name */
+			$msg_active = sprintf( __( '%s is already active.', 'digital-library-membership' ), $plugin_info['name'] );
 			wp_send_json_success( array(
 				'status'  => 'active',
-				'message' => sprintf( __( '%s is already active.', 'digital-library-membership' ), $plugin_info['name'] ),
+				'message' => $msg_active,
 			) );
 		}
 
@@ -311,9 +313,11 @@ class DLM_Admin {
 			if ( is_wp_error( $activated ) ) {
 				wp_send_json_error( array( 'message' => $activated->get_error_message() ) );
 			}
+			/* translators: %s: plugin name */
+			$msg_activated = sprintf( __( '%s activated successfully!', 'digital-library-membership' ), $plugin_info['name'] );
 			wp_send_json_success( array(
 				'status'  => 'active',
-				'message' => sprintf( __( '%s activated successfully!', 'digital-library-membership' ), $plugin_info['name'] ),
+				'message' => $msg_activated,
 			) );
 		}
 
@@ -343,13 +347,17 @@ class DLM_Admin {
 			if ( is_wp_error( $activated ) ) {
 				wp_send_json_error( array( 'message' => $activated->get_error_message() ) );
 			}
+			/* translators: %s: plugin name */
+			$msg_installed = sprintf( __( '%s installed and activated successfully!', 'digital-library-membership' ), $plugin_info['name'] );
 			wp_send_json_success( array(
 				'status'  => 'active',
-				'message' => sprintf( __( '%s installed and activated successfully!', 'digital-library-membership' ), $plugin_info['name'] ),
+				'message' => $msg_installed,
 			) );
 		}
 
-		wp_send_json_error( array( 'message' => sprintf( __( 'Could not install %s. Please install it manually from Plugins > Add New.', 'digital-library-membership' ), $plugin_info['name'] ) ) );
+		/* translators: %s: plugin name */
+		$msg_failed = sprintf( __( 'Could not install %s. Please install it manually from Plugins > Add New.', 'digital-library-membership' ), $plugin_info['name'] );
+		wp_send_json_error( array( 'message' => $msg_failed ) );
 	}
 
 	/**

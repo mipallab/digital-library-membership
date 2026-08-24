@@ -149,14 +149,18 @@ class DLM_Activator {
 			KEY is_read (is_read)
 		) $charset_collate;";
 
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		dbDelta( $sql_books );
-		dbDelta( $sql_subscriptions );
-		dbDelta( $sql_transactions );
-		dbDelta( $sql_progress );
-		dbDelta( $sql_analytics );
-		dbDelta( $sql_purchases );
-		dbDelta( $sql_notifications );
+		if ( ! function_exists( 'dbDelta' ) && file_exists( ABSPATH . 'wp-admin/includes/upgrade.php' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		}
+		if ( function_exists( 'dbDelta' ) ) {
+			dbDelta( $sql_books );
+			dbDelta( $sql_subscriptions );
+			dbDelta( $sql_transactions );
+			dbDelta( $sql_progress );
+			dbDelta( $sql_analytics );
+			dbDelta( $sql_purchases );
+			dbDelta( $sql_notifications );
+		}
 
 		// Update DB version tracking
 		update_option( 'dlm_db_version', '2.5.0' );
@@ -180,6 +184,10 @@ class DLM_Activator {
 	 * Auto-create required frontend pages if they don't already exist.
 	 */
 	public static function create_pages() {
+		if ( ! function_exists( 'wp_insert_post' ) ) {
+			return;
+		}
+
 		$pages = array(
 			'library'  => array(
 				'title'     => __( 'Library', 'digital-library-membership' ),
@@ -227,21 +235,23 @@ class DLM_Activator {
 	 * Create secure uploads folder and write htaccess
 	 */
 	private static function setup_secure_directory() {
-		if ( ! file_exists( DLM_PROTECTED_DIR ) ) {
+		if ( defined( 'DLM_PROTECTED_DIR' ) && ! file_exists( DLM_PROTECTED_DIR ) ) {
 			wp_mkdir_p( DLM_PROTECTED_DIR );
 		}
 
-		// Deny direct file access via htaccess
-		$htaccess_file = DLM_PROTECTED_DIR . '/.htaccess';
-		if ( ! file_exists( $htaccess_file ) ) {
-			$rules = "Order Deny,Allow\nDeny from all\n";
-			file_put_contents( $htaccess_file, $rules );
-		}
+		if ( defined( 'DLM_PROTECTED_DIR' ) && is_dir( DLM_PROTECTED_DIR ) ) {
+			// Deny direct file access via htaccess
+			$htaccess_file = DLM_PROTECTED_DIR . '/.htaccess';
+			if ( ! file_exists( $htaccess_file ) ) {
+				$rules = "Order Deny,Allow\nDeny from all\n";
+				@file_put_contents( $htaccess_file, $rules );
+			}
 
-		// Prevent folder listings index file
-		$index_file = DLM_PROTECTED_DIR . '/index.php';
-		if ( ! file_exists( $index_file ) ) {
-			file_put_contents( $index_file, "<?php\n// Silence is golden.\n" );
+			// Prevent folder listings index file
+			$index_file = DLM_PROTECTED_DIR . '/index.php';
+			if ( ! file_exists( $index_file ) ) {
+				@file_put_contents( $index_file, "<?php\n// Silence is golden.\n" );
+			}
 		}
 	}
 
@@ -249,6 +259,10 @@ class DLM_Activator {
 	 * Register roles and add capabilities
 	 */
 	private static function setup_roles_and_capabilities() {
+		if ( ! function_exists( 'get_role' ) ) {
+			return;
+		}
+
 		// Admin
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {

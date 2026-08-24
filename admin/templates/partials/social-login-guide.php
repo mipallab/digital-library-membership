@@ -43,8 +43,9 @@ $site_domain         = wp_parse_url( home_url(), PHP_URL_HOST );
 				<li>
 					<?php 
 					/* translators: %s: Google Cloud Console URL */
+					$guide_google_text = __( 'Go to the <a href="%s" target="_blank" class="text-[#855300] dark:text-[#d4a373] underline font-bold">Google Cloud Console Credentials Page &nearr;</a> and sign in with your Google account.', 'digital-library-membership' );
 					printf( 
-						wp_kses_post( __( 'Go to the <a href="%s" target="_blank" class="text-[#855300] dark:text-[#d4a373] underline font-bold">Google Cloud Console Credentials Page &nearr;</a> and sign in with your Google account.', 'digital-library-membership' ) ),
+						wp_kses_post( $guide_google_text ),
 						'https://console.cloud.google.com/apis/credentials'
 					); 
 					?>
@@ -92,8 +93,9 @@ $site_domain         = wp_parse_url( home_url(), PHP_URL_HOST );
 				<li>
 					<?php 
 					/* translators: %s: Apple Developer Portal URL */
+					$guide_apple_text = __( 'Go to the <a href="%s" target="_blank" class="text-[#855300] dark:text-[#d4a373] underline font-bold">Apple Developer Certificates & Identifiers &nearr;</a> portal.', 'digital-library-membership' );
 					printf( 
-						wp_kses_post( __( 'Go to the <a href="%s" target="_blank" class="text-[#855300] dark:text-[#d4a373] underline font-bold">Apple Developer Certificates & Identifiers &nearr;</a> portal.', 'digital-library-membership' ) ),
+						wp_kses_post( $guide_apple_text ),
 						'https://developer.apple.com/account/resources/identifiers/list'
 					); 
 					?>

@@ -21,7 +21,8 @@ class DLM_Security {
 	 */
 	public static function verify_nonce( $action, $query_arg = '_wpnonce' ) {
 		// Detect if PHP silently discarded $_POST due to post_max_size / upload_max_filesize limit exceeded
-		if ( 'POST' === ( isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( $_SERVER['REQUEST_METHOD'] ) : '' ) ) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
+		if ( 'POST' === $request_method ) {
 			$content_length = isset( $_SERVER['CONTENT_LENGTH'] ) ? intval( $_SERVER['CONTENT_LENGTH'] ) : 0;
 			if ( $content_length > 0 && empty( $_POST ) && empty( $_FILES ) ) {
 				$post_max = ini_get( 'post_max_size' );

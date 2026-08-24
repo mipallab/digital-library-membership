@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.SlowDBQuery
 class DLM_DB {
 
 	/**
@@ -681,11 +681,15 @@ class DLM_DB {
 		if ( $purchase_id && isset( $data['status'] ) && 'completed' === $data['status'] ) {
 			$book = $this->get_book( intval( $data['book_id'] ) );
 			$book_title = $book ? $book->title : __( 'Book', 'digital-library-membership' );
+			/* translators: %s: book title */
+			$notif_title = sprintf( __( 'Purchase Confirmed: %s', 'digital-library-membership' ), $book_title );
+			/* translators: %s: book title */
+			$notif_msg   = sprintf( __( 'Your purchase is confirmed. You now have permanent access to read and download "%s".', 'digital-library-membership' ), $book_title );
 			$this->create_notification( array(
 				'user_id'   => intval( $data['user_id'] ),
 				'type'      => 'purchase',
-				'title'     => sprintf( __( 'Purchase Confirmed: %s', 'digital-library-membership' ), $book_title ),
-				'message'   => sprintf( __( 'Your purchase is confirmed. You now have permanent access to read and download "%s".', 'digital-library-membership' ), $book_title ),
+				'title'     => $notif_title,
+				'message'   => $notif_msg,
 				'link_url'  => home_url( '/read/' . intval( $data['book_id'] ) . '/' ),
 			) );
 		}
@@ -1130,7 +1134,6 @@ class DLM_DB {
 		global $wpdb;
 		$table = $this->get_table_name( 'notifications' );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return $wpdb->update(
 			$table,
 			array( 'is_read' => 1 ),
@@ -1138,3 +1141,4 @@ class DLM_DB {
 		);
 	}
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.SlowDBQuery

@@ -68,6 +68,14 @@ class DLM_WooCommerce {
 
 		// Custom return redirect URL for DLM orders
 		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 20, 2 );
+
+		// Redirect all frontend WooCommerce standard views (Shop, Cart, My Account, Product views, standard Checkout) to DLM Library Account
+		add_action( 'template_redirect', array( $this, 'redirect_woocommerce_pages' ), 1 );
+
+		// Redirect standard WooCommerce auth / return-to-shop redirects to Library Account
+		add_filter( 'woocommerce_login_redirect', array( $this, 'filter_woocommerce_auth_redirect' ), 20, 2 );
+		add_filter( 'woocommerce_registration_redirect', array( $this, 'filter_woocommerce_auth_redirect' ), 20, 1 );
+		add_filter( 'woocommerce_return_to_shop_redirect', array( $this, 'filter_woocommerce_shop_redirect' ), 20, 1 );
 	}
 
 	/**
@@ -598,5 +606,109 @@ class DLM_WooCommerce {
 		}
 
 		return $return_url;
+	}
+
+	/**
+	 * Redirect all standard WooCommerce pages (Shop, Cart, My Account, Product views,
+	 * and standard empty Cart Checkout) to the DLM Library Account Dashboard page.
+	 * WooCommerce operates purely as a headless payment processing engine.
+	 */
+	public function redirect_woocommerce_pages() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return;
+		}
+
+		// Never redirect in WP Admin, WP AJAX, WP CRON, WP CLI, REST API, or WooCommerce background API/Webhooks
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+			return;
+		}
+
+		// Allow WooCommerce order payment page (e.g. /checkout/order-pay/123/?pay_for_order=true&key=wc_order_xyz)
+		if ( function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page() ) {
+			return;
+		}
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
+			return;
+		}
+
+		// Allow gateway IPN / API callbacks
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing check for WooCommerce gateway callbacks.
+		if ( ! empty( $_GET['wc-api'] ) || ! empty( $_GET['wc-ajax'] ) || ! empty( $_GET['pay_for_order'] ) ) {
+			return;
+		}
+
+		$should_redirect = false;
+		$redirect_url    = dlm_get_page_url( 'account' );
+
+		// 1. My Account page and all sub-endpoints (/my-account/*)
+		if ( function_exists( 'is_account_page' ) && is_account_page() ) {
+			$should_redirect = true;
+		}
+
+		// 2. Cart page
+		if ( function_exists( 'is_cart' ) && is_cart() ) {
+			$should_redirect = true;
+		}
+
+		// 3. Shop catalog, Product single views, Categories, Tags, and Product Taxonomies
+		if ( function_exists( 'is_shop' ) && is_shop() ) {
+			$should_redirect = true;
+		}
+		if ( function_exists( 'is_product' ) && is_product() ) {
+			$should_redirect = true;
+		}
+		if ( function_exists( 'is_product_taxonomy' ) && is_product_taxonomy() ) {
+			$should_redirect = true;
+		}
+		if ( function_exists( 'is_product_category' ) && is_product_category() ) {
+			$should_redirect = true;
+		}
+		if ( function_exists( 'is_product_tag' ) && is_product_tag() ) {
+			$should_redirect = true;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only query arg check for product archive.
+		if ( isset( $_GET['post_type'] ) && 'product' === sanitize_key( wp_unslash( $_GET['post_type'] ) ) ) {
+			$should_redirect = true;
+		}
+
+		// 4. Thank You / Order Received endpoint - redirect to Library Account with success query arg
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-received' ) ) {
+			global $wp;
+			$order_id = isset( $wp->query_vars['order-received'] ) ? absint( $wp->query_vars['order-received'] ) : 0;
+			$redirect_url = add_query_arg(
+				array(
+					'payment'  => 'success',
+					'order_id' => $order_id ?: '',
+				),
+				dlm_get_page_url( 'account' )
+			);
+			$should_redirect = true;
+		}
+
+		// 5. Standard Checkout (redirect when it's NOT an order-pay screen)
+		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+			if ( ! is_wc_endpoint_url( 'order-pay' ) && ! is_wc_endpoint_url( 'order-received' ) ) {
+				$should_redirect = true;
+			}
+		}
+
+		if ( $should_redirect ) {
+			wp_safe_redirect( $redirect_url );
+			exit;
+		}
+	}
+
+	/**
+	 * Filter auth redirects to point to DLM Library Account
+	 */
+	public function filter_woocommerce_auth_redirect( $redirect, $user = null ) {
+		return dlm_get_page_url( 'account' );
+	}
+
+	/**
+	 * Filter 'Return to Shop' button URL in WooCommerce
+	 */
+	public function filter_woocommerce_shop_redirect( $redirect_url ) {
+		return dlm_get_page_url( 'account' );
 	}
 }

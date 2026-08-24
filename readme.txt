@@ -1,27 +1,28 @@
 === Digital Library Membership ===
 Contributors: mipallab123
 Donate link: https://profiles.wordpress.org/mipallab123
-Tags: library, membership, flipbook, pdf reader, gutenberg, elementor, access control
+Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.6.3
+Stable tag: 3.1.0
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A secure, premium subscription membership plugin to read digital books with realistic 3D page-flip experience, DRM protection, and flexible access control.
+Secure digital library membership with realistic 3D flipbook reader, DRM protection, WooCommerce sync, and native Elementor widgets.
 
 == Description ==
 
-**Digital Library Membership** turns your WordPress site into a secure, high-performance digital library platform. Manage book catalogs, subscription plans, and individual book sales with an Apple Books-inspired reading experience. Fully compatible with Gutenberg Block Editor and Elementor Page Builder.
+**Digital Library Membership** turns your WordPress site into a secure, high-performance digital library platform. Manage book catalogs, subscription plans, and individual book sales with an Apple Books-inspired reading experience. Fully compatible with Gutenberg Block Editor and Elementor Page Builder. Includes a native suite of 6 high-converting Elementor widgets with GSAP motion and Swiper touch carousels.
 
 ### Key Features
 
-* **Subscription Package Management & Multi-Gateway Auto-Sync**:
-  * Create, edit, activate, deactivate, and delete custom subscription tiers and membership plans.
-  * 100% automated gateway provisioning: auto-generates Stripe Products & Prices, PayPal Catalog Products & Billing Plans, and hidden virtual WooCommerce products.
-  * Real-time active subscriber metrics and non-blocking plan administration.
+* **Home Widgets & Elementor Addon Suite**:
+  * **Hero Featured Book Slider**: 3D perspective floating covers, dynamic CTA buttons, rating scores, and ambient glow.
+  * **Library Carousel & Search Grid**: Ultra-smooth Swiper carousel and live instant search filter grid with category pills and direct reader links.
+  * **Membership Pricing Section**: Interactive pricing plans with featured badges, customizable features list, and direct checkout buttons.
+  * **Review Switcher (Video/Text/Google)**: Dynamic 3-tab switcher with 16:9 video embeds, reader testimonials with avatars, and Google review summaries.
 * **3-Tier Book Access Control**:
   * **Subscription Only**: Exclusively accessible to active members with recurring subscription plans.
   * **Purchase Only**: Individual direct sales with permanent read & download access.
@@ -107,6 +108,21 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.1.0 =
+* Security & Standards: 100% WordPress Plugin Check and PHPCS compliance passed.
+* Performance: Locally bundled all Swiper and GSAP vendor libraries inside plugin distribution.
+* Security: Full sanitization, unslashing, and comprehensive escaping applied across all shortcodes and Elementor widget engines.
+* Internationalization: Complete translators comments coverage across all i18n placeholders.
+
+= 3.0.0 =
+* Merged: Integrated Mipallab Home Widgets & Addons natively into Digital Library Membership.
+* Added: 6 New Elementor Widgets (`DLM_Widget_Hero_Book_Slider`, `DLM_Widget_Library_Carousel`, `DLM_Widget_Membership_Section`, `DLM_Widget_Review_Switcher`, `DLM_Widget_Contact_Section`, `DLM_Widget_About_Author`).
+* Added: Standalone Dynamic Shortcodes suite (`[dlm_library_carousel]`, `[dlm_library_grid]`, `[dlm_membership]`, `[dlm_review_switcher]`, `[dlm_contact_form]`, `[dlm_hero_slider]`, `[dlm_about_author]`).
+* Added: Full backward compatibility layer with class aliases and legacy shortcode/widget tags (`[mipallab_...]`, `Mipallab_Home_Widgets_Extension`, `Mipallab_Books_Helper`).
+* Added: Native GSAP Motion Helpers, ScrollTrigger animations, and ultra-smooth Swiper touch carousel engine.
+* Added: Interactive AJAX Contact Form endpoint with strict nonce verification, input sanitization, option logging, and admin email notifications.
+* Added: Real-time client-side library search filtering for instant book discovery.
 
 = 2.6.3 =
 * Security: Converted database queries (DLM_DB::get_book_purchases and DLM_DB::notification_exists) to inline string literal $wpdb->prepare() queries to satisfy strict PluginCheck static analysis.

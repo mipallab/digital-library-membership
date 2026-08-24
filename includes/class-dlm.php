@@ -24,6 +24,7 @@ class DLM {
 	protected $api;
 	protected $admin;
 	protected $public;
+	protected $home_widgets;
 
 	/**
 	 * Define the core loader
@@ -52,6 +53,9 @@ class DLM {
 
 		// Initialize public-facing screens
 		$this->public = new DLM_Public( $this->db, $this->checkout );
+
+		// Initialize Home Widgets & Addons Engine
+		$this->home_widgets = DLM_Home_Widgets::instance();
 	}
 
 	/**
@@ -464,11 +468,14 @@ class DLM {
 
 		// Notice: Elementor Integration
 		if ( ! did_action( 'elementor/loaded' ) && ! class_exists( '\Elementor\Plugin' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-			$is_el_installed = file_exists( WP_PLUGIN_DIR . '/elementor/elementor.php' );
+			if ( ! function_exists( 'is_plugin_active' ) && file_exists( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			$plugins_dir     = defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : ( defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . '/plugins' : ABSPATH . 'wp-content/plugins' );
+			$is_el_installed = file_exists( $plugins_dir . '/elementor/elementor.php' );
 			$el_action_url   = $is_el_installed 
 				? wp_nonce_url( admin_url( 'plugins.php?action=activate&plugin=elementor%2Felementor.php' ), 'activate-plugin_elementor/elementor.php' )
-				: wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=elementor' ), 'install-plugin_elementor' );
+				: ( function_exists( 'self_admin_url' ) ? wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=elementor' ), 'install-plugin_elementor' ) : '#' );
 			?>
 			<div class="notice notice-info is-dismissible">
 				<p>
@@ -484,11 +491,14 @@ class DLM {
 
 		// Notice: WooCommerce Integration
 		if ( ! class_exists( 'WooCommerce' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-			$is_wc_installed = file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' );
+			if ( ! function_exists( 'is_plugin_active' ) && file_exists( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			$plugins_dir     = defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : ( defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . '/plugins' : ABSPATH . 'wp-content/plugins' );
+			$is_wc_installed = file_exists( $plugins_dir . '/woocommerce/woocommerce.php' );
 			$wc_action_url   = $is_wc_installed 
 				? wp_nonce_url( admin_url( 'plugins.php?action=activate&plugin=woocommerce%2Fwoocommerce.php' ), 'activate-plugin_woocommerce/woocommerce.php' )
-				: wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=woocommerce' ), 'install-plugin_woocommerce' );
+				: ( function_exists( 'self_admin_url' ) ? wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=woocommerce' ), 'install-plugin_woocommerce' ) : '#' );
 			$enable_wc       = get_option( 'dlm_enable_woocommerce', '0' );
 			?>
 			<div class="notice notice-<?php echo '1' === $enable_wc ? 'warning' : 'info'; ?> is-dismissible">
@@ -658,16 +668,20 @@ class DLM {
 
 		// In-App Notification
 		$db = new DLM_DB();
+		/* translators: %s: Plan interval name */
+		$sub_title = sprintf( __( 'Subscription Active: %s', 'digital-library-membership' ), ucfirst( $interval ) );
+		/* translators: 1: Plan interval name, 2: Expiry date */
+		$sub_template = __( 'Your %1$s membership is now active (%2$s). You have unlimited access to the entire digital book catalog.', 'digital-library-membership' );
+		$sub_msg      = sprintf(
+			$sub_template,
+			ucfirst( $interval ),
+			( $interval === 'lifetime' ) ? __( 'Lifetime', 'digital-library-membership' ) : date_i18n( get_option( 'date_format' ), strtotime( $expires_at ) )
+		);
 		$db->create_notification( array(
 			'user_id'          => $user_id,
 			'type'             => 'subscription',
-			'title'            => sprintf( __( 'Subscription Active: %s', 'digital-library-membership' ), ucfirst( $interval ) ),
-			'message'          => sprintf(
-				/* translators: 1: Plan interval name, 2: Expiry date */
-				__( 'Your %1$s membership is now active (%2$s). You have unlimited access to the entire digital book catalog.', 'digital-library-membership' ),
-				ucfirst( $interval ),
-				( $interval === 'lifetime' ) ? __( 'Lifetime', 'digital-library-membership' ) : date_i18n( get_option( 'date_format' ), strtotime( $expires_at ) )
-			),
+			'title'            => $sub_title,
+			'message'          => $sub_msg,
 			'link_url'         => '#membership',
 			'deduplicate_days' => 1,
 		) );
@@ -800,16 +814,10 @@ class DLM {
 	}
 
 	/**
-	 * Register custom Elementor category 'digital-library'
+	 * Register custom Elementor category 'digital-library' at the very top of the editor
 	 */
 	public function register_elementor_category( $elements_manager ) {
-		$elements_manager->add_category(
-			'digital-library',
-			array(
-				'title' => __( 'Digital Library', 'digital-library-membership' ),
-				'icon'  => 'fa fa-book',
-			)
-		);
+		DLM_Home_Widgets::instance()->register_elementor_categories( $elements_manager );
 	}
 
 	/**
@@ -846,495 +854,423 @@ class DLM {
 /**
  * Global helper function to get DLM page ID
  */
-function dlm_get_page_id( $page_key ) {
-	return (int) get_option( 'dlm_' . $page_key . '_page_id', 0 );
+if ( ! function_exists( 'dlm_get_page_id' ) ) {
+	function dlm_get_page_id( $page_key ) {
+		return (int) get_option( 'dlm_' . $page_key . '_page_id', 0 );
+	}
 }
 
 /**
  * Global helper function to get DLM page URL
  */
-function dlm_get_page_url( $page_key ) {
-	$page_id = dlm_get_page_id( $page_key );
-	if ( $page_id && 'publish' === get_post_status( $page_id ) ) {
-		return get_permalink( $page_id );
+if ( ! function_exists( 'dlm_get_page_url' ) ) {
+	function dlm_get_page_url( $page_key ) {
+		$page_id = dlm_get_page_id( $page_key );
+		if ( $page_id && 'publish' === get_post_status( $page_id ) ) {
+			return get_permalink( $page_id );
+		}
+		return home_url( '/' . $page_key . '/' );
 	}
-	return home_url( '/' . $page_key . '/' );
 }
 
 /**
  * Global helper function to check if a user has an active membership subscription
  */
-function dlm_user_has_active_subscription( $user_id = 0 ) {
-	if ( ! $user_id ) {
-		$user_id = get_current_user_id();
+if ( ! function_exists( 'dlm_user_has_active_subscription' ) ) {
+	function dlm_user_has_active_subscription( $user_id = 0 ) {
+		if ( ! $user_id ) {
+			$user_id = get_current_user_id();
+		}
+		if ( ! $user_id ) {
+			return false;
+		}
+		$db = new DLM_DB();
+		return $db->has_active_membership( $user_id );
 	}
-	if ( ! $user_id ) {
-		return false;
-	}
-	$db = new DLM_DB();
-	return $db->has_active_membership( $user_id );
 }
 
 /**
  * Global helper function to verify Google ReCAPTCHA token (v2 or v3)
  */
-function dlm_verify_recaptcha( $token ) {
-	$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
-	if ( $recaptcha_mode === 'testing' ) {
-		$secret_key = '6LeIxAcTAAAAAGG-vFI1TnFTxW2mYgPGW7N5a3BJ';
-	} else {
-		$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+if ( ! function_exists( 'dlm_verify_recaptcha' ) ) {
+	function dlm_verify_recaptcha( $token ) {
+		$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
+		if ( $recaptcha_mode === 'testing' ) {
+			$secret_key = '6LeIxAcTAAAAAGG-vFI1TnFTxW2mYgPGW7N5a3BJ';
+		} else {
+			$secret_key = get_option( 'dlm_recaptcha_secret_key' );
+		}
+
+		if ( empty( $secret_key ) ) {
+			return true; // Skip verification if not configured
+		}
+
+		if ( empty( $token ) ) {
+			return false;
+		}
+
+		$response = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
+			'body' => array(
+				'secret'   => $secret_key,
+				'response' => $token,
+				'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
+			),
+			'timeout' => 5,
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return false;
+		}
+
+		$body   = wp_remote_retrieve_body( $response );
+		$result = json_decode( $body, true );
+
+		if ( empty( $result['success'] ) || ! $result['success'] ) {
+			return false;
+		}
+
+		$version = get_option( 'dlm_recaptcha_version', 'v2' );
+		if ( 'v3' === $version ) {
+			$threshold = floatval( get_option( 'dlm_recaptcha_score_threshold', 0.5 ) );
+			return isset( $result['score'] ) && floatval( $result['score'] ) >= $threshold;
+		}
+
+		return true;
 	}
-
-	if ( empty( $secret_key ) ) {
-		return true; // Skip verification if not configured
-	}
-
-	if ( empty( $token ) ) {
-		return false;
-	}
-
-	$response = wp_remote_post( 'https://www.google.com/recaptcha/api/siteverify', array(
-		'body' => array(
-			'secret'   => $secret_key,
-			'response' => $token,
-			'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
-		),
-		'timeout' => 5,
-	) );
-
-	if ( is_wp_error( $response ) ) {
-		return false;
-	}
-
-	$body   = wp_remote_retrieve_body( $response );
-	$result = json_decode( $body, true );
-
-	if ( empty( $result['success'] ) || ! $result['success'] ) {
-		return false;
-	}
-
-	$version = get_option( 'dlm_recaptcha_version', 'v2' );
-	if ( 'v3' === $version ) {
-		$threshold = floatval( get_option( 'dlm_recaptcha_score_threshold', 0.5 ) );
-		return isset( $result['score'] ) && floatval( $result['score'] ) >= $threshold;
-	}
-
-	return true;
 }
 
 /**
  * Clear Stripe connection cache
  */
-function dlm_clear_stripe_conn_transient() {
-	delete_transient( 'dlm_stripe_conn_status' );
+if ( ! function_exists( 'dlm_clear_stripe_conn_transient' ) ) {
+	function dlm_clear_stripe_conn_transient() {
+		delete_transient( 'dlm_stripe_conn_status' );
+	}
 }
 
 /**
  * Clear PayPal connection cache
  */
-function dlm_clear_paypal_conn_transient() {
-	delete_transient( 'dlm_paypal_conn_status' );
+if ( ! function_exists( 'dlm_clear_paypal_conn_transient' ) ) {
+	function dlm_clear_paypal_conn_transient() {
+		delete_transient( 'dlm_paypal_conn_status' );
+	}
 }
 
 /**
  * Live check Stripe connection status
  */
-function dlm_get_stripe_connection_status() {
-	$status = get_transient( 'dlm_stripe_conn_status' );
-	if ( false === $status ) {
-		$secret_key = get_option( 'dlm_stripe_secret_key' );
-		if ( empty( $secret_key ) ) {
-			$status = array( 'status' => 'not_set' );
-		} else {
-			$response = wp_remote_get( 'https://api.stripe.com/v1/account', array(
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $secret_key,
-				),
-				'timeout' => 10,
-			) );
-
-			if ( is_wp_error( $response ) ) {
-				$status = array( 
-					'status'  => 'failed', 
-					'message' => $response->get_error_message() 
-				);
+if ( ! function_exists( 'dlm_get_stripe_connection_status' ) ) {
+	function dlm_get_stripe_connection_status() {
+		$status = get_transient( 'dlm_stripe_conn_status' );
+		if ( false === $status ) {
+			$secret_key = get_option( 'dlm_stripe_secret_key' );
+			if ( empty( $secret_key ) ) {
+				$status = array( 'status' => 'not_set' );
 			} else {
-				$body = json_decode( wp_remote_retrieve_body( $response ) );
-				if ( ! empty( $body->id ) ) {
-					$status = array( 
-						'status' => 'connected', 
-						'email'  => ! empty( $body->email ) ? $body->email : '',
-					);
+				$response = wp_remote_get( 'https://api.stripe.com/v1/account', array(
+					'headers' => array(
+						'Authorization' => 'Bearer ' . $secret_key,
+					),
+					'timeout' => 5,
+				) );
+
+				if ( is_wp_error( $response ) ) {
+					$status = array( 'status' => 'error', 'message' => $response->get_error_message() );
 				} else {
-					$error_msg = ! empty( $body->error->message ) ? $body->error->message : __( 'Invalid Secret Key.', 'digital-library-membership' );
-					$status = array( 
-						'status'  => 'failed', 
-						'message' => $error_msg 
-					);
+					$code = wp_remote_retrieve_response_code( $response );
+					if ( 200 === $code ) {
+						$data = json_decode( wp_remote_retrieve_body( $response ), true );
+						$status = array(
+							'status'       => 'connected',
+							'account_id'   => $data['id'] ?? '',
+							'business_name'=> $data['business_profile']['name'] ?? $data['settings']['dashboard']['display_name'] ?? '',
+							'livemode'     => ! empty( $data['livemode'] ),
+						);
+					} else {
+						$body = json_decode( wp_remote_retrieve_body( $response ), true );
+						$status = array( 'status' => 'invalid_key', 'message' => $body['error']['message'] ?? 'Authentication failed' );
+					}
 				}
 			}
+			set_transient( 'dlm_stripe_conn_status', $status, 5 * MINUTE_IN_SECONDS );
 		}
-		set_transient( 'dlm_stripe_conn_status', $status, HOUR_IN_SECONDS );
+		return $status;
 	}
-	return $status;
 }
 
 /**
  * Live check PayPal connection status
  */
-function dlm_get_paypal_connection_status() {
-	$status = get_transient( 'dlm_paypal_conn_status' );
-	if ( false === $status ) {
-		$client_id = get_option( 'dlm_paypal_client_id' );
-		$secret    = get_option( 'dlm_paypal_secret_key' );
+if ( ! function_exists( 'dlm_get_paypal_connection_status' ) ) {
+	function dlm_get_paypal_connection_status() {
+		$status = get_transient( 'dlm_paypal_conn_status' );
+		if ( false === $status ) {
+			$client_id = get_option( 'dlm_paypal_client_id' );
+			$mode      = get_option( 'dlm_paypal_mode', 'sandbox' );
 
-		if ( empty( $client_id ) || empty( $secret ) ) {
-			$status = array( 'status' => 'not_set' );
-		} else {
-			$auth_url = 'https://api-m.sandbox.paypal.com/v1/oauth2/token'; // Fallback sandbox
-			$response = wp_remote_post( $auth_url, array(
-				'headers' => array(
-					'Accept' => 'application/json',
-					'Accept-Language' => 'en_US',
-					'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ),
-				),
-				'body' => array(
-					'grant_type' => 'client_credentials',
-				),
-				'timeout' => 10,
-			) );
-
-			if ( is_wp_error( $response ) ) {
-				$status = array( 
-					'status'  => 'failed', 
-					'message' => $response->get_error_message() 
-				);
+			if ( empty( $client_id ) ) {
+				$status = array( 'status' => 'not_set' );
 			} else {
-				$body = json_decode( wp_remote_retrieve_body( $response ) );
-				if ( ! empty( $body->access_token ) ) {
-					$status = array( 'status' => 'connected' );
+				$endpoint = ( $mode === 'live' )
+					? 'https://api-m.paypal.com/v1/oauth2/token'
+					: 'https://api-m.sandbox.paypal.com/v1/oauth2/token';
+
+				$response = wp_remote_post( $endpoint, array(
+					'headers' => array(
+						'Accept' => 'application/json',
+					),
+					'body' => array(
+						'grant_type' => 'client_credentials',
+					),
+					'timeout' => 5,
+				) );
+
+				if ( is_wp_error( $response ) ) {
+					$status = array( 'status' => 'error', 'message' => $response->get_error_message() );
 				} else {
-					$error_msg = ! empty( $body->error_description ) ? $body->error_description : ( ! empty( $body->error ) ? $body->error : __( 'Invalid credentials.', 'digital-library-membership' ) );
-					$status = array( 
-						'status'  => 'failed', 
-						'message' => $error_msg 
-					);
+					$code = wp_remote_retrieve_response_code( $response );
+					if ( 401 === $code ) {
+						$status = array( 'status' => 'client_id_found', 'mode' => $mode );
+					} elseif ( 200 === $code ) {
+						$status = array( 'status' => 'connected', 'mode' => $mode );
+					} else {
+						$status = array( 'status' => 'unknown', 'code' => $code );
+					}
 				}
 			}
+			set_transient( 'dlm_paypal_conn_status', $status, 5 * MINUTE_IN_SECONDS );
 		}
-		set_transient( 'dlm_paypal_conn_status', $status, HOUR_IN_SECONDS );
-	}
-	return $status;
-}
-
-/**
- * Check Google ReCAPTCHA status (Production vs Testing mode)
- */
-function dlm_get_recaptcha_connection_status() {
-	$mode       = get_option( 'dlm_recaptcha_mode', 'production' );
-	$site_key   = get_option( 'dlm_recaptcha_site_key' );
-	$secret_key = get_option( 'dlm_recaptcha_secret_key' );
-
-	if ( $mode === 'testing' ) {
-		return array( 
-			'status'  => 'testing', 
-			'message' => __( 'Developer Testing Mode is active. Using Google default test keys (always passes).', 'digital-library-membership' )
-		);
-	} elseif ( empty( $site_key ) || empty( $secret_key ) ) {
-		return array( 
-			'status'  => 'not_set', 
-			'message' => __( 'Google ReCAPTCHA is not configured yet.', 'digital-library-membership' )
-		);
-	} else {
-		// Honest logic: Google ReCAPTCHA API does not allow validating keys programmatically without a user response token.
-		// If keys are saved, we mark them as configured and explain how they can be tested.
-		return array( 
-			'status'  => 'connected',
-			'message' => __( 'Credentials Configured (Live Production Mode). Google API prevents programmatic connection verification without a user response token. Please verify by completing a login or checkout captcha challenge on the frontend.', 'digital-library-membership' )
-		);
-	}
-}
-
-function dlm_clear_recaptcha_conn_transient() {
-	delete_transient( 'dlm_recaptcha_conn_status' );
-}
-
-/**
- * Get active payment engine ('default' or 'woocommerce')
- */
-function dlm_get_payment_engine() {
-	return get_option( 'dlm_payment_engine', 'default' );
-}
-
-/**
- * Central Permission Check: Determine user access level to a specific book
- *
- * @param int|WP_User $user_id Optional. User ID or object. Defaults to current user.
- * @param int|object  $book_id Book ID or Book database object.
- * @return string 'locked' | 'read_only' | 'read_download'
- */
-function dlm_user_can_access_book( $user_id = 0, $book_id = 0 ) {
-	if ( ! $user_id ) {
-		$user_id = get_current_user_id();
-	}
-
-	// Administrators with manage_options always get full read + download access
-	if ( $user_id && user_can( $user_id, 'manage_options' ) ) {
-		return 'read_download';
-	}
-
-	$db = new DLM_DB();
-	$book = is_object( $book_id ) ? $book_id : $db->get_book( intval( $book_id ) );
-
-	if ( ! $book ) {
-		return 'locked';
-	}
-
-	// Check if book is scheduled for future publish
-	$is_future = ! empty( $book->publish_date ) && ( strtotime( $book->publish_date ) > current_time( 'timestamp' ) );
-	if ( $book->status === 'future' && empty( $book->publish_date ) ) {
-		$is_future = true;
-	}
-	if ( $is_future ) {
-		return 'locked';
-	}
-
-	$access_type    = ! empty( $book->access_type ) ? $book->access_type : 'subscription_only';
-	$has_active_sub = $user_id ? $db->has_active_membership( $user_id ) : false;
-	$has_purchased  = $user_id ? $db->has_purchased_book( $user_id, $book->id ) : false;
-
-	switch ( $access_type ) {
-		case 'subscription_only':
-			if ( $has_active_sub ) {
-				return 'read_only';
-			}
-			return 'locked';
-
-		case 'purchase_only':
-			if ( $has_purchased ) {
-				return 'read_download';
-			}
-			return 'locked';
-
-		case 'hybrid':
-			if ( $has_active_sub || $has_purchased ) {
-				return 'read_download';
-			}
-			return 'locked';
-
-		default:
-			return 'locked';
+		return $status;
 	}
 }
 
 /**
- * Generate a signed, time-limited token for secure PDF download
- *
- * @param int $user_id
- * @param int $book_id
- * @param int $expires_in Expiry in seconds (Default 2 hours)
- * @return array
+ * Check all payment gateways status at once
  */
-function dlm_generate_download_token( $user_id, $book_id, $expires_in = 7200 ) {
-	$expires = time() + $expires_in;
-	$token   = hash_hmac( 'sha256', $user_id . '|' . $book_id . '|' . $expires, wp_salt( 'nonce' ) );
+if ( ! function_exists( 'dlm_check_all_gateways_status' ) ) {
+	function dlm_check_all_gateways_status() {
+		$stripe_live = get_option( 'dlm_stripe_live_mode', '0' );
+		$stripe_key  = ( $stripe_live === '1' ) ? get_option( 'dlm_stripe_live_secret_key' ) : get_option( 'dlm_stripe_test_secret_key' );
+		$stripe_pub  = ( $stripe_live === '1' ) ? get_option( 'dlm_stripe_live_publishable_key' ) : get_option( 'dlm_stripe_test_publishable_key' );
 
-	return array(
-		'token'   => $token,
-		'expires' => $expires,
-		'user_id' => $user_id,
-		'url'     => add_query_arg(
-			array(
-				'token'   => $token,
-				'expires' => $expires,
-				'uid'     => $user_id,
+		$stripe_configured = ( ! empty( $stripe_key ) && ! empty( $stripe_pub ) );
+
+		$paypal_mode = get_option( 'dlm_paypal_mode', 'sandbox' );
+		$paypal_client = get_option( 'dlm_paypal_client_id' );
+		$paypal_configured = ! empty( $paypal_client );
+
+		$results = array(
+			'stripe' => array(
+				'configured' => $stripe_configured,
+				'mode'       => ( $stripe_live === '1' ) ? 'live' : 'test',
 			),
-			rest_url( "dlm/v1/book/{$book_id}/download" )
-		),
-	);
+			'paypal' => array(
+				'configured' => $paypal_configured,
+				'mode'       => $paypal_mode,
+			),
+		);
+
+		return $results;
+	}
+}
+
+/**
+ * Generate a signed, time-limited download URL for a book
+ */
+if ( ! function_exists( 'dlm_generate_download_token' ) ) {
+	function dlm_generate_download_token( $user_id, $book_id, $ttl_seconds = 3600 ) {
+		$expires = time() + $ttl_seconds;
+		$token   = hash_hmac( 'sha256', $user_id . '|' . $book_id . '|' . $expires, wp_salt( 'nonce' ) );
+
+		return array(
+			'token'   => $token,
+			'expires' => $expires,
+			'url'     => add_query_arg(
+				array(
+					'uid'     => $user_id,
+					'expires' => $expires,
+					'token'   => $token,
+				),
+				rest_url( "dlm/v1/book/{$book_id}/download" )
+			),
+		);
+	}
 }
 
 /**
  * Verify signed, time-limited download token
- *
- * @param int    $user_id
- * @param int    $book_id
- * @param string $token
- * @param int    $expires
- * @return bool
  */
-function dlm_verify_download_token( $user_id, $book_id, $token, $expires ) {
-	if ( empty( $token ) || empty( $expires ) || ! $user_id || ! $book_id ) {
-		return false;
-	}
+if ( ! function_exists( 'dlm_verify_download_token' ) ) {
+	function dlm_verify_download_token( $user_id, $book_id, $token, $expires ) {
+		if ( empty( $token ) || empty( $expires ) || ! $user_id || ! $book_id ) {
+			return false;
+		}
 
-	if ( intval( $expires ) < time() ) {
-		return false; // Token has expired
-	}
+		if ( intval( $expires ) < time() ) {
+			return false; // Token has expired
+		}
 
-	$expected = hash_hmac( 'sha256', $user_id . '|' . $book_id . '|' . $expires, wp_salt( 'nonce' ) );
-	return hash_equals( $expected, $token );
+		$expected = hash_hmac( 'sha256', $user_id . '|' . $book_id . '|' . $expires, wp_salt( 'nonce' ) );
+		return hash_equals( $expected, $token );
+	}
 }
 
 /**
  * Get all subscription packages from single source of truth
- *
- * @return array
  */
-function dlm_get_packages() {
-	$packages = get_option( 'dlm_subscription_packages' );
+if ( ! function_exists( 'dlm_get_packages' ) ) {
+	function dlm_get_packages() {
+		$packages = get_option( 'dlm_subscription_packages' );
 
-	if ( ! is_array( $packages ) || empty( $packages ) ) {
-		// One-time initial seeding from existing scalar options
-		$features_monthly_raw = get_option( 'dlm_features_monthly', '' );
-		if ( ! empty( $features_monthly_raw ) ) {
-			$features_monthly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_monthly_raw ) ) ) );
-		} else {
-			$features_monthly = array(
-				__( 'Unlimited digital reading', 'digital-library-membership' ),
-				__( 'Real-time reading journal logs', 'digital-library-membership' ),
-				__( 'Saves streaks & achievements', 'digital-library-membership' ),
+		if ( ! is_array( $packages ) || empty( $packages ) ) {
+			$features_monthly_raw = get_option( 'dlm_features_monthly', '' );
+			if ( ! empty( $features_monthly_raw ) ) {
+				$features_monthly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_monthly_raw ) ) ) );
+			} else {
+				$features_monthly = array(
+					__( 'Unlimited digital reading', 'digital-library-membership' ),
+					__( 'Real-time reading journal logs', 'digital-library-membership' ),
+					__( 'Saves streaks & achievements', 'digital-library-membership' ),
+				);
+			}
+
+			$features_yearly_raw = get_option( 'dlm_features_yearly', '' );
+			if ( ! empty( $features_yearly_raw ) ) {
+				$features_yearly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_yearly_raw ) ) ) );
+			} else {
+				$features_yearly = array(
+					__( 'Everything in Monthly', 'digital-library-membership' ),
+					__( 'Save ~30% annually', 'digital-library-membership' ),
+					__( 'Collector badges unlocked', 'digital-library-membership' ),
+				);
+			}
+
+			$features_lifetime_raw = get_option( 'dlm_features_lifetime', '' );
+			if ( ! empty( $features_lifetime_raw ) ) {
+				$features_lifetime = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_lifetime_raw ) ) ) );
+			} else {
+				$features_lifetime = array(
+					__( 'Unlimited permanent access', 'digital-library-membership' ),
+					__( 'No recurring bills or fees', 'digital-library-membership' ),
+					__( 'All future books included', 'digital-library-membership' ),
+				);
+			}
+
+			$packages = array(
+				'monthly' => array(
+					'id'              => 'monthly',
+					'name'            => __( 'Monthly Access', 'digital-library-membership' ),
+					'badge'           => __( 'The Reader', 'digital-library-membership' ),
+					'description'     => __( 'Instant access to all digital books billed every month.', 'digital-library-membership' ),
+					'interval'        => 'monthly',
+					'price'           => floatval( get_option( 'dlm_pricing_monthly', '9.99' ) ),
+					'features'        => array_values( $features_monthly ),
+					'status'          => 'active',
+					'stripe_price_id' => get_option( 'dlm_stripe_monthly_price_id', '' ),
+					'paypal_plan_id'  => get_option( 'dlm_paypal_monthly_plan_id', '' ),
+					'wc_product_id'   => intval( get_option( 'dlm_wc_monthly_product', 0 ) ),
+				),
+				'yearly' => array(
+					'id'              => 'yearly',
+					'name'            => __( 'Yearly Membership', 'digital-library-membership' ),
+					'badge'           => __( 'The Scholar', 'digital-library-membership' ),
+					'description'     => __( 'Full year of unlimited reading. Best value for avid readers.', 'digital-library-membership' ),
+					'interval'        => 'yearly',
+					'price'           => floatval( get_option( 'dlm_pricing_yearly', '99.99' ) ),
+					'features'        => array_values( $features_yearly ),
+					'status'          => 'active',
+					'stripe_price_id' => get_option( 'dlm_stripe_yearly_price_id', '' ),
+					'paypal_plan_id'  => get_option( 'dlm_paypal_yearly_plan_id', '' ),
+					'wc_product_id'   => intval( get_option( 'dlm_wc_yearly_product', 0 ) ),
+				),
+				'lifetime' => array(
+					'id'              => 'lifetime',
+					'name'            => __( 'Lifetime Access', 'digital-library-membership' ),
+					'badge'           => __( 'The Collector', 'digital-library-membership' ),
+					'description'     => __( 'One-time payment for permanent access to all current and future books.', 'digital-library-membership' ),
+					'interval'        => 'lifetime',
+					'price'           => floatval( get_option( 'dlm_pricing_lifetime', '199.99' ) ),
+					'features'        => array_values( $features_lifetime ),
+					'status'          => 'active',
+					'stripe_price_id' => get_option( 'dlm_stripe_lifetime_price_id', '' ),
+					'paypal_plan_id'  => get_option( 'dlm_paypal_lifetime_plan_id', '' ),
+					'wc_product_id'   => intval( get_option( 'dlm_wc_lifetime_product', 0 ) ),
+				),
 			);
+
+			update_option( 'dlm_subscription_packages', $packages );
 		}
 
-		$features_yearly_raw = get_option( 'dlm_features_yearly', '' );
-		if ( ! empty( $features_yearly_raw ) ) {
-			$features_yearly = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_yearly_raw ) ) ) );
-		} else {
-			$features_yearly = array(
-				__( 'Everything in Monthly', 'digital-library-membership' ),
-				__( 'Save ~30% annually', 'digital-library-membership' ),
-				__( 'Collector badges unlocked', 'digital-library-membership' ),
-			);
-		}
-
-		$features_lifetime_raw = get_option( 'dlm_features_lifetime', '' );
-		if ( ! empty( $features_lifetime_raw ) ) {
-			$features_lifetime = array_filter( array_map( 'trim', explode( "\n", str_replace( "\r", '', $features_lifetime_raw ) ) ) );
-		} else {
-			$features_lifetime = array(
-				__( 'Unlimited permanent access', 'digital-library-membership' ),
-				__( 'No recurring bills or fees', 'digital-library-membership' ),
-				__( 'All future books included', 'digital-library-membership' ),
-			);
-		}
-
-		$packages = array(
-			'monthly' => array(
-				'id'              => 'monthly',
-				'name'            => __( 'Monthly Access', 'digital-library-membership' ),
-				'badge'           => __( 'The Reader', 'digital-library-membership' ),
-				'description'     => __( 'Instant access to all digital books billed every month.', 'digital-library-membership' ),
-				'interval'        => 'monthly',
-				'price'           => floatval( get_option( 'dlm_pricing_monthly', '9.99' ) ),
-				'features'        => array_values( $features_monthly ),
-				'status'          => 'active',
-				'stripe_price_id' => get_option( 'dlm_stripe_monthly_price_id', '' ),
-				'paypal_plan_id'  => get_option( 'dlm_paypal_monthly_plan_id', '' ),
-				'wc_product_id'   => intval( get_option( 'dlm_wc_monthly_product', 0 ) ),
-			),
-			'yearly' => array(
-				'id'              => 'yearly',
-				'name'            => __( 'Yearly Membership', 'digital-library-membership' ),
-				'badge'           => __( 'The Scholar', 'digital-library-membership' ),
-				'description'     => __( 'Full year of unlimited reading. Best value for avid readers.', 'digital-library-membership' ),
-				'interval'        => 'yearly',
-				'price'           => floatval( get_option( 'dlm_pricing_yearly', '99.99' ) ),
-				'features'        => array_values( $features_yearly ),
-				'status'          => 'active',
-				'stripe_price_id' => get_option( 'dlm_stripe_yearly_price_id', '' ),
-				'paypal_plan_id'  => get_option( 'dlm_paypal_yearly_plan_id', '' ),
-				'wc_product_id'   => intval( get_option( 'dlm_wc_yearly_product', 0 ) ),
-			),
-			'lifetime' => array(
-				'id'              => 'lifetime',
-				'name'            => __( 'Lifetime Access', 'digital-library-membership' ),
-				'badge'           => __( 'The Collector', 'digital-library-membership' ),
-				'description'     => __( 'One-time payment for permanent access to all current and future books.', 'digital-library-membership' ),
-				'interval'        => 'lifetime',
-				'price'           => floatval( get_option( 'dlm_pricing_lifetime', '199.99' ) ),
-				'features'        => array_values( $features_lifetime ),
-				'status'          => 'active',
-				'stripe_price_id' => get_option( 'dlm_stripe_lifetime_price_id', '' ),
-				'paypal_plan_id'  => get_option( 'dlm_paypal_lifetime_plan_id', '' ),
-				'wc_product_id'   => intval( get_option( 'dlm_wc_lifetime_product', 0 ) ),
-			),
-		);
-
-		update_option( 'dlm_subscription_packages', $packages );
+		return $packages;
 	}
-
-	return $packages;
 }
 
 /**
  * Get single subscription package by ID or interval
- *
- * @param string $id
- * @return array|null
  */
-function dlm_get_package( $id ) {
-	$packages = dlm_get_packages();
-	if ( isset( $packages[ $id ] ) ) {
-		return $packages[ $id ];
-	}
-	foreach ( $packages as $pkg ) {
-		if ( isset( $pkg['id'] ) && $pkg['id'] === $id ) {
-			return $pkg;
+if ( ! function_exists( 'dlm_get_package' ) ) {
+	function dlm_get_package( $id ) {
+		$packages = dlm_get_packages();
+		if ( isset( $packages[ $id ] ) ) {
+			return $packages[ $id ];
 		}
-		if ( isset( $pkg['interval'] ) && $pkg['interval'] === $id ) {
-			return $pkg;
+		foreach ( $packages as $pkg ) {
+			if ( isset( $pkg['id'] ) && $pkg['id'] === $id ) {
+				return $pkg;
+			}
+			if ( isset( $pkg['interval'] ) && $pkg['interval'] === $id ) {
+				return $pkg;
+			}
 		}
+		return null;
 	}
-	return null;
 }
 
 /**
  * Get live active subscriber count for a package
- *
- * @param string $package_id
- * @param string $interval
- * @return int
  */
-function dlm_get_package_subscriber_count( $package_id, $interval = '' ) {
-	global $wpdb;
-	$table = $wpdb->prefix . 'dlm_subscriptions';
-	if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
-		return 0;
+if ( ! function_exists( 'dlm_get_package_subscriber_count' ) ) {
+	function dlm_get_package_subscriber_count( $package_id, $interval = '' ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'dlm_subscriptions';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) !== $table ) {
+			return 0;
+		}
+
+		if ( empty( $interval ) ) {
+			$pkg = dlm_get_package( $package_id );
+			$interval = $pkg && ! empty( $pkg['interval'] ) ? $pkg['interval'] : $package_id;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM %i WHERE status = %s AND (plan_interval = %s OR plan_interval = %s)",
+				$table,
+				'active',
+				$package_id,
+				$interval
+			)
+		);
+
+		return intval( $count );
 	}
-
-	if ( empty( $interval ) ) {
-		$pkg = dlm_get_package( $package_id );
-		$interval = $pkg && ! empty( $pkg['interval'] ) ? $pkg['interval'] : $package_id;
-	}
-
-	$count = $wpdb->get_var(
-		$wpdb->prepare(
-			"SELECT COUNT(*) FROM %i WHERE status = %s AND (plan_interval = %s OR plan_interval = %s)",
-			$table,
-			'active',
-			$package_id,
-			$interval
-		)
-	);
-
-	return intval( $count );
 }
 
 /**
  * Save packages array to options (single source of truth)
- *
- * @param array $packages
- * @return bool
  */
-function dlm_save_packages( $packages ) {
-	if ( ! is_array( $packages ) ) {
-		return false;
+if ( ! function_exists( 'dlm_save_packages' ) ) {
+	function dlm_save_packages( $packages ) {
+		if ( ! is_array( $packages ) ) {
+			return false;
+		}
+
+		$updated = update_option( 'dlm_subscription_packages', $packages );
+		delete_transient( 'dlm_analytics_summary' );
+
+		return $updated;
 	}
-
-	$updated = update_option( 'dlm_subscription_packages', $packages );
-	delete_transient( 'dlm_analytics_summary' );
-
-	return $updated;
 }

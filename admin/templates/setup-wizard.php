@@ -253,7 +253,7 @@ $public_nonce = wp_create_nonce( 'dlm_public_nonce' );
 					<div id="setup-social-fields" style="display: none; padding-top: 10px; border-top: 1px solid #eadecc;">
 						<div class="setup-form-group">
 							<label for="setup-google-client-id"><?php esc_html_e( 'Google Client ID', 'digital-library-membership' ); ?></label>
-							<input type="text" id="setup-google-client-id" class="dlm-input" placeholder="e.g. 123456789-xxx.apps.googleusercontent.com" value="<?php echo esc_attr( get_option( 'dlm_google_client_id' ) ); ?>">
+							<input type="text" id="setup-google-client-id" class="dlm-input" placeholder="<?php esc_attr_e( 'Enter your Google OAuth Client ID', 'digital-library-membership' ); ?>" value="<?php echo esc_attr( get_option( 'dlm_google_client_id' ) ); ?>">
 						</div>
 						<div class="setup-form-group">
 							<label for="setup-google-client-secret"><?php esc_html_e( 'Google Client Secret', 'digital-library-membership' ); ?></label>

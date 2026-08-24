@@ -675,7 +675,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 	<div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
 		<!-- Ambient Background Elements (From login.html) -->
 		<div class="absolute inset-0 z-0 pointer-events-none">
-			<div class="absolute top-0 right-0 w-[60%] h-full opacity-40 mix-blend-multiply bg-cover bg-right" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCN5XWEA_e7fhXdjDPfF7f60RufK7a6FR3e5K6BNZzK6XE9Of4WbEQP9RBevx5y0YTFlPoA0KRQGlk70QJYqwZgrTQi_SHKFSwbPWLNyiXtO6m7fDwnPTDueKaW4-85BSlDtXlyybNlzNn_lczDMCqRGUuFjVBPHE3xp5d913wnj-c_ZqqlbK16duF1KP1X2Qd0u8nLbw21brHyJtOS-BZ-B_-rn2xmmBpZJf41QRgpN9NIpmivqqF1')"></div>
+			<div class="absolute top-0 right-0 w-[60%] h-full opacity-40 mix-blend-multiply bg-cover bg-right" style="background: radial-gradient(circle at top right, rgba(133, 83, 0, 0.18), transparent 70%);"></div>
 			<div class="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-transparent"></div>
 		</div>
 
@@ -898,8 +898,10 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 					<?php
 					$notifs_list = ! empty( $db_notifications ) ? $db_notifications : array();
 					$unread_total = isset( $unread_notif_count ) ? intval( $unread_notif_count ) : 0;
+					/* translators: %d: number of unread notifications */
+					$notif_btn_label = $unread_total > 0 ? sprintf( __( 'Notifications (%d unread)', 'digital-library-membership' ), $unread_total ) : __( 'Notifications (No unread)', 'digital-library-membership' );
 					?>
-					<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative cursor-pointer" type="button" aria-haspopup="true" aria-expanded="false" aria-label="<?php echo esc_attr( $unread_total > 0 ? sprintf( __( 'Notifications (%d unread)', 'digital-library-membership' ), $unread_total ) : __( 'Notifications (No unread)', 'digital-library-membership' ) ); ?>">
+					<button id="notification-btn" class="p-2 text-secondary hover:bg-primary/5 rounded-full transition-colors relative cursor-pointer" type="button" aria-haspopup="true" aria-expanded="false" aria-label="<?php echo esc_attr( $notif_btn_label ); ?>">
 						<i class="fa-regular fa-bell text-[18px] md:text-[20px]"></i>
 						<span id="notification-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-surface shadow-sm<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo intval( $unread_total ); ?></span>
 					</button>
@@ -908,7 +910,11 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						<div class="px-3 pb-2.5 border-b border-outline-variant/20 flex justify-between items-center">
 							<div class="flex items-center gap-2">
 								<h4 class="font-bold text-on-surface text-sm"><?php esc_html_e( 'Notifications', 'digital-library-membership' ); ?></h4>
-								<span id="notification-unread-pill" class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo esc_html( sprintf( __( '%d new', 'digital-library-membership' ), $unread_total ) ); ?></span>
+								<?php
+								/* translators: %d: count of new notifications */
+								$new_notifs_str = sprintf( __( '%d new', 'digital-library-membership' ), $unread_total );
+								?>
+								<span id="notification-unread-pill" class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full<?php if ( $unread_total === 0 ) echo ' hidden'; ?>"><?php echo esc_html( $new_notifs_str ); ?></span>
 							</div>
 							<button type="button" class="text-xs font-bold text-primary hover:underline cursor-pointer transition-colors p-1" id="mark-all-read-btn"><?php esc_html_e( 'Mark all read', 'digital-library-membership' ); ?></button>
 						</div>
@@ -952,7 +958,11 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center justify-between gap-1 mb-0.5">
 												<p class="text-xs font-bold text-on-surface truncate leading-tight"><?php echo esc_html( $notif->title ); ?></p>
-												<span class="text-[10px] text-secondary shrink-0 opacity-80"><?php echo esc_html( sprintf( __( '%s ago', 'digital-library-membership' ), $time_diff ) ); ?></span>
+												<?php
+												/* translators: %s: relative time elapsed */
+												$time_ago_str = sprintf( __( '%s ago', 'digital-library-membership' ), $time_diff );
+												?>
+												<span class="text-[10px] text-secondary shrink-0 opacity-80"><?php echo esc_html( $time_ago_str ); ?></span>
 											</div>
 											<p class="text-[11px] text-secondary leading-snug line-clamp-2"><?php echo esc_html( $notif->message ); ?></p>
 										</div>
@@ -1075,7 +1085,11 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 													</div>
 													<span class="px-4 py-2.5 bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs flex items-center gap-1.5 border border-white/20">
 														<i class="fa-solid fa-bell text-amber-300"></i>
-														<?php echo esc_html( $btn1_label ?: sprintf( __( 'Releases %s', 'digital-library-membership' ), $f_publish_fmt ) ); ?>
+														<?php
+														/* translators: %s: scheduled book release date */
+														$release_str = sprintf( __( 'Releases %s', 'digital-library-membership' ), $f_publish_fmt );
+														echo esc_html( $btn1_label ?: $release_str );
+														?>
 													</span>
 												</div>
 											<?php else : ?>
@@ -1821,8 +1835,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				<!-- Right summary Column -->
 				<div class="lg:col-span-5">
 					<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-[24px] overflow-hidden shadow-sm sticky top-32">
-						<div class="relative h-48 w-full">
-							<div class="w-full h-full bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDSk4Nw5d3UbuCs0_cZAVEqJFuQtjwXGTi0Kt3TfE8dvKAoXlWMLQ4UlKclAjmjrKwCRt2rsOD8PdaTc2q9KUz8f-IAEkUBUubZAK1SJHvewSJd_qhcYrcyAdLP3tQn4LgTSjodSkJBfqWz-cLAfLuUsX5AunYsqDaYPsxwkDSPFcYBuOKgRdNND5kwvQ12vIl64f-YnC_MacXp0yMeA9NOT_90heYbIOTqLQYecL1oPnuQMldkw5lsrC4Kg1LrRBsneXBVqaueG6E')"></div>
+						<div class="relative h-48 w-full" style="background: linear-gradient(135deg, #855300 0%, #3e2600 100%);">
 							<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent"></div>
 							<div class="absolute bottom-6 left-6">
 								<span class="px-3 py-1 bg-primary text-white text-[11px] font-bold rounded-full mb-2 inline-block">SECURE GATEWAY</span>

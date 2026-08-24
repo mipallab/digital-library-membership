@@ -1,9 +1,9 @@
 === Digital Library Membership ===
 Contributors: mipallab123
-Tags: library, membership, reader, flipbook, stripe, gutenberg, elementor
+Tags: library, membership, reader, flipbook, stripe, gutenberg, elementor, carousel, widgets
 Requires at least: 6.2
-Tested up to: 7.0
-Stable tag: 2.6.3
+Tested up to: 7.1
+Stable tag: 3.1.0
 Requires PHP: 8.1
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
@@ -11,11 +11,20 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 # Digital Library Membership
 
-A premium WordPress plugin for subscription-based digital book reading with realistic physical-style page flip animation.
+A premium WordPress plugin for subscription-based digital book reading with realistic physical-style page flip animation, native Elementor GSAP widgets, touch carousels, and complete home addons.
 
 ## Key Features
 
-1. **Security & DRM Hardening**:
+1. **Native Elementor Widgets & Home Addons**:
+   - **Hero Featured Book Slider** (`DLM_Widget_Hero_Book_Slider`): 3D perspective floating book covers, ambient radial glow, GSAP floating motion, and rating scores.
+   - **Library Book Carousel & Live Grid** (`DLM_Widget_Library_Carousel`): Ultra-smooth touch Swiper carousel & client-side real-time filterable grid.
+   - **Membership Pricing Section** (`DLM_Widget_Membership_Section`): Modern pricing cards with highlight tags, checkmarked feature lists, and instant checkout links.
+   - **Review Switcher** (`DLM_Widget_Review_Switcher`): Dynamic 3-tab review switcher supporting video embeds, reader testimonials with avatars, and Google review summaries.
+   - **Interactive Contact Section** (`DLM_Widget_Contact_Section`): Contact details cards and an AJAX contact form with nonces, validation, and email dispatch.
+   - **About Author Section** (`DLM_Widget_About_Author`): Author biography, experience badges, highlight statistic counters, and social profiles.
+   - **Standalone Shortcodes**: `[dlm_library_carousel]`, `[dlm_library_grid]`, `[dlm_membership]`, `[dlm_review_switcher]`, `[dlm_contact_form]`, `[dlm_hero_slider]`, `[dlm_about_author]`.
+
+2. **Security & DRM Hardening**:
    - Files are stored in a protected folder (`wp-content/uploads/dlm-protected-books/`) secured by a local `.htaccess` block, which rejects all direct URL access.
    - Books are streamed page-by-page/chunk-by-chunk using HTTP 206 Range requests from an authenticated REST API endpoint, ensuring the raw file is never exposed to the frontend.
    - Anti-extraction measures include right-click blocking, text-selection blocking, copy/save/print keyboard shortcuts interception, print-CSS media blocks, and a repeating diagonal SVG watermark overlaying the reader canvas containing the user's name, email, and IP address.

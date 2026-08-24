@@ -14,8 +14,8 @@
  * @wordpress-plugin
  * Plugin Name:       Digital Library Membership
  * Plugin URI:        https://profiles.wordpress.org/mipallab123/digital-library-membership
- * Description:       A premium, secure subscription membership plugin to read digital books frontend with a physical page-flip feel.
- * Version:           2.6.3
+ * Description:       A premium, secure subscription membership plugin to read digital books frontend with physical page-flip feel, native Elementor GSAP widgets, touch carousels, and addons.
+ * Version:           3.1.0
  * Author:            Majadul Islam Pallab
  * Author URI:        https://profiles.wordpress.org/mipallab123
  * License:           GPL-2.0+
@@ -23,7 +23,7 @@
  * Domain Path:       /languages
  * Requires at least: 6.2
  * Requires PHP:      8.1
- * Tested up to:      7.0
+ * Tested up to:      7.1
  * Elementor tested up to: 3.25.0
  */
 
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Define Plugin Constants
  */
-define( 'DLM_VERSION', '2.6.3' );
+define( 'DLM_VERSION', '3.1.0' );
 define( 'DLM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DLM_URL', plugin_dir_url( __FILE__ ) );
 
@@ -45,7 +45,7 @@ define( 'DLM_PROTECTED_DIR', $upload_dir['basedir'] . '/dlm-protected-books' );
 define( 'DLM_PROTECTED_URL', $upload_dir['baseurl'] . '/dlm-protected-books' );
 
 /**
- * Register Autoloader for namespaces (PSR-4-like loading for includes)
+ * Register Autoloader for namespaces (PSR-4-like loading for includes & widgets)
  */
 spl_autoload_register( function ( $class ) {
 	// Only load classes with DLM prefix
@@ -61,8 +61,11 @@ spl_autoload_register( function ( $class ) {
 		$file_name  = 'class-dlm-' . strtolower( str_replace( '_', '-', $class_name ) ) . '.php';
 	}
 	
-	// Check includes directory first, then public directory
+	// Check includes directory first, then widgets, then public directory
 	$file_path  = DLM_PATH . 'includes/' . $file_name;
+	if ( ! file_exists( $file_path ) ) {
+		$file_path = DLM_PATH . 'includes/widgets/' . $file_name;
+	}
 	if ( ! file_exists( $file_path ) ) {
 		$file_path = DLM_PATH . 'public/' . $file_name;
 	}

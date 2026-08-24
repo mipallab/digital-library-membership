@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.SlowDBQuery
+
 class DLM_Demo_Data {
 
 	/**
@@ -982,4 +984,5 @@ class DLM_Demo_Data {
 		return $this->remove_step_users_finalize();
 	}
 }
+// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.SlowDBQuery
 

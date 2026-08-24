@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// phpcs:disable WordPress.DB.SlowDBQuery
+
 class DLM_Social_Auth {
 
 	/**
@@ -367,6 +369,7 @@ class DLM_Social_Auth {
 
 		// If Apple didn't return an email in claims, try matching existing user by provider ID
 		if ( empty( $email ) ) {
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Match existing user by Apple ID.
 			$existing_users = get_users( array(
 				'meta_key'   => '_dlm_apple_id',
 				'meta_value' => $apple_sub,
@@ -510,6 +513,7 @@ class DLM_Social_Auth {
 		$meta_key = '_dlm_' . sanitize_key( $provider ) . '_id';
 
 		// 1. Match by provider user ID
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Match existing user by social provider ID.
 		$existing_provider_users = get_users( array(
 			'meta_key'   => $meta_key,
 			'meta_value' => $provider_id,
@@ -608,3 +612,4 @@ class DLM_Social_Auth {
 		exit;
 	}
 }
+// phpcs:enable WordPress.DB.SlowDBQuery

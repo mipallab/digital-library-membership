@@ -39,7 +39,7 @@ class DLM_Elementor_Header_Nav extends \Elementor\Widget_Base {
 	 * Add categories to group widget in palette
 	 */
 	public function get_categories() {
-		return array( 'general' );
+		return array( 'digital-library', 'mipallab_category', 'general' );
 	}
 
 	/**

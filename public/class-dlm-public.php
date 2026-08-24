@@ -386,7 +386,11 @@ class DLM_Public {
 											<?php esc_html_e( 'Coming Soon', 'digital-library-membership' ); ?>
 										</span>
 										<p class="text-white/90 text-[11px] font-medium leading-tight mt-1">
-											<?php echo esc_html( sprintf( __( 'Releases %s', 'digital-library-membership' ), $book['publish_formatted'] ) ); ?>
+											<?php
+											/* translators: %s: scheduled release date */
+											$rel_text = sprintf( __( 'Releases %s', 'digital-library-membership' ), $book['publish_formatted'] );
+											echo esc_html( $rel_text );
+											?>
 										</p>
 									</div>
 								<?php else : ?>
@@ -406,7 +410,11 @@ class DLM_Public {
 										<?php else : ?>
 											<?php if ( $book['access_type'] === 'purchase_only' || $book['access_type'] === 'hybrid' ) : ?>
 												<button class="dlm-btn-buy dlm-book-action-btn" data-book-id="<?php echo esc_attr( $book['id'] ); ?>" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2); border:none; cursor:pointer;">
-												<?php echo esc_html( sprintf( __( 'Buy (%s)', 'digital-library-membership' ), $price_formatted ) ); ?>
+												<?php
+												/* translators: %s: formatted price */
+												$buy_text = sprintf( __( 'Buy (%s)', 'digital-library-membership' ), $price_formatted );
+												echo esc_html( $buy_text );
+												?>
 											</button>
 										<?php elseif ( $is_logged_in ) : ?>
 											<span class="dlm-book-action-btn" style="background:#ffffff !important; color:#000000 !important; font-weight:700; font-size:12px; padding:6px 12px; border-radius:10px; text-align:center; width:100%; max-width:120px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
@@ -1344,11 +1352,15 @@ class DLM_Public {
 				if ( ! in_array( $nb['id'], $old_badges, true ) ) {
 					$badge_label = ! empty( $nb['label'] ) ? $nb['label'] : $nb['id'];
 					if ( ! $this->db->notification_exists( $user_id, 'badge', $badge_label ) ) {
+						/* translators: %s: badge name */
+						$badge_title = sprintf( __( 'Badge Unlocked: %s', 'digital-library-membership' ), $badge_label );
+						/* translators: %s: badge name */
+						$badge_msg   = sprintf( __( 'Congratulations! You unlocked the "%s" milestone achievement badge.', 'digital-library-membership' ), $badge_label );
 						$this->db->create_notification( array(
 							'user_id'   => $user_id,
 							'type'      => 'badge',
-							'title'     => sprintf( __( 'Badge Unlocked: %s', 'digital-library-membership' ), $badge_label ),
-							'message'   => sprintf( __( 'Congratulations! You unlocked the "%s" milestone achievement badge.', 'digital-library-membership' ), $badge_label ),
+							'title'     => $badge_title,
+							'message'   => $badge_msg,
 							'link_url'  => '#achievements',
 						) );
 					}
@@ -1358,13 +1370,16 @@ class DLM_Public {
 
 		// Trigger notification for level up
 		if ( $sanitized_state['level'] > $old_level ) {
+			/* translators: %d: level number */
 			$level_title = sprintf( __( 'Level Up: Level %d!', 'digital-library-membership' ), $sanitized_state['level'] );
 			if ( ! $this->db->notification_exists( $user_id, 'level_up', 'Level ' . $sanitized_state['level'] ) ) {
+				/* translators: %d: level number */
+				$level_msg = sprintf( __( 'You reached Level %d. Keep reading to earn more XP and unlock rewards!', 'digital-library-membership' ), $sanitized_state['level'] );
 				$this->db->create_notification( array(
 					'user_id'   => $user_id,
 					'type'      => 'level_up',
 					'title'     => $level_title,
-					'message'   => sprintf( __( 'You reached Level %d. Keep reading to earn more XP and unlock rewards!', 'digital-library-membership' ), $sanitized_state['level'] ),
+					'message'   => $level_msg,
 					'link_url'  => '#achievements',
 				) );
 			}
@@ -1372,14 +1387,17 @@ class DLM_Public {
 
 		// Trigger notification for streak milestones (3, 7, 14, 30, 60, 100 days)
 		if ( in_array( $sanitized_state['streak'], array( 3, 7, 14, 30, 60, 100 ), true ) ) {
+			/* translators: %d: reading streak days */
 			$streak_title = sprintf( __( '%d-Day Reading Streak!', 'digital-library-membership' ), $sanitized_state['streak'] );
 			$since_30d    = gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) );
 			if ( ! $this->db->notification_exists( $user_id, 'streak', $sanitized_state['streak'] . '-Day', $since_30d ) ) {
+				/* translators: %d: reading streak days */
+				$streak_msg = sprintf( __( 'Incredible dedication! You have read for %d consecutive days. Keep the streak alive!', 'digital-library-membership' ), $sanitized_state['streak'] );
 				$this->db->create_notification( array(
 					'user_id'   => $user_id,
 					'type'      => 'streak',
 					'title'     => $streak_title,
-					'message'   => sprintf( __( 'Incredible dedication! You have read for %d consecutive days. Keep the streak alive!', 'digital-library-membership' ), $sanitized_state['streak'] ),
+					'message'   => $streak_msg,
 					'link_url'  => '#achievements',
 				) );
 			}
@@ -1686,6 +1704,7 @@ class DLM_Public {
 				$default_btn_label = __( 'Read Now', 'digital-library-membership' );
 				$target_url = home_url( '/read/' . $bid . '/' );
 			} elseif ( $book->access_type === 'purchase_only' || $book->access_type === 'hybrid' ) {
+				/* translators: %s: formatted price with currency */
 				$default_btn_label = sprintf( __( 'Buy Book (%s)', 'digital-library-membership' ), number_format( $price, 2 ) . ' ' . $currency );
 				$target_url = home_url( '/read/' . $bid . '/' );
 			} elseif ( ! $is_logged ) {
