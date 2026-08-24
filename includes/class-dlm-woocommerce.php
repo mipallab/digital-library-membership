@@ -70,8 +70,13 @@ class DLM_WooCommerce {
 		// Register order-pay rewrite endpoint
 		add_action( 'init', array( $this, 'register_order_pay_rewrite' ) );
 
-		// Custom return redirect URL for DLM orders
-		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 20, 2 );
+		// Standalone URL overrides so WooCommerce never redirects to home or missing pages
+		add_filter( 'woocommerce_get_checkout_url', array( $this, 'filter_woocommerce_checkout_url' ), 999 );
+		add_filter( 'woocommerce_get_checkout_payment_url', array( $this, 'filter_checkout_payment_url' ), 999, 2 );
+		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 999, 2 );
+		add_filter( 'woocommerce_get_checkout_order_received_url', array( $this, 'filter_order_return_url' ), 999, 2 );
+		add_filter( 'woocommerce_get_cancel_url', array( $this, 'filter_order_cancel_url' ), 999, 2 );
+		add_filter( 'woocommerce_get_cancel_url_bare', array( $this, 'filter_order_cancel_url' ), 999, 2 );
 
 		// Redirect all frontend WooCommerce standard views (Shop, Cart, My Account, Product views, standard Checkout) to DLM Library Account
 		add_action( 'template_redirect', array( $this, 'redirect_woocommerce_pages' ), 1 );
@@ -678,26 +683,62 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Custom return redirect URL filter for DLM orders
+	 * Override WooCommerce Checkout URL when checkout page is not present
 	 */
-	public function filter_order_return_url( $return_url, $order ) {
-		if ( ! $order ) {
-			return $return_url;
+	public function filter_woocommerce_checkout_url( $url ) {
+		$checkout_page_id = wc_get_page_id( 'checkout' );
+		if ( $checkout_page_id <= 0 || 'publish' !== get_post_status( $checkout_page_id ) ) {
+			return dlm_get_page_url( 'account' );
+		}
+		return $url;
+	}
+
+	/**
+	 * Override checkout payment URL to point directly to clean standalone headless order-pay
+	 */
+	public function filter_checkout_payment_url( $url, $order ) {
+		if ( is_numeric( $order ) ) {
+			$order = wc_get_order( $order );
+		}
+		if ( $order && is_a( $order, 'WC_Order' ) ) {
+			return $this->get_clean_order_pay_url( $order );
+		}
+		return $url;
+	}
+
+	/**
+	 * Custom return redirect URL filter for DLM orders (handles order objects and IDs)
+	 */
+	public function filter_order_return_url( $return_url, $order = null ) {
+		if ( is_numeric( $order ) ) {
+			$order = wc_get_order( $order );
 		}
 
-		$order_type = $order->get_meta( '_dlm_order_type' );
-		if ( ! empty( $order_type ) ) {
-			$account_url = dlm_get_page_url( 'account' );
-			return add_query_arg(
-				array(
-					'payment'  => 'success',
-					'order_id' => $order->get_id(),
-				),
-				$account_url
-			);
+		$order_id = 0;
+		if ( $order && is_a( $order, 'WC_Order' ) ) {
+			$order_id = $order->get_id();
+		} elseif ( isset( $_GET['order_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order_id = absint( $_GET['order_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		} elseif ( isset( $_GET['order-pay'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order_id = absint( $_GET['order-pay'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		}
 
-		return $return_url;
+		$account_url = dlm_get_page_url( 'account' );
+		return add_query_arg(
+			array(
+				'payment'  => 'success',
+				'order_id' => $order_id ?: '',
+			),
+			$account_url
+		);
+	}
+
+	/**
+	 * Custom cancellation redirect URL filter for DLM orders
+	 */
+	public function filter_order_cancel_url( $cancel_url, $order = null ) {
+		$account_url = dlm_get_page_url( 'account' );
+		return add_query_arg( array( 'payment' => 'cancelled' ), $account_url ) . '#checkout';
 	}
 
 	/**

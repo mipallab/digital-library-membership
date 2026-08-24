@@ -887,12 +887,20 @@ if ( ! function_exists( 'dlm_get_page_url' ) ) {
 			return get_permalink( $page_id );
 		}
 
-		// Fallback for checkout or membership: point to Member Account Dashboard
-		if ( 'checkout' === $page_key || 'membership' === $page_key ) {
+		// Robust discovery for Member Account Dashboard page
+		if ( 'account' === $page_key || 'library-account' === $page_key || 'checkout' === $page_key || 'membership' === $page_key ) {
 			$account_id = dlm_get_page_id( 'account' );
 			if ( $account_id && 'publish' === get_post_status( $account_id ) ) {
 				return get_permalink( $account_id );
 			}
+			$slugs = array( 'library-account', 'library-membership', 'member-dashboard', 'account', 'my-library' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					return get_permalink( $found->ID );
+				}
+			}
+			return home_url( '/library-account/' );
 		}
 
 		// Fallback for pricing / plan: point to pricing page or account dashboard
@@ -901,10 +909,14 @@ if ( ! function_exists( 'dlm_get_page_url' ) ) {
 			if ( $pricing_id && 'publish' === get_post_status( $pricing_id ) ) {
 				return get_permalink( $pricing_id );
 			}
-			$account_id = dlm_get_page_id( 'account' );
-			if ( $account_id && 'publish' === get_post_status( $account_id ) ) {
-				return get_permalink( $account_id );
+			$slugs = array( 'pricing', 'plans', 'plan', 'membership-plans' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					return get_permalink( $found->ID );
+				}
 			}
+			return dlm_get_page_url( 'account' );
 		}
 
 		return home_url( '/' . $page_key . '/' );
