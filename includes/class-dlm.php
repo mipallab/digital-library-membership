@@ -769,16 +769,19 @@ class DLM {
 	 * Redirect any page loaded with payment or plan query parameters to the account dashboard
 	 */
 	public function handle_payment_status_redirect() {
-		// Do not redirect in AJAX or REST API requests
-		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+		// Do not redirect in AJAX or REST API requests or admin
+		if ( is_admin() || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
 			return;
 		}
 
-		$account_page_id = dlm_get_page_id( 'account' );
+		// Never redirect if already on the account dashboard page
+		if ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) {
+			return;
+		}
 
-		// 1. Redirect if ?plan=... parameter is accessed on non-account page (e.g. /checkout/?plan=yearly)
+		// 1. Redirect if ?plan=... parameter is accessed on non-account page (e.g. external /checkout/?plan=yearly or /plan/)
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['plan'] ) && ( ! $account_page_id || ! is_page( $account_page_id ) ) ) {
+		if ( isset( $_GET['plan'] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$plan = sanitize_key( wp_unslash( $_GET['plan'] ) );
 			$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'account' ) ) . '#checkout';
@@ -786,27 +789,30 @@ class DLM {
 			exit;
 		}
 
-		// 2. Redirect if payment return status parameter is present
+		// 2. Redirect if payment return status parameter is present on external page
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['payment'] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$payment = sanitize_key( wp_unslash( $_GET['payment'] ) );
 			$valid_statuses = array( 'success', 'active', 'pending', 'cancelled', 'cancel', 'failed', 'faild' );
 			if ( in_array( $payment, $valid_statuses, true ) ) {
-				if ( ! $account_page_id || ! is_page( $account_page_id ) ) {
-					$query_args = array(
-						'payment' => $payment,
-					);
+				$query_args = array(
+					'payment' => $payment,
+				);
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				if ( isset( $_GET['session_id'] ) ) {
 					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-					if ( isset( $_GET['session_id'] ) ) {
-						// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-						$query_args['session_id'] = sanitize_text_field( wp_unslash( $_GET['session_id'] ) );
-					}
-					
-					$redirect_url = add_query_arg( $query_args, dlm_get_page_url( 'account' ) );
-					wp_safe_redirect( $redirect_url );
-					exit;
+					$query_args['session_id'] = sanitize_text_field( wp_unslash( $_GET['session_id'] ) );
 				}
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				if ( isset( $_GET['order_id'] ) ) {
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+					$query_args['order_id'] = absint( wp_unslash( $_GET['order_id'] ) );
+				}
+				
+				$redirect_url = add_query_arg( $query_args, dlm_get_page_url( 'account' ) );
+				wp_safe_redirect( $redirect_url );
+				exit;
 			}
 		}
 	}
@@ -869,11 +875,69 @@ class DLM {
 }
 
 /**
- * Global helper function to get DLM page ID
+ * Global helper function to get DLM page ID with auto discovery
  */
 if ( ! function_exists( 'dlm_get_page_id' ) ) {
 	function dlm_get_page_id( $page_key ) {
-		return (int) get_option( 'dlm_' . $page_key . '_page_id', 0 );
+		$page_id = (int) get_option( 'dlm_' . $page_key . '_page_id', 0 );
+		if ( $page_id > 0 && 'publish' === get_post_status( $page_id ) ) {
+			return $page_id;
+		}
+
+		// Fallback discovery for account page
+		if ( 'account' === $page_key || 'library-account' === $page_key ) {
+			$slugs = array( 'library-account', 'library-membership', 'member-dashboard', 'account', 'my-library' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					update_option( 'dlm_account_page_id', (int) $found->ID );
+					return (int) $found->ID;
+				}
+			}
+		}
+
+		if ( 'pricing' === $page_key || 'plan' === $page_key ) {
+			$slugs = array( 'pricing', 'plans', 'plan', 'membership-plans' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					update_option( 'dlm_pricing_page_id', (int) $found->ID );
+					return (int) $found->ID;
+				}
+			}
+		}
+
+		return 0;
+	}
+}
+
+/**
+ * Global helper function to check if current query is the Library Account / Member Dashboard page
+ */
+if ( ! function_exists( 'dlm_is_account_page' ) ) {
+	function dlm_is_account_page() {
+		$account_page_id = dlm_get_page_id( 'account' );
+		if ( $account_page_id > 0 && is_page( $account_page_id ) ) {
+			return true;
+		}
+
+		if ( is_page( array( 'library-account', 'library-membership', 'member-dashboard', 'account', 'my-library' ) ) ) {
+			return true;
+		}
+
+		global $post;
+		if ( $post && is_a( $post, 'WP_Post' ) ) {
+			if ( has_shortcode( $post->post_content, 'dlm_member_dashboard' ) || has_shortcode( $post->post_content, 'dlm_account' ) ) {
+				return true;
+			}
+		}
+
+		$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		if ( false !== strpos( $req_uri, '/library-account' ) || false !== strpos( $req_uri, '/member-dashboard' ) ) {
+			return true;
+		}
+
+		return false;
 	}
 }
 

@@ -70,7 +70,9 @@ class DLM_WooCommerce {
 		// Register order-pay rewrite endpoint
 		add_action( 'init', array( $this, 'register_order_pay_rewrite' ) );
 
-		// Standalone URL overrides so WooCommerce never redirects to home or missing pages
+		// Standalone URL and Page overrides so WooCommerce never redirects to home or missing pages
+		add_filter( 'woocommerce_get_checkout_page_id', array( $this, 'filter_checkout_page_id' ), 999 );
+		add_filter( 'woocommerce_is_checkout', array( $this, 'filter_is_checkout' ), 999 );
 		add_filter( 'woocommerce_get_checkout_url', array( $this, 'filter_woocommerce_checkout_url' ), 999 );
 		add_filter( 'woocommerce_get_checkout_payment_url', array( $this, 'filter_checkout_payment_url' ), 999, 2 );
 		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 999, 2 );
@@ -609,6 +611,34 @@ class DLM_WooCommerce {
 	}
 
 	/**
+	 * Ensure WooCommerce always has a valid checkout page ID (fallback to Library Account page)
+	 */
+	public function filter_checkout_page_id( $page_id ) {
+		if ( $page_id <= 0 || 'publish' !== get_post_status( $page_id ) ) {
+			$account_id = dlm_get_page_id( 'account' );
+			if ( $account_id > 0 ) {
+				return $account_id;
+			}
+		}
+		return $page_id;
+	}
+
+	/**
+	 * Mark is_checkout = true during DLM order payment flows
+	 */
+	public function filter_is_checkout( $is_checkout ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) ) ) {
+			return true;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) ) {
+			return true;
+		}
+		return $is_checkout;
+	}
+
+	/**
 	 * Render standalone headless order pay screen with zero dependency on WooCommerce pages.
 	 *
 	 * @param WC_Order $order
@@ -616,6 +646,27 @@ class DLM_WooCommerce {
 	public function render_standalone_order_pay_template( $order ) {
 		global $wp;
 		$wp->query_vars['order-pay'] = $order->get_id();
+
+		// Handle direct POST submission fallback if needed
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( isset( $_POST['woocommerce_pay'], $_POST['woocommerce-pay-nonce'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['woocommerce-pay-nonce'] ) ), 'woocommerce-pay' ) ) {
+				$order_id = $order->get_id();
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing
+				$payment_method = isset( $_POST['payment_method'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_method'] ) ) : '';
+				if ( ! empty( $payment_method ) && function_exists( 'WC' ) && WC()->payment_gateways() ) {
+					$gateways = WC()->payment_gateways()->get_available_payment_gateways();
+					if ( isset( $gateways[ $payment_method ] ) ) {
+						$result = $gateways[ $payment_method ]->process_payment( $order_id );
+						if ( isset( $result['result'] ) && 'success' === $result['result'] && ! empty( $result['redirect'] ) ) {
+							wp_redirect( $result['redirect'] );
+							exit;
+						}
+					}
+				}
+			}
+		}
 
 		// Enqueue necessary WooCommerce scripts and styles for payment gateways
 		if ( class_exists( 'WC_Frontend_Scripts' ) ) {
