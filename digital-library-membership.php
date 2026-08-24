@@ -129,10 +129,6 @@ function dlm_run_digital_library_membership() {
 	$header_nav = new DLM_Header_Nav();
 	$header_nav->init();
 
-	// Instantiate review switcher widget manager
-	$review_switcher = new DLM_Review_Switcher();
-	$review_switcher->init();
-
 	// Initialize GitHub update checker
 	$github_token = defined( 'DLM_GITHUB_TOKEN' ) ? DLM_GITHUB_TOKEN : get_option( 'dlm_github_token', '' );
 	DLM_Updater::init(
