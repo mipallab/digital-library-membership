@@ -454,3 +454,51 @@
     color: #a1a1aa;
     text-align: center;
 }
+
+/* ==========================================================================
+   8. Validation Notices & Error Styling
+   ========================================================================== */
+.dlm-checkout-page-root .woocommerce-NoticeGroup,
+.dlm-checkout-page-root .woocommerce-error,
+.dlm-checkout-page-root .woocommerce-message,
+.dlm-checkout-page-root .woocommerce-info {
+    margin: 0 0 24px 0 !important;
+    padding: 16px 20px !important;
+    border-radius: 14px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    list-style: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+}
+
+.dlm-checkout-page-root .woocommerce-error {
+    background-color: #fef2f2 !important;
+    border: 1px solid #fee2e2 !important;
+    color: #991b1b !important;
+}
+
+.dlm-checkout-page-root .woocommerce-error li {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.dlm-checkout-page-root .woocommerce-message {
+    background-color: #f0fdf4 !important;
+    border: 1px solid #dcfce7 !important;
+    color: #166534 !important;
+}
+
+.dlm-checkout-page-root .woocommerce-info {
+    background-color: #fdfaf6 !important;
+    border: 1px solid #fed7aa !important;
+    color: #9a3412 !important;
+}
+
+/* BlockUI Loading Overlay */
+.dlm-checkout-page-root .blockUI.blockOverlay {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(2px) !important;
+    border-radius: 20px !important;
+}
