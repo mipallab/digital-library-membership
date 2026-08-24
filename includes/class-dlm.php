@@ -371,10 +371,18 @@ class DLM {
 
 		// Handle custom Member Dashboard SPA view
 		global $post;
-		if ( is_a( $post, 'WP_Post' ) && has_shortcode( $post->post_content, 'dlm_account' ) ) {
+		if ( is_a( $post, 'WP_Post' ) && ( has_shortcode( $post->post_content, 'dlm_account' ) || has_shortcode( $post->post_content, 'dlm_member_dashboard' ) ) ) {
 			$dashboard_template = DLM_PATH . 'templates/member-dashboard.php';
 			if ( file_exists( $dashboard_template ) ) {
 				return $dashboard_template;
+			}
+		}
+
+		// Handle custom Library Checkout standalone full-screen view
+		if ( is_a( $post, 'WP_Post' ) && has_shortcode( $post->post_content, 'dlm_checkout' ) ) {
+			$checkout_template = DLM_PATH . 'templates/library-checkout-template.php';
+			if ( file_exists( $checkout_template ) ) {
+				return $checkout_template;
 			}
 		}
 

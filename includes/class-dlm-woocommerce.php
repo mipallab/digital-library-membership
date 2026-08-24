@@ -320,7 +320,7 @@ class DLM_WooCommerce {
 				'status'         => 'pending',
 			) );
 
-			$checkout_url = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
+			$checkout_url = $this->get_clean_order_pay_url( $order );
 			wp_send_json_success( array(
 				'redirect' => $checkout_url,
 				'order_id' => $order->get_id(),
@@ -393,7 +393,7 @@ class DLM_WooCommerce {
 			$order->calculate_totals();
 			$order->update_status( 'pending', __( 'DLM subscription order initialized.', 'digital-library-membership' ) );
 
-			$checkout_url = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
+			$checkout_url = $this->get_clean_order_pay_url( $order );
 			wp_send_json_success( array(
 				'redirect' => $checkout_url,
 				'order_id' => $order->get_id(),
@@ -714,9 +714,9 @@ class DLM_WooCommerce {
 			return home_url( '/' );
 		}
 
-		$order_id    = $order->get_id();
-		$order_key   = $order->get_order_key();
-		$account_url = dlm_get_page_url( 'account' );
+		$order_id     = $order->get_id();
+		$order_key    = $order->get_order_key();
+		$checkout_url = dlm_get_page_url( 'checkout' );
 
 		$pay_url = add_query_arg(
 			array(
@@ -725,7 +725,7 @@ class DLM_WooCommerce {
 				'pay_for_order' => 'true',
 				'key'           => $order_key,
 			),
-			$account_url
+			$checkout_url
 		);
 
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
@@ -799,17 +799,43 @@ class DLM_WooCommerce {
 		wp_enqueue_style( 'woocommerce-general' );
 		wp_enqueue_style( 'woocommerce-layout' );
 		wp_enqueue_style( 'dashicons' );
+		wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
 
-		get_header();
-
-		$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
-		if ( file_exists( $custom_pay_template ) ) {
-			include $custom_pay_template;
-		} else {
-			woocommerce_order_pay( $order->get_id() );
-		}
-
-		get_footer();
+		$site_name = get_bloginfo( 'name' );
+		?>
+		<!DOCTYPE html>
+		<html class="light" <?php language_attributes(); ?>>
+		<head>
+			<meta charset="<?php bloginfo( 'charset' ); ?>">
+			<meta content="width=device-width, initial-scale=1.0" name="viewport">
+			<title><?php esc_html_e( 'Order Payment', 'digital-library-membership' ); ?> | <?php echo esc_html( $site_name ); ?></title>
+			<?php wp_head(); ?>
+			<style>
+				body {
+					margin: 0;
+					padding: 0;
+					background-color: #fafafa;
+					font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+					-webkit-font-smoothing: antialiased;
+				}
+			</style>
+		</head>
+		<body class="bg-[#fafafa] text-[#1a1c1c] antialiased">
+			<div id="dlm-order-pay-root" class="min-h-screen">
+				<?php
+				$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
+				if ( file_exists( $custom_pay_template ) ) {
+					include $custom_pay_template;
+				} else {
+					woocommerce_order_pay( $order->get_id() );
+				}
+				?>
+			</div>
+			<?php wp_footer(); ?>
+		</body>
+		</html>
+		<?php
+		exit;
 	}
 
 	/**
