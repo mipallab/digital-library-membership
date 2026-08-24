@@ -151,33 +151,35 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
 							<!-- Calculation Breakdown -->
 							<div class="dlm-summary-calc-row">
 								<span><?php esc_html_e( 'Subtotal', 'digital-library-membership' ); ?></span>
-								<span><?php wc_cart_totals_subtotal_html(); ?></span>
+								<span><?php if ( function_exists( 'wc_cart_totals_subtotal_html' ) ) { wc_cart_totals_subtotal_html(); } ?></span>
 							</div>
 
-							<?php foreach ( WC()->cart->get_coupons() as $code => $coupon ) : ?>
-								<div class="dlm-summary-calc-row" style="color: #16a34a;">
-									<span><?php wc_cart_totals_coupon_label( $coupon ); ?></span>
-									<span><?php wc_cart_totals_coupon_html( $coupon ); ?></span>
-								</div>
-							<?php endforeach; ?>
+							<?php if ( function_exists( 'WC' ) && WC()->cart ) : ?>
+								<?php foreach ( WC()->cart->get_coupons() as $code => $coupon ) : ?>
+									<div class="dlm-summary-calc-row" style="color: #16a34a;">
+										<span><?php wc_cart_totals_coupon_label( $coupon ); ?></span>
+										<span><?php wc_cart_totals_coupon_html( $coupon ); ?></span>
+									</div>
+								<?php endforeach; ?>
 
-							<?php foreach ( WC()->cart->get_fees() as $fee ) : ?>
-								<div class="dlm-summary-calc-row">
-									<span><?php echo esc_html( $fee->name ); ?></span>
-									<span><?php wc_cart_totals_fee_html( $fee ); ?></span>
-								</div>
-							<?php endforeach; ?>
+								<?php foreach ( WC()->cart->get_fees() as $fee ) : ?>
+									<div class="dlm-summary-calc-row">
+										<span><?php echo esc_html( $fee->name ); ?></span>
+										<span><?php wc_cart_totals_fee_html( $fee ); ?></span>
+									</div>
+								<?php endforeach; ?>
 
-							<?php if ( wc_tax_enabled() && ! WC()->cart->display_prices_including_tax() ) : ?>
-								<div class="dlm-summary-calc-row">
-									<span><?php esc_html_e( 'Tax', 'digital-library-membership' ); ?></span>
-									<span><?php echo esc_html( WC()->cart->get_total_tax() ); ?></span>
-								</div>
+								<?php if ( function_exists( 'wc_tax_enabled' ) && wc_tax_enabled() && ! WC()->cart->display_prices_including_tax() ) : ?>
+									<div class="dlm-summary-calc-row">
+										<span><?php esc_html_e( 'Tax', 'digital-library-membership' ); ?></span>
+										<span><?php echo esc_html( WC()->cart->get_total_tax() ); ?></span>
+									</div>
+								<?php endif; ?>
 							<?php endif; ?>
 
 							<div class="dlm-summary-total-row">
 								<span class="dlm-summary-total-label"><?php esc_html_e( 'Total Due', 'digital-library-membership' ); ?></span>
-								<span class="dlm-summary-total-amount"><?php wc_cart_totals_order_total_html(); ?></span>
+								<span class="dlm-summary-total-amount"><?php if ( function_exists( 'wc_cart_totals_order_total_html' ) ) { wc_cart_totals_order_total_html(); } ?></span>
 							</div>
 
 							<!-- Trust & Features List -->

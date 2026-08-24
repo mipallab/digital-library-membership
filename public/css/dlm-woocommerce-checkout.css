@@ -7,8 +7,46 @@
  * @version    3.2.1
  */
 
-/* Import Inter Font */
+/* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+/* ==========================================================================
+   0. Global Theme Overrides & Reset
+   ========================================================================== */
+body.woocommerce-checkout {
+    background-color: #FAFAFA !important;
+    color: #1a1c1c !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide theme breadcrumbs, sidebar, page headers on checkout */
+.woocommerce-checkout .entry-header,
+.woocommerce-checkout .ast-page-header,
+.woocommerce-checkout .page-header,
+.woocommerce-checkout .breadcrumb,
+.woocommerce-checkout .woocommerce-breadcrumb,
+.woocommerce-checkout .sidebar,
+.woocommerce-checkout #secondary,
+.woocommerce-checkout aside,
+.woocommerce-checkout .woocommerce-checkout-review-order-table,
+.woocommerce-checkout table.shop_table.woocommerce-checkout-review-order-table {
+    display: none !important;
+}
+
+.woocommerce-checkout .site-content,
+.woocommerce-checkout .entry-content,
+.woocommerce-checkout #content,
+.woocommerce-checkout .ast-container,
+.woocommerce-checkout .elementor-page,
+.woocommerce-checkout .col-full {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin: 0 auto !important;
+    background: transparent !important;
+}
 
 /* ==========================================================================
    1. Root Container & Wrapper
@@ -99,7 +137,7 @@
 }
 
 /* ==========================================================================
-   4. Left Column: Billing Details & Payment Methods
+   4. Left Column: Billing Details & Form Grid
    ========================================================================== */
 .dlm-checkout-left-col {
     display: flex;
@@ -110,7 +148,7 @@
 .dlm-checkout-section-card {
     background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 20px;
+    border-radius: 24px;
     padding: 28px 32px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
@@ -126,8 +164,8 @@
 }
 
 .dlm-checkout-section-title .dlm-step-num {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: #fdf6e9;
     color: #855300;
@@ -138,30 +176,81 @@
     justify-content: center;
 }
 
-/* Form Fields Styling */
+/* Dynamic CSS Grid for Form Fields */
+.woocommerce-billing-fields__field-wrapper,
+.woocommerce-shipping-fields__field-wrapper,
+.woocommerce-additional-fields__field-wrapper {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+}
+
+@media (max-width: 640px) {
+    .woocommerce-billing-fields__field-wrapper,
+    .woocommerce-shipping-fields__field-wrapper,
+    .woocommerce-additional-fields__field-wrapper {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+}
+
 .dlm-checkout-left-col .form-row {
-    margin-bottom: 16px;
-    padding: 0;
+    float: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
+.dlm-checkout-left-col .form-row-first {
+    grid-column: span 1 !important;
+}
+
+.dlm-checkout-left-col .form-row-last {
+    grid-column: span 1 !important;
+}
+
+.dlm-checkout-left-col .form-row-wide,
+.dlm-checkout-left-col .notes,
+.dlm-checkout-left-col .form-row:not(.form-row-first):not(.form-row-last) {
+    grid-column: span 2 !important;
+}
+
+@media (max-width: 640px) {
+    .dlm-checkout-left-col .form-row-first,
+    .dlm-checkout-left-col .form-row-last,
+    .dlm-checkout-left-col .form-row-wide,
+    .dlm-checkout-left-col .notes,
+    .dlm-checkout-left-col .form-row {
+        grid-column: span 1 !important;
+    }
+}
+
+/* Form Labels */
 .dlm-checkout-left-col label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: #53433a;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
+    display: block !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #53433a !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 6px !important;
 }
 
+.dlm-checkout-left-col label .required {
+    color: #dc2626 !important;
+    text-decoration: none !important;
+}
+
+/* Form Inputs Styling */
 .dlm-checkout-left-col .input-text,
 .dlm-checkout-left-col input[type="text"],
 .dlm-checkout-left-col input[type="email"],
 .dlm-checkout-left-col input[type="tel"],
 .dlm-checkout-left-col input[type="password"],
 .dlm-checkout-left-col textarea,
-.dlm-checkout-left-col select,
-.dlm-checkout-left-col .select2-container--default .select2-selection--single {
+.dlm-checkout-left-col select {
     width: 100% !important;
     height: 48px !important;
     padding: 0 16px !important;
@@ -173,26 +262,61 @@
     box-sizing: border-box !important;
     transition: all 0.2s ease !important;
     box-shadow: none !important;
+    outline: none !important;
+    font-family: inherit !important;
 }
 
 .dlm-checkout-left-col textarea {
-    height: 90px !important;
+    height: 96px !important;
     padding: 12px 16px !important;
 }
 
 .dlm-checkout-left-col .input-text:focus,
 .dlm-checkout-left-col input:focus,
 .dlm-checkout-left-col select:focus,
-.dlm-checkout-left-col textarea:focus,
-.dlm-checkout-left-col .select2-container--default.select2-container--focus .select2-selection--single {
+.dlm-checkout-left-col textarea:focus {
     border-color: #855300 !important;
     background-color: #ffffff !important;
-    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(133, 83, 0, 0.12) !important;
+}
+
+/* Select2 / SelectWoo Dropdowns */
+.dlm-checkout-left-col .select2-container {
+    width: 100% !important;
+}
+
+.dlm-checkout-left-col .select2-container--default .select2-selection--single {
+    height: 48px !important;
+    padding: 8px 16px !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-radius: 12px !important;
+    background-color: #fcfcfc !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.dlm-checkout-left-col .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #1a1c1c !important;
+    line-height: 30px !important;
+    padding-left: 0 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+.dlm-checkout-left-col .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 46px !important;
+    right: 12px !important;
+}
+
+.dlm-checkout-left-col .select2-container--default.select2-container--open .select2-selection--single,
+.dlm-checkout-left-col .select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #855300 !important;
     box-shadow: 0 0 0 3px rgba(133, 83, 0, 0.12) !important;
 }
 
 /* ==========================================================================
-   5. Payment Methods Styling (Interactive Cards)
+   5. Step 2: Payment Methods Styling (Interactive Cards)
    ========================================================================== */
 .dlm-checkout-left-col .woocommerce-checkout-payment {
     background: transparent !important;
@@ -211,8 +335,8 @@
 .dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method {
     background: #ffffff !important;
     border: 1.5px solid rgba(0, 0, 0, 0.1) !important;
-    border-radius: 14px !important;
-    padding: 16px 20px !important;
+    border-radius: 16px !important;
+    padding: 18px 20px !important;
     margin: 0 !important;
     transition: all 0.2s ease !important;
     cursor: pointer !important;
@@ -226,8 +350,9 @@
 .dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method input[type="radio"]:checked ~ label,
 .dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method:has(input[type="radio"]:checked) {
     border-color: #855300 !important;
+    border-width: 2px !important;
     background-color: #fffbf2 !important;
-    box-shadow: 0 4px 14px rgba(133, 83, 0, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(133, 83, 0, 0.08) !important;
 }
 
 .dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method label {
@@ -239,22 +364,23 @@
     cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 10px !important;
     margin: 0 !important;
+    width: 100% !important;
 }
 
 .dlm-checkout-left-col ul.wc_payment_methods li.wc_payment_method input[type="radio"] {
     accent-color: #855300 !important;
-    margin-right: 8px !important;
-    transform: scale(1.15) !important;
+    margin-right: 10px !important;
+    transform: scale(1.2) !important;
 }
 
 .dlm-checkout-left-col .payment_box {
     margin-top: 14px !important;
-    padding: 14px 16px !important;
+    padding: 16px !important;
     background: #ffffff !important;
-    border: 1px solid rgba(133, 83, 0, 0.15) !important;
-    border-radius: 10px !important;
+    border: 1px solid rgba(133, 83, 0, 0.18) !important;
+    border-radius: 12px !important;
     font-size: 13px !important;
     color: #53433a !important;
     line-height: 1.5 !important;
@@ -287,7 +413,7 @@
     justify-content: center !important;
     gap: 10px !important;
     box-shadow: 0 4px 20px rgba(133, 83, 0, 0.3) !important;
-    margin-top: 12px !important;
+    margin-top: 16px !important;
 }
 
 .dlm-checkout-left-col #place_order:hover,
