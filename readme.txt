@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.2.1
+Stable tag: 3.2.2
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -108,6 +108,12 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.2.2 =
+* Feature: Dedicated luxury 2-column Library Checkout template matching Member Dashboard `#checkout` design system with dynamic WooCommerce payment gateways and live totals.
+* Enhanced: Bypassed Gutenberg block checkout with seamless shortcode interception and automated layout normalization.
+* Security & Standards: 100% clean WordPress Plugin Check validation, complete translator comment coverage, text domain synchronization, and zero syntax errors.
+* Enhanced: Celebration modal popup upon successful transaction with direct reading access activation.
 
 = 3.2.1 =
 * Fixed: Auto-restoration engine for WooCommerce Checkout and Cart pages if missing or deleted from database.

@@ -6,7 +6,7 @@
  *
  * @package DLM
  * @subpackage DLM/templates/woocommerce/checkout
- * @version 3.2.1
+ * @version 3.2.2
  */
 
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
