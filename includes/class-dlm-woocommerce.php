@@ -65,6 +65,10 @@ class DLM_WooCommerce {
 		// Headless template override for checkout/order-pay
 		add_filter( 'wc_get_template', array( $this, 'override_order_pay_template' ), 20, 5 );
 		add_filter( 'woocommerce_locate_template', array( $this, 'locate_order_pay_template' ), 20, 3 );
+		add_filter( 'the_content', array( $this, 'ensure_order_pay_rendered' ), 1 );
+
+		// Register order-pay rewrite endpoint
+		add_action( 'init', array( $this, 'register_order_pay_rewrite' ) );
 
 		// Custom return redirect URL for DLM orders
 		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 20, 2 );
@@ -290,7 +294,7 @@ class DLM_WooCommerce {
 				'status'         => 'pending',
 			) );
 
-			$pay_url = $order->get_checkout_payment_url();
+			$pay_url = $this->get_clean_order_pay_url( $order );
 			wp_send_json_success( array(
 				'redirect' => $pay_url,
 				'order_id' => $order->get_id(),
@@ -350,7 +354,7 @@ class DLM_WooCommerce {
 			$order->calculate_totals();
 			$order->update_status( 'pending', __( 'DLM headless subscription order initialized.', 'digital-library-membership' ) );
 
-			$pay_url = $order->get_checkout_payment_url();
+			$pay_url = $this->get_clean_order_pay_url( $order );
 			wp_send_json_success( array(
 				'redirect' => $pay_url,
 				'order_id' => $order->get_id(),
@@ -560,6 +564,78 @@ class DLM_WooCommerce {
 	}
 
 	/**
+	 * Register rewrite rule so /order-pay/45/ is recognized cleanly without 404
+	 */
+	public function register_order_pay_rewrite() {
+		add_rewrite_tag( '%dlm_order_pay%', '([0-9]+)' );
+		add_rewrite_rule( '^order-pay/([0-9]+)/?$', 'index.php?dlm_order_pay=$matches[1]&pay_for_order=true', 'top' );
+	}
+
+	/**
+	 * Build clean, 100% robust order payment URL that works across all permalink structures
+	 *
+	 * @param WC_Order $order
+	 * @return string
+	 */
+	public function get_clean_order_pay_url( $order ) {
+		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
+			return home_url( '/' );
+		}
+
+		$order_id  = $order->get_id();
+		$order_key = $order->get_order_key();
+
+		$checkout_page_id = wc_get_page_id( 'checkout' );
+		$checkout_url     = ( $checkout_page_id > 0 ) ? get_permalink( $checkout_page_id ) : '';
+
+		if ( empty( $checkout_url ) || 'trash' === get_post_status( $checkout_page_id ) ) {
+			$checkout_url = home_url( '/checkout/' );
+		}
+
+		// Detect if base checkout URL has query parameters (e.g. ?page_id=23) or if permalinks are plain
+		$permalink_structure = get_option( 'permalink_structure' );
+		if ( empty( $permalink_structure ) || false !== strpos( $checkout_url, '?' ) ) {
+			$pay_url = add_query_arg(
+				array(
+					'order-pay'     => $order_id,
+					'pay_for_order' => 'true',
+					'key'           => $order_key,
+				),
+				$checkout_url
+			);
+		} else {
+			$pay_url = trailingslashit( $checkout_url ) . 'order-pay/' . $order_id . '/';
+			$pay_url = add_query_arg(
+				array(
+					'pay_for_order' => 'true',
+					'key'           => $order_key,
+				),
+				$pay_url
+			);
+		}
+
+		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
+	}
+
+	/**
+	 * Ensure WooCommerce Order Pay form renders if current request is a validated order-pay action
+	 */
+	public function ensure_order_pay_rendered( $content ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) && function_exists( 'is_checkout' ) && is_checkout() ) {
+			if ( ! shortcode_exists( 'woocommerce_checkout' ) || false === strpos( $content, 'woocommerce-checkout' ) ) {
+				ob_start();
+				woocommerce_order_pay( isset( $_GET['order-pay'] ) ? absint( $_GET['order-pay'] ) : 0 );
+				$pay_html = ob_get_clean();
+				if ( ! empty( $pay_html ) ) {
+					return $pay_html;
+				}
+			}
+		}
+		return $content;
+	}
+
+	/**
 	 * Template override: locate checkout/form-pay.php
 	 */
 	public function locate_order_pay_template( $template, $template_name, $template_path ) {
@@ -621,6 +697,49 @@ class DLM_WooCommerce {
 		// Never redirect in WP Admin, WP AJAX, WP CRON, WP CLI, REST API, or WooCommerce background API/Webhooks
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
 			return;
+		}
+
+		// Check for pay_for_order request (either via query args or URI path)
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) || isset( $_GET['key'] ) ) {
+			$order_id = 0;
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( isset( $_GET['order-pay'] ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$order_id = absint( $_GET['order-pay'] );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			} elseif ( isset( $_GET['dlm_order_pay'] ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$order_id = absint( $_GET['dlm_order_pay'] );
+			} else {
+				$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+				if ( preg_match( '#/order-pay/(\d+)#', $req_uri, $matches ) ) {
+					$order_id = absint( $matches[1] );
+				}
+			}
+
+			if ( $order_id > 0 ) {
+				$order = wc_get_order( $order_id );
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$key   = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+				if ( $order && ! empty( $key ) && hash_equals( $order->get_order_key(), $key ) ) {
+					// Ensure 404 is cleared
+					global $wp_query;
+					if ( is_object( $wp_query ) ) {
+						$wp_query->is_404 = false;
+					}
+					status_header( 200 );
+
+					$clean_url = $this->get_clean_order_pay_url( $order );
+
+					// If current URL is malformed, redirect safely to canonical clean pay URL
+					if ( ! empty( $_SERVER['REQUEST_URI'] ) && false !== strpos( $_SERVER['REQUEST_URI'], '/order-pay/' ) && false !== strpos( $clean_url, 'page_id=' ) ) {
+						wp_safe_redirect( $clean_url );
+						exit;
+					}
+					return; // Allow pay-for-order screen to load!
+				}
+			}
 		}
 
 		// Allow WooCommerce order payment page (e.g. /checkout/order-pay/123/?pay_for_order=true&key=wc_order_xyz)
