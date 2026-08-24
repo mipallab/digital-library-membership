@@ -1014,6 +1014,73 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		<!-- ========================================== -->
 		<main id="dlm-main-content" class="flex-1 overflow-y-auto pt-4 md:pt-8 pb-28 md:pb-20 px-4 md:px-margin-desktop custom-scrollbar">
 
+		<?php
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$payment_status = isset( $_GET['payment'] ) ? sanitize_key( wp_unslash( $_GET['payment'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$completed_order_id = isset( $_GET['order_id'] ) ? absint( wp_unslash( $_GET['order_id'] ) ) : 0;
+		if ( 'success' === $payment_status ) : ?>
+			<!-- Payment Success Celebration Modal -->
+			<div id="dlm-payment-success-modal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+				<div class="relative w-full max-w-md bg-white rounded-3xl p-8 text-center shadow-2xl border border-primary/20 space-y-6 overflow-hidden">
+					<div class="absolute -top-16 -right-16 w-36 h-36 rounded-full bg-primary/10 blur-2xl pointer-events-none"></div>
+					<div class="absolute -bottom-16 -left-16 w-36 h-36 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none"></div>
+					
+					<div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-4xl shadow-inner border border-emerald-100">
+						<i class="fa-solid fa-circle-check"></i>
+					</div>
+					
+					<div class="space-y-2">
+						<span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full uppercase tracking-wider">
+							<?php esc_html_e( 'Payment Verified & Completed', 'digital-library-membership' ); ?>
+						</span>
+						<h3 class="text-2xl font-bold text-on-surface">
+							<?php esc_html_e( 'Welcome to the Library!', 'digital-library-membership' ); ?>
+						</h3>
+						<p class="text-sm text-secondary leading-relaxed">
+							<?php esc_html_e( 'Your transaction was successful and your access has been unlocked instantly.', 'digital-library-membership' ); ?>
+						</p>
+						<?php if ( $completed_order_id > 0 ) : ?>
+							<p class="text-xs text-secondary/80 font-mono pt-1">
+								<?php echo esc_html( sprintf( __( 'Order Reference: #%d', 'digital-library-membership' ), $completed_order_id ) ); ?>
+							</p>
+						<?php endif; ?>
+					</div>
+
+					<div class="pt-2 flex flex-col sm:flex-row gap-3">
+						<button onclick="jQuery('#dlm-payment-success-modal').fadeOut(); showTab('library');" class="flex-1 h-12 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 cursor-pointer">
+							<i class="fa-solid fa-book-open"></i>
+							<span><?php esc_html_e( 'Start Reading Now', 'digital-library-membership' ); ?></span>
+						</button>
+						<button onclick="jQuery('#dlm-payment-success-modal').fadeOut(); showTab('bookshelf');" class="h-12 px-5 bg-surface-container hover:bg-surface-container-high text-on-surface font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer">
+							<span><?php esc_html_e( 'My Bookshelf', 'digital-library-membership' ); ?></span>
+						</button>
+					</div>
+				</div>
+			</div>
+			<script>
+				document.addEventListener('DOMContentLoaded', function() {
+					if (window.history && window.history.replaceState) {
+						var cleanUrl = window.location.pathname + window.location.hash;
+						window.history.replaceState({}, document.title, cleanUrl);
+					}
+				});
+			</script>
+		<?php elseif ( 'cancelled' === $payment_status ) : ?>
+			<div id="dlm-payment-cancelled-banner" class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0">
+						<i class="fa-solid fa-circle-info"></i>
+					</div>
+					<div>
+						<h4 class="font-bold text-sm text-amber-900"><?php esc_html_e( 'Payment was not completed', 'digital-library-membership' ); ?></h4>
+						<p class="text-xs text-amber-700"><?php esc_html_e( 'You can return to checkout and select any other payment method whenever you are ready.', 'digital-library-membership' ); ?></p>
+					</div>
+				</div>
+				<button onclick="jQuery('#dlm-payment-cancelled-banner').fadeOut();" class="text-amber-700 hover:text-amber-900 p-2 text-sm"><i class="fa-solid fa-xmark"></i></button>
+			</div>
+		<?php endif; ?>
+
 		<!-- SECTION 1: LIBRARY VIEW -->
 		<div id="section-library" class="spa-page">
 			<!-- Hero Card Carousel / Featured Book Slider -->
