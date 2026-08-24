@@ -2672,6 +2672,8 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 				</div>
 			</form>
 		</div>
+	</div>
+
 	<!-- Add Package Modal -->
 	<div id="add-package-modal" class="fixed inset-0 z-[1000] items-center justify-center p-4 hidden">
 		<div class="absolute inset-0 modal-backdrop" data-close-modal="add-package-modal"></div>
