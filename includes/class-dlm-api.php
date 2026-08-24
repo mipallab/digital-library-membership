@@ -275,12 +275,17 @@ class DLM_API {
 		}
 
 		$book = $this->db->get_book( $book_id );
-		if ( ! $book || ! file_exists( $book->file_path ) ) {
+		if ( ! $book || empty( $book->file_path ) ) {
 			wp_die( esc_html__( 'The requested book file does not exist on this server.', 'digital-library-membership' ), 404 );
 		}
 
+		$real_file_path = realpath( $book->file_path );
+		if ( ! $real_file_path || ! is_file( $real_file_path ) || ! is_readable( $real_file_path ) ) {
+			wp_die( esc_html__( 'The requested book file is unreadable or missing from this server.', 'digital-library-membership' ), 404 );
+		}
+
 		// Clean filename for attachment
-		$file_ext       = pathinfo( $book->file_path, PATHINFO_EXTENSION ) ?: 'pdf';
+		$file_ext       = pathinfo( $real_file_path, PATHINFO_EXTENSION ) ?: 'pdf';
 		$clean_filename = sanitize_file_name( $book->title ) . '.' . $file_ext;
 
 		// Clean all output buffers
@@ -296,11 +301,11 @@ class DLM_API {
 		header( 'Expires: 0' );
 		header( 'Cache-Control: private, must-revalidate, post-check=0, pre-check=0' );
 		header( 'Pragma: public' );
-		header( 'Content-Length: ' . filesize( $book->file_path ) );
+		header( 'Content-Length: ' . filesize( $real_file_path ) );
 
 		// Stream file out
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
-		readfile( $book->file_path );
+		readfile( $real_file_path );
 		exit;
 	}
 }

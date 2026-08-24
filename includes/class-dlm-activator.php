@@ -243,7 +243,15 @@ class DLM_Activator {
 			// Deny direct file access via htaccess
 			$htaccess_file = DLM_PROTECTED_DIR . '/.htaccess';
 			if ( ! file_exists( $htaccess_file ) ) {
-				$rules = "Order Deny,Allow\nDeny from all\n";
+				$rules  = "# Apache 2.4+\n";
+				$rules .= "<IfModule mod_authz_core.c>\n";
+				$rules .= "    Require all denied\n";
+				$rules .= "</IfModule>\n";
+				$rules .= "# Apache 2.2\n";
+				$rules .= "<IfModule !mod_authz_core.c>\n";
+				$rules .= "    Order Deny,Allow\n";
+				$rules .= "    Deny from all\n";
+				$rules .= "</IfModule>\n";
 				@file_put_contents( $htaccess_file, $rules );
 			}
 
