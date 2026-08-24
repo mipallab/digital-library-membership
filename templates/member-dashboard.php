@@ -116,6 +116,20 @@ $currency       = get_option( 'dlm_currency', '$' );
 $payment_engine = function_exists( 'dlm_get_payment_engine' ) ? dlm_get_payment_engine() : get_option( 'dlm_payment_engine', 'default' );
 $wc_is_active   = class_exists( 'WooCommerce' );
 
+// Active Payment Gateways Configuration
+$enable_wc     = function_exists( 'dlm_is_gateway_enabled' ) ? dlm_is_gateway_enabled( 'woocommerce' ) : class_exists( 'WooCommerce' );
+$enable_stripe = function_exists( 'dlm_is_gateway_enabled' ) ? dlm_is_gateway_enabled( 'stripe' ) : true;
+$enable_paypal = function_exists( 'dlm_is_gateway_enabled' ) ? dlm_is_gateway_enabled( 'paypal' ) : true;
+$enable_manual = function_exists( 'dlm_is_gateway_enabled' ) ? dlm_is_gateway_enabled( 'manual' ) : true;
+
+$active_gateways = array();
+if ( $enable_wc )     { $active_gateways[] = 'woocommerce'; }
+if ( $enable_stripe ) { $active_gateways[] = 'stripe'; }
+if ( $enable_paypal ) { $active_gateways[] = 'paypal'; }
+if ( $enable_manual ) { $active_gateways[] = 'manual'; }
+
+$default_gateway = ! empty( $active_gateways ) ? reset( $active_gateways ) : '';
+
 // Single source of truth packages
 $all_packages    = dlm_get_packages();
 $active_packages = array_filter( $all_packages, function( $p ) {
@@ -1784,70 +1798,84 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				<div class="lg:col-span-7 space-y-8">
 					<section class="space-y-4">
 						<h3 class="font-bold text-[18px] text-on-surface">1. Choose Payment Method</h3>
-						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-							<?php if ( $wc_is_active ) : ?>
+						<?php if ( empty( $active_gateways ) ) : ?>
+							<div class="p-6 bg-surface-container-low rounded-2xl border border-outline-variant/30 text-center space-y-2">
+								<i class="fa-solid fa-lock text-2xl text-secondary"></i>
+								<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'No payment methods currently active.', 'digital-library-membership' ); ?></p>
+								<p class="text-xs text-secondary"><?php esc_html_e( 'Please contact the site administration to complete your subscription.', 'digital-library-membership' ); ?></p>
+							</div>
+						<?php else : ?>
+						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-<?php echo max( 1, min( 4, count( $active_gateways ) ) ); ?> gap-4">
+							<?php if ( $enable_wc ) : ?>
 							<!-- WooCommerce Option -->
-							<button class="flex items-center justify-between p-4 border-2 border-primary rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-woocommerce" onclick="toggleCheckoutPaymentMethod('woocommerce')">
+							<button class="flex items-center justify-between p-4 border <?php echo ( 'woocommerce' === $default_gateway ) ? 'border-2 border-primary' : 'border-outline-variant/30'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-woocommerce" onclick="toggleCheckoutPaymentMethod('woocommerce')">
 								<div class="flex items-center gap-3">
-									<i class="fa-solid fa-bag-shopping text-primary text-lg shrink-0"></i>
+									<i class="fa-solid fa-bag-shopping <?php echo ( 'woocommerce' === $default_gateway ) ? 'text-primary' : 'text-secondary'; ?> text-lg shrink-0"></i>
 									<div>
 										<p class="font-bold text-sm text-on-surface">WooCommerce</p>
 										<p class="text-[10px] text-secondary">Store Payment Gateway</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border border-primary flex items-center justify-center shrink-0">
-									<div class="w-2.5 h-2.5 rounded-full bg-primary" id="woocommerce-dot"></div>
+								<div class="w-4 h-4 rounded-full border <?php echo ( 'woocommerce' === $default_gateway ) ? 'border-primary' : 'border-outline-variant'; ?> flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary <?php echo ( 'woocommerce' === $default_gateway ) ? '' : 'hidden'; ?>" id="woocommerce-dot"></div>
 								</div>
 							</button>
 							<?php endif; ?>
 
+							<?php if ( $enable_stripe ) : ?>
 							<!-- Stripe options -->
-							<button class="flex items-center justify-between p-4 border <?php echo $wc_is_active ? 'border-outline-variant/30' : 'border-2 border-primary'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-stripe" onclick="toggleCheckoutPaymentMethod('stripe')">
+							<button class="flex items-center justify-between p-4 border <?php echo ( 'stripe' === $default_gateway ) ? 'border-2 border-primary' : 'border-outline-variant/30'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-stripe" onclick="toggleCheckoutPaymentMethod('stripe')">
 								<div class="flex items-center gap-3">
-									<i class="fa-solid fa-credit-card <?php echo $wc_is_active ? 'text-secondary' : 'text-primary'; ?> text-lg shrink-0"></i>
+									<i class="fa-solid fa-credit-card <?php echo ( 'stripe' === $default_gateway ) ? 'text-primary' : 'text-secondary'; ?> text-lg shrink-0"></i>
 									<div>
 										<p class="font-bold text-sm text-on-surface">Stripe</p>
 										<p class="text-[10px] text-secondary">Card Checkout</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border <?php echo $wc_is_active ? 'border-outline-variant' : 'border-primary'; ?> flex items-center justify-center shrink-0">
-									<div class="w-2.5 h-2.5 rounded-full bg-primary <?php echo $wc_is_active ? 'hidden' : ''; ?>" id="stripe-dot"></div>
+								<div class="w-4 h-4 rounded-full border <?php echo ( 'stripe' === $default_gateway ) ? 'border-primary' : 'border-outline-variant'; ?> flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary <?php echo ( 'stripe' === $default_gateway ) ? '' : 'hidden'; ?>" id="stripe-dot"></div>
 								</div>
 							</button>
+							<?php endif; ?>
 
+							<?php if ( $enable_paypal ) : ?>
 							<!-- PayPal Option -->
-							<button class="flex items-center justify-between p-4 border border-outline-variant/30 rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-paypal" onclick="toggleCheckoutPaymentMethod('paypal')">
+							<button class="flex items-center justify-between p-4 border <?php echo ( 'paypal' === $default_gateway ) ? 'border-2 border-primary' : 'border-outline-variant/30'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-paypal" onclick="toggleCheckoutPaymentMethod('paypal')">
 								<div class="flex items-center gap-3">
-									<i class="fa-brands fa-paypal text-secondary text-lg shrink-0"></i>
+									<i class="fa-brands fa-paypal <?php echo ( 'paypal' === $default_gateway ) ? 'text-primary' : 'text-secondary'; ?> text-lg shrink-0"></i>
 									<div>
 										<p class="font-bold text-sm text-on-surface">PayPal</p>
 										<p class="text-[10px] text-secondary">External Wallet</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center shrink-0">
-									<div class="w-2.5 h-2.5 rounded-full bg-primary hidden" id="paypal-dot"></div>
+								<div class="w-4 h-4 rounded-full border <?php echo ( 'paypal' === $default_gateway ) ? 'border-primary' : 'border-outline-variant'; ?> flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary <?php echo ( 'paypal' === $default_gateway ) ? '' : 'hidden'; ?>" id="paypal-dot"></div>
 								</div>
 							</button>
+							<?php endif; ?>
 
+							<?php if ( $enable_manual ) : ?>
 							<!-- Manual Option -->
-							<button class="flex items-center justify-between p-4 border border-outline-variant/30 rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-manual" onclick="toggleCheckoutPaymentMethod('manual')">
+							<button class="flex items-center justify-between p-4 border <?php echo ( 'manual' === $default_gateway ) ? 'border-2 border-primary' : 'border-outline-variant/30'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-manual" onclick="toggleCheckoutPaymentMethod('manual')">
 								<div class="flex items-center gap-3">
-									<i class="fa-solid fa-building-columns text-secondary text-lg shrink-0"></i>
+									<i class="fa-solid fa-building-columns <?php echo ( 'manual' === $default_gateway ) ? 'text-primary' : 'text-secondary'; ?> text-lg shrink-0"></i>
 									<div>
 										<p class="font-bold text-sm text-on-surface">Bank Transfer</p>
 										<p class="text-[10px] text-secondary">Manual Review</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center shrink-0">
-									<div class="w-2.5 h-2.5 rounded-full bg-primary hidden" id="manual-dot"></div>
+								<div class="w-4 h-4 rounded-full border <?php echo ( 'manual' === $default_gateway ) ? 'border-primary' : 'border-outline-variant'; ?> flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary <?php echo ( 'manual' === $default_gateway ) ? '' : 'hidden'; ?>" id="manual-dot"></div>
 								</div>
 							</button>
+							<?php endif; ?>
 						</div>
+						<?php endif; ?>
 					</section>
 
 					<!-- Payment Forms -->
-					<?php if ( $wc_is_active ) : ?>
-					<div id="woocommerce-checkout-container" class="space-y-6">
+					<?php if ( $enable_wc ) : ?>
+					<div id="woocommerce-checkout-container" class="<?php echo ( 'woocommerce' === $default_gateway ) ? '' : 'hidden'; ?> space-y-6">
 						<div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 space-y-3">
 							<div class="flex items-center gap-3">
 								<div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg font-bold shrink-0">
@@ -1869,34 +1897,40 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 					</div>
 					<?php endif; ?>
 
-					<div id="stripe-checkout-container" class="<?php echo $wc_is_active ? 'hidden' : ''; ?> space-y-6">
+					<?php if ( $enable_stripe ) : ?>
+					<div id="stripe-checkout-container" class="<?php echo ( 'stripe' === $default_gateway ) ? '' : 'hidden'; ?> space-y-6">
 						<div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20">
-							<p class="text-sm text-secondary leading-relaxed">Stripe handles card validation securely. Pressing "Complete Secure Checkout" redirects to Stripe's payment interface.</p>
+							<p class="text-sm text-secondary leading-relaxed"><?php esc_html_e( 'Stripe handles card validation securely. Pressing "Complete Secure Checkout" redirects to Stripe\'s payment interface.', 'digital-library-membership' ); ?></p>
 						</div>
 						<button onclick="triggerStripeCheckoutSession()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer">
-							<span>Complete Secure Checkout</span> <i class="fa-solid fa-arrow-right"></i>
+							<span><?php esc_html_e( 'Complete Secure Checkout', 'digital-library-membership' ); ?></span> <i class="fa-solid fa-arrow-right"></i>
 						</button>
 					</div>
+					<?php endif; ?>
 
-					<div id="paypal-checkout-container" class="hidden space-y-6">
+					<?php if ( $enable_paypal ) : ?>
+					<div id="paypal-checkout-container" class="<?php echo ( 'paypal' === $default_gateway ) ? '' : 'hidden'; ?> space-y-6">
 						<div id="paypal-button-container" class="w-full"></div>
 					</div>
+					<?php endif; ?>
 
-					<div id="manual-checkout-container" class="hidden space-y-6">
+					<?php if ( $enable_manual ) : ?>
+					<div id="manual-checkout-container" class="<?php echo ( 'manual' === $default_gateway ) ? '' : 'hidden'; ?> space-y-6">
 						<div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 space-y-4">
-							<h4 class="font-bold text-sm text-on-surface">Direct Bank Transfer Instructions</h4>
+							<h4 class="font-bold text-sm text-on-surface"><?php esc_html_e( 'Direct Bank Transfer Instructions', 'digital-library-membership' ); ?></h4>
 							<div class="text-xs text-secondary leading-relaxed p-3 bg-white rounded-xl border border-outline-variant/30">
 								<?php echo wp_kses_post( get_option( 'dlm_manual_payment_instructions', __( 'Please transfer funds directly to our bank details and submit your reference code below.', 'digital-library-membership' ) ) ); ?>
 							</div>
 							<div class="space-y-2">
-								<label class="font-label-caps text-xs text-secondary uppercase block">Transaction Reference Code *</label>
-								<input class="w-full h-12 px-4 bg-white border border-outline-variant/30 rounded-xl text-body-md" id="checkout-manual-ref" placeholder="e.g. Wire transaction reference ID" type="text">
+								<label class="font-label-caps text-xs text-secondary uppercase block"><?php esc_html_e( 'Transaction Reference Code *', 'digital-library-membership' ); ?></label>
+								<input class="w-full h-12 px-4 bg-white border border-outline-variant/30 rounded-xl text-body-md" id="checkout-manual-ref" placeholder="<?php esc_attr_e( 'e.g. Wire transaction reference ID', 'digital-library-membership' ); ?>" type="text">
 							</div>
 						</div>
 						<button onclick="triggerManualPaymentSubmission()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer">
-							<span>Submit Reference Code</span> <i class="fa-solid fa-arrow-right"></i>
+							<span><?php esc_html_e( 'Submit Reference Code', 'digital-library-membership' ); ?></span> <i class="fa-solid fa-arrow-right"></i>
 						</button>
 					</div>
+					<?php endif; ?>
 				</div>
 
 				<!-- Right summary Column -->
@@ -2734,7 +2768,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		// CHECKOUT BILLING GATEWAY FLOW
 		// -------------------------------------------------------------
 		let checkoutInterval = 'monthly';
-		let checkoutMethod = <?php echo ( $wc_is_active && 'default' !== $payment_engine ) ? "'woocommerce'" : "'stripe'"; ?>;
+		let checkoutMethod = '<?php echo esc_js( $default_gateway ); ?>';
 		let checkoutPrice = '<?php echo esc_js( $price_monthly ); ?>';
 
 		function goToCheckout(interval, price, planName = '') {
@@ -2754,8 +2788,10 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 
 			showTab('checkout');
 			
-			const defaultMethod = <?php echo ( $wc_is_active && 'default' !== $payment_engine ) ? "'woocommerce'" : "'stripe'"; ?>;
-			toggleCheckoutPaymentMethod(defaultMethod);
+			const defaultMethod = '<?php echo esc_js( $default_gateway ); ?>';
+			if (defaultMethod) {
+				toggleCheckoutPaymentMethod(defaultMethod);
+			}
 		}
 
 		function toggleCheckoutPaymentMethod(method) {

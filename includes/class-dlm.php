@@ -912,6 +912,20 @@ if ( ! function_exists( 'dlm_get_page_url' ) ) {
 }
 
 /**
+ * Global helper function to check if a specific payment gateway is enabled in DLM settings
+ */
+if ( ! function_exists( 'dlm_is_gateway_enabled' ) ) {
+	function dlm_is_gateway_enabled( $gateway_key ) {
+		$option_key = 'dlm_enable_' . $gateway_key . '_gateway';
+		$val = get_option( $option_key, 'yes' );
+		if ( 'woocommerce' === $gateway_key ) {
+			return ( 'no' !== $val ) && class_exists( 'WooCommerce' );
+		}
+		return 'no' !== $val;
+	}
+}
+
+/**
  * Global helper function to check if a user has an active membership subscription
  */
 if ( ! function_exists( 'dlm_user_has_active_subscription' ) ) {

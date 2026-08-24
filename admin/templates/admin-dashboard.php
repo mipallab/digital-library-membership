@@ -1361,6 +1361,94 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 								</div>
 							</div>
 
+							<!-- Payment Gateways Visibility Switchers -->
+							<div class="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-6 space-y-4 shadow-sm">
+								<div class="flex items-center justify-between border-b border-outline-variant/10 pb-3">
+									<div>
+										<h4 class="text-sm font-bold text-on-surface uppercase tracking-wider"><?php esc_html_e( 'Frontend Payment Gateways Visibility', 'digital-library-membership' ); ?></h4>
+										<p class="text-xs text-secondary mt-0.5"><?php esc_html_e( 'Enable or disable payment methods displayed to members on the Member Dashboard checkout screen.', 'digital-library-membership' ); ?></p>
+									</div>
+								</div>
+
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+									<!-- WooCommerce Switcher -->
+									<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20 hover:border-primary/30 transition-all">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg shrink-0">
+												<i class="fa-brands fa-woocommerce"></i>
+											</div>
+											<div>
+												<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'WooCommerce Gateway', 'digital-library-membership' ); ?></p>
+												<p class="text-[11px] text-secondary"><?php esc_html_e( 'Store payment gateways & headless order pay', 'digital-library-membership' ); ?></p>
+											</div>
+										</div>
+										<div>
+											<select name="dlm_enable_woocommerce_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+												<option value="yes" <?php selected( get_option( 'dlm_enable_woocommerce_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+												<option value="no" <?php selected( get_option( 'dlm_enable_woocommerce_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+											</select>
+										</div>
+									</div>
+
+									<!-- Stripe Switcher -->
+									<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20 hover:border-primary/30 transition-all">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center text-lg shrink-0">
+												<i class="fa-solid fa-credit-card"></i>
+											</div>
+											<div>
+												<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'Stripe Direct Gateway', 'digital-library-membership' ); ?></p>
+												<p class="text-[11px] text-secondary"><?php esc_html_e( 'Direct credit/debit card popup checkout', 'digital-library-membership' ); ?></p>
+											</div>
+										</div>
+										<div>
+											<select name="dlm_enable_stripe_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+												<option value="yes" <?php selected( get_option( 'dlm_enable_stripe_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+												<option value="no" <?php selected( get_option( 'dlm_enable_stripe_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+											</select>
+										</div>
+									</div>
+
+									<!-- PayPal Switcher -->
+									<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20 hover:border-primary/30 transition-all">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center text-lg shrink-0">
+												<i class="fa-brands fa-paypal"></i>
+											</div>
+											<div>
+												<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'PayPal Direct Gateway', 'digital-library-membership' ); ?></p>
+												<p class="text-[11px] text-secondary"><?php esc_html_e( 'Direct PayPal smart buttons checkout', 'digital-library-membership' ); ?></p>
+											</div>
+										</div>
+										<div>
+											<select name="dlm_enable_paypal_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+												<option value="yes" <?php selected( get_option( 'dlm_enable_paypal_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+												<option value="no" <?php selected( get_option( 'dlm_enable_paypal_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+											</select>
+										</div>
+									</div>
+
+									<!-- Manual Bank Transfer Switcher -->
+									<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20 hover:border-primary/30 transition-all">
+										<div class="flex items-center gap-3">
+											<div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center text-lg shrink-0">
+												<i class="fa-solid fa-building-columns"></i>
+											</div>
+											<div>
+												<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'Bank Transfer (Manual)', 'digital-library-membership' ); ?></p>
+												<p class="text-[11px] text-secondary"><?php esc_html_e( 'Manual instructions with admin approval', 'digital-library-membership' ); ?></p>
+											</div>
+										</div>
+										<div>
+											<select name="dlm_enable_manual_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+												<option value="yes" <?php selected( get_option( 'dlm_enable_manual_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+												<option value="no" <?php selected( get_option( 'dlm_enable_manual_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+											</select>
+										</div>
+									</div>
+								</div>
+							</div>
+
 							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">Parameters & Payment Instructions</h3>
 							
 							<!-- Plans & Packages Callout Banner -->
@@ -1432,6 +1520,17 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 								</div>
 							<?php endif; ?>
 
+							<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20">
+								<div>
+									<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'Enable Stripe on Frontend', 'digital-library-membership' ); ?></p>
+									<p class="text-xs text-secondary"><?php esc_html_e( 'Allow members to choose Stripe Card checkout on member dashboard.', 'digital-library-membership' ); ?></p>
+								</div>
+								<select name="dlm_enable_stripe_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+									<option value="yes" <?php selected( get_option( 'dlm_enable_stripe_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+									<option value="no" <?php selected( get_option( 'dlm_enable_stripe_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+								</select>
+							</div>
+
 							<div class="space-y-4">
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">Stripe Publishable Key</label>
@@ -1478,6 +1577,17 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 								</div>
 							<?php endif; ?>
 
+							<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20">
+								<div>
+									<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'Enable PayPal on Frontend', 'digital-library-membership' ); ?></p>
+									<p class="text-xs text-secondary"><?php esc_html_e( 'Allow members to choose PayPal Smart Buttons on member dashboard.', 'digital-library-membership' ); ?></p>
+								</div>
+								<select name="dlm_enable_paypal_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+									<option value="yes" <?php selected( get_option( 'dlm_enable_paypal_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+									<option value="no" <?php selected( get_option( 'dlm_enable_paypal_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+								</select>
+							</div>
+
 							<div class="space-y-4">
 								<div class="space-y-1">
 									<label class="text-xs font-bold text-on-surface-variant uppercase">PayPal Client ID</label>
@@ -1497,7 +1607,13 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						<?php if ( class_exists( 'WooCommerce' ) ) : ?>
 						<!-- WooCommerce Configuration Panel -->
 						<div id="panel-settings-woocommerce" class="space-y-6 hidden">
-							<h3 class="text-lg font-bold text-on-surface border-b border-outline-variant/10 pb-3">WooCommerce Headless Engine</h3>
+							<div class="flex items-center justify-between border-b border-outline-variant/10 pb-3">
+								<h3 class="text-lg font-bold text-on-surface"><?php esc_html_e( 'WooCommerce Headless Engine', 'digital-library-membership' ); ?></h3>
+								<select name="dlm_enable_woocommerce_gateway" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface">
+									<option value="yes" <?php selected( get_option( 'dlm_enable_woocommerce_gateway', 'yes' ), 'yes' ); ?>><?php esc_html_e( 'Enabled', 'digital-library-membership' ); ?></option>
+									<option value="no" <?php selected( get_option( 'dlm_enable_woocommerce_gateway', 'yes' ), 'no' ); ?>><?php esc_html_e( 'Disabled', 'digital-library-membership' ); ?></option>
+								</select>
+							</div>
 							<div class="p-4 bg-primary/5 border border-primary/20 rounded-2xl text-xs text-on-surface space-y-2">
 								<p>
 									<strong><i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Automated Virtual Product Sync:</strong>
