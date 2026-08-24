@@ -890,6 +890,61 @@ if ( ! function_exists( 'dlm_user_has_active_subscription' ) ) {
 }
 
 /**
+ * Global helper function to determine user access level for a specific book
+ *
+ * @param int $user_id User ID (defaults to current logged-in user).
+ * @param int $book_id Book ID.
+ * @return string 'read_download' | 'read_only' | 'locked'
+ */
+if ( ! function_exists( 'dlm_user_can_access_book' ) ) {
+	function dlm_user_can_access_book( $user_id = 0, $book_id = 0 ) {
+		if ( ! $book_id ) {
+			return 'locked';
+		}
+
+		if ( ! $user_id ) {
+			$user_id = get_current_user_id();
+		}
+
+		// Admin full access override
+		if ( $user_id && user_can( $user_id, 'manage_options' ) ) {
+			return 'read_download';
+		}
+
+		$db = new DLM_DB();
+		$book = $db->get_book( $book_id );
+		if ( ! $book ) {
+			return 'locked';
+		}
+
+		$access_type = ! empty( $book->access_type ) ? $book->access_type : 'subscription_only';
+		$allow_dl    = ! empty( $book->allow_download );
+
+		// 1. If user has direct completed purchase for this book -> full read + download
+		if ( $user_id && $db->has_purchased_book( $user_id, $book_id ) ) {
+			return 'read_download';
+		}
+
+		// 2. If book is free
+		if ( 'free' === $access_type || ( isset( $book->is_free ) && 1 === intval( $book->is_free ) ) ) {
+			return $allow_dl ? 'read_download' : 'read_only';
+		}
+
+		// 3. If book is purchase only and user hasn't purchased it -> locked
+		if ( 'purchase_only' === $access_type ) {
+			return 'locked';
+		}
+
+		// 4. If book is subscription_only or hybrid -> check active subscription
+		if ( $user_id && $db->has_active_membership( $user_id ) ) {
+			return $allow_dl ? 'read_download' : 'read_only';
+		}
+
+		return 'locked';
+	}
+}
+
+/**
  * Global helper function to verify Google ReCAPTCHA token (v2 or v3)
  */
 if ( ! function_exists( 'dlm_verify_recaptcha' ) ) {
@@ -936,6 +991,36 @@ if ( ! function_exists( 'dlm_verify_recaptcha' ) ) {
 		}
 
 		return true;
+	}
+}
+
+/**
+ * Live check ReCAPTCHA connection status
+ */
+if ( ! function_exists( 'dlm_get_recaptcha_connection_status' ) ) {
+	function dlm_get_recaptcha_connection_status() {
+		$mode = get_option( 'dlm_recaptcha_mode', 'production' );
+		if ( 'testing' === $mode ) {
+			return array(
+				'status'  => 'testing',
+				'message' => __( 'Google Test Keys Active (Always Passes)', 'digital-library-membership' ),
+			);
+		}
+
+		$site_key   = get_option( 'dlm_recaptcha_site_key', '' );
+		$secret_key = get_option( 'dlm_recaptcha_secret_key', '' );
+
+		if ( empty( $site_key ) || empty( $secret_key ) ) {
+			return array(
+				'status'  => 'not_set',
+				'message' => __( 'ReCAPTCHA keys are not configured.', 'digital-library-membership' ),
+			);
+		}
+
+		return array(
+			'status'  => 'connected',
+			'message' => __( 'ReCAPTCHA credentials configured.', 'digital-library-membership' ),
+		);
 	}
 }
 
