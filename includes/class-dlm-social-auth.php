@@ -601,7 +601,7 @@ class DLM_Social_Auth {
 
 		wp_clear_auth_cookie();
 		wp_set_current_user( $user_id, $user->user_login );
-		wp_set_auth_cookie( $user_id, true );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 		do_action( 'wp_login', $user->user_login, $user );
 
 		if ( empty( $redirect_to ) || ! wp_validate_redirect( $redirect_to, false ) ) {

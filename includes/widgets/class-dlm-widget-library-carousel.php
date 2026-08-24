@@ -7,6 +7,8 @@
  * @subpackage DLM/includes/widgets
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

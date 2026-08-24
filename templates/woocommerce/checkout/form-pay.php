@@ -9,6 +9,8 @@
  * @subpackage DLM/templates/woocommerce/checkout
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

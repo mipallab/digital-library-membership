@@ -40,9 +40,9 @@ define( 'DLM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DLM_URL', plugin_dir_url( __FILE__ ) );
 
 // Setup uploads path for protected documents
-$upload_dir = wp_upload_dir();
-define( 'DLM_PROTECTED_DIR', $upload_dir['basedir'] . '/dlm-protected-books' );
-define( 'DLM_PROTECTED_URL', $upload_dir['baseurl'] . '/dlm-protected-books' );
+$dlm_upload_dir = wp_upload_dir();
+define( 'DLM_PROTECTED_DIR', $dlm_upload_dir['basedir'] . '/dlm-protected-books' );
+define( 'DLM_PROTECTED_URL', $dlm_upload_dir['baseurl'] . '/dlm-protected-books' );
 
 /**
  * Register Autoloader for namespaces (PSR-4-like loading for includes & widgets)
@@ -78,7 +78,7 @@ spl_autoload_register( function ( $class ) {
 /**
  * The code that runs during plugin activation.
  */
-function activate_digital_library_membership() {
+function dlm_activate_digital_library_membership() {
 	require_once DLM_PATH . 'includes/class-dlm-activator.php';
 	DLM_Activator::activate();
 
@@ -101,13 +101,13 @@ function activate_digital_library_membership() {
 /**
  * The code that runs during plugin deactivation.
  */
-function deactivate_digital_library_membership() {
+function dlm_deactivate_digital_library_membership() {
 	require_once DLM_PATH . 'includes/class-dlm-deactivator.php';
 	DLM_Deactivator::deactivate();
 }
 
-register_activation_hook( __FILE__, 'activate_digital_library_membership' );
-register_deactivation_hook( __FILE__, 'deactivate_digital_library_membership' );
+register_activation_hook( __FILE__, 'dlm_activate_digital_library_membership' );
+register_deactivation_hook( __FILE__, 'dlm_deactivate_digital_library_membership' );
 
 /**
  * Initialize Composer Autoloader if available
@@ -119,7 +119,7 @@ if ( file_exists( DLM_PATH . 'vendor/autoload.php' ) ) {
 /**
  * Begins execution of the plugin.
  */
-function run_digital_library_membership() {
+function dlm_run_digital_library_membership() {
 	// Instantiate core plugin class
 	$plugin = new DLM();
 	$plugin->run();
@@ -127,6 +127,10 @@ function run_digital_library_membership() {
 	// Instantiate header navigation widget manager
 	$header_nav = new DLM_Header_Nav();
 	$header_nav->init();
+
+	// Instantiate review switcher widget manager
+	$review_switcher = new DLM_Review_Switcher();
+	$review_switcher->init();
 
 	// Initialize GitHub update checker
 	$github_token = defined( 'DLM_GITHUB_TOKEN' ) ? DLM_GITHUB_TOKEN : get_option( 'dlm_github_token', '' );

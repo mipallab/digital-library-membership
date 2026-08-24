@@ -3,7 +3,11 @@
  * Setup Wizard Template
  *
  * Standalone-styled SPA setup wizard for first-time configuration.
+ *
+ * @package DLM
  */
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

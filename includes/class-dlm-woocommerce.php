@@ -728,6 +728,7 @@ class DLM_WooCommerce {
 			$account_url
 		);
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
 	}
 
@@ -781,7 +782,8 @@ class DLM_WooCommerce {
 					if ( isset( $gateways[ $payment_method ] ) ) {
 						$result = $gateways[ $payment_method ]->process_payment( $order_id );
 						if ( isset( $result['result'] ) && 'success' === $result['result'] && ! empty( $result['redirect'] ) ) {
-							wp_redirect( $result['redirect'] );
+							// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External gateway redirect.
+							wp_redirect( esc_url_raw( $result['redirect'] ) );
 							exit;
 						}
 					}
@@ -848,7 +850,7 @@ class DLM_WooCommerce {
 	 */
 	public function enqueue_checkout_styles() {
 		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
-			wp_enqueue_style( 'dlm-font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css', array(), '6.4.0' );
+			wp_enqueue_style( 'dashicons' );
 			wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
 		}
 	}

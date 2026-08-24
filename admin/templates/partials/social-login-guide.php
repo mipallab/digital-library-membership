@@ -8,6 +8,8 @@
  * @subpackage DLM/admin/templates/partials
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

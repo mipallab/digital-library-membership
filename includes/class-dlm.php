@@ -874,6 +874,8 @@ class DLM {
 	}
 }
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+
 /**
  * Global helper function to get DLM page ID with auto discovery
  */
@@ -1023,6 +1025,7 @@ if ( ! function_exists( 'dlm_get_order_pay_url' ) ) {
 			$account_url
 		);
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
 	}
 }

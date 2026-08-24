@@ -9,13 +9,11 @@
  * @version 3.2.1
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
-// Ensure checkout CSS & Font Awesome are enqueued
-wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
-wp_enqueue_style( 'dlm-font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css', array(), '6.4.0' );
 
 // Get account URL for back button
 $account_url = dlm_get_page_url( 'account' );
@@ -24,7 +22,7 @@ do_action( 'woocommerce_before_checkout_form', $checkout );
 
 // If checkout registration is disabled and not logged in, user cannot checkout
 if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_required() && ! is_user_logged_in() ) {
-	echo esc_html( apply_filters( 'woocommerce_checkout_must_be_logged_in_message', __( 'You must be logged in to checkout.', 'woocommerce' ) ) );
+	echo esc_html( apply_filters( 'woocommerce_checkout_must_be_logged_in_message', __( 'You must be logged in to checkout.', 'digital-library-membership' ) ) );
 	return;
 }
 ?>
@@ -138,7 +136,7 @@ if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_requir
 													</div>
 												</div>
 												<div class="dlm-summary-item-price">
-													<?php echo apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ), $cart_item, $cart_item_key ); ?>
+													<?php echo wp_kses_post( apply_filters( 'woocommerce_cart_item_subtotal', ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ) : '', $cart_item, $cart_item_key ) ); ?>
 												</div>
 											</div>
 											<?php

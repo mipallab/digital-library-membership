@@ -2,7 +2,11 @@
 /**
  * Standalone SPA Member Dashboard Template
  * Overrides the theme template when page has [dlm_account] shortcode.
+ *
+ * @package DLM
  */
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -1042,7 +1046,10 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						</p>
 						<?php if ( $completed_order_id > 0 ) : ?>
 							<p class="text-xs text-secondary/80 font-mono pt-1">
-								<?php echo esc_html( sprintf( __( 'Order Reference: #%d', 'digital-library-membership' ), $completed_order_id ) ); ?>
+								<?php
+								/* translators: %d: Completed order reference ID */
+								echo esc_html( sprintf( __( 'Order Reference: #%d', 'digital-library-membership' ), $completed_order_id ) );
+								?>
 							</p>
 						<?php endif; ?>
 					</div>

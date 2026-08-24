@@ -7,6 +7,8 @@
  * @subpackage DLM/templates
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+
 // Block direct access
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

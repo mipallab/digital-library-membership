@@ -1,4 +1,12 @@
 <?php
+/**
+ * Admin Dashboard View Template
+ *
+ * @package DLM
+ */
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

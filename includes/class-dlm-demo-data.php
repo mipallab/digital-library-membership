@@ -11,11 +11,12 @@
  * @subpackage DLM/includes
  */
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
+// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.SlowDBQuery
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
-// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.SlowDBQuery
 
 class DLM_Demo_Data {
 
