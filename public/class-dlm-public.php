@@ -997,10 +997,11 @@ class DLM_Public {
 
 						<!-- Google ReCAPTCHA -->
 						<?php 
-						$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
-						$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
-						$recaptcha_version  = ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' );
-						if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
+						$recaptcha_is_enabled = dlm_is_recaptcha_enabled();
+						$recaptcha_mode       = get_option( 'dlm_recaptcha_mode', 'production' );
+						$recaptcha_site_key   = $recaptcha_is_enabled ? ( ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' ) ) : '';
+						$recaptcha_version    = $recaptcha_is_enabled ? ( ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' ) ) : 'v2';
+						if ( $recaptcha_is_enabled && $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
 							<div class="g-recaptcha flex justify-center my-3" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
 						<?php endif; ?>
 
@@ -1091,7 +1092,7 @@ class DLM_Public {
 
 						<!-- Google ReCAPTCHA -->
 						<?php 
-						if ( $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
+						if ( $recaptcha_is_enabled && $recaptcha_site_key && $recaptcha_version === 'v2' ) : ?>
 							<div class="g-recaptcha flex justify-center my-3" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
 						<?php endif; ?>
 

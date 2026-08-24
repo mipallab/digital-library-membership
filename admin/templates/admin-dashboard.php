@@ -1674,11 +1674,34 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 
 								<div class="border-t border-outline-variant/10 pt-4 mt-4"></div>
 
-								<h4 class="text-xs font-bold text-primary uppercase tracking-wider">Google ReCAPTCHA Bot Protection</h4>
-								<p class="text-xs text-secondary leading-relaxed mb-3">Protects checkout, registration, and login screens from automated attacks. <a href="https://www.google.com/recaptcha/admin/create" target="_blank" class="text-primary hover:underline font-semibold inline-flex items-center gap-1 ml-1">Create ReCAPTCHA Keys <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></p>
+								<div class="flex items-center justify-between gap-4 mb-3">
+									<div>
+										<h4 class="text-xs font-bold text-primary uppercase tracking-wider"><?php esc_html_e( 'Google ReCAPTCHA Bot Protection', 'digital-library-membership' ); ?></h4>
+										<p class="text-xs text-secondary leading-relaxed"><?php esc_html_e( 'Protects checkout, registration, and login screens from automated attacks.', 'digital-library-membership' ); ?> <a href="https://www.google.com/recaptcha/admin/create" target="_blank" class="text-primary hover:underline font-semibold inline-flex items-center gap-1 ml-1"><?php esc_html_e( 'Create ReCAPTCHA Keys', 'digital-library-membership' ); ?> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></p>
+									</div>
+								</div>
+
+								<!-- ReCAPTCHA ON/OFF Switcher Card -->
+								<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/20 hover:border-primary/30 transition-all mb-4">
+									<div class="flex items-center gap-3">
+										<div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg shrink-0">
+											<i class="fa-solid fa-shield-halved"></i>
+										</div>
+										<div>
+											<p class="text-sm font-bold text-on-surface"><?php esc_html_e( 'reCAPTCHA Bot Verification', 'digital-library-membership' ); ?></p>
+											<p class="text-[11px] text-secondary"><?php esc_html_e( 'Turn ON to enforce bot protection or OFF to disable site-wide without errors.', 'digital-library-membership' ); ?></p>
+										</div>
+									</div>
+									<div>
+										<select id="dlm_recaptcha_enable_select" name="dlm_recaptcha_enable" class="px-3 py-1.5 rounded-lg border border-outline-variant/40 text-xs font-bold bg-white text-on-surface cursor-pointer" onchange="if(typeof window.toggleRecaptchaFields==='function'){window.toggleRecaptchaFields(this.value);}">
+											<option value="yes" <?php selected( dlm_is_recaptcha_enabled(), true ); ?>><?php esc_html_e( 'Enabled (ON)', 'digital-library-membership' ); ?></option>
+											<option value="no" <?php selected( dlm_is_recaptcha_enabled(), false ); ?>><?php esc_html_e( 'Disabled (OFF)', 'digital-library-membership' ); ?></option>
+										</select>
+									</div>
+								</div>
 
 								<!-- Connection status badge -->
-								<div class="mb-4">
+								<div id="dlm-recaptcha-status-container" class="mb-4">
 									<?php 
 									$recaptcha_conn = dlm_get_recaptcha_connection_status(); 
 									if ( $recaptcha_conn['status'] === 'connected' ) : ?>
@@ -1691,13 +1714,18 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 											<span class="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
 											<span><?php echo esc_html( $recaptcha_conn['message'] ); ?></span>
 										</div>
-									<?php elseif ( $recaptcha_conn['status'] === 'failed' ) : ?>
-										<div class="flex flex-col gap-1.5 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
+									<?php elseif ( $recaptcha_conn['status'] === 'disabled' ) : ?>
+										<div class="flex items-center gap-2 p-3.5 bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold">
+											<span class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+											<span><?php echo esc_html( $recaptcha_conn['message'] ); ?></span>
+										</div>
+									<?php elseif ( $recaptcha_conn['status'] === 'failed' || $recaptcha_conn['status'] === 'not_set' ) : ?>
+										<div class="flex flex-col gap-1.5 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
 											<div class="flex items-center gap-2">
-												<span class="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0"></span>
-												<span><?php esc_html_e( 'Not Connected to ReCAPTCHA', 'digital-library-membership' ); ?></span>
+												<span class="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0"></span>
+												<span><?php esc_html_e( 'reCAPTCHA Keys Missing', 'digital-library-membership' ); ?></span>
 											</div>
-											<p class="text-[11px] text-red-600 font-normal leading-relaxed"><strong><?php esc_html_e( 'Connection Failed Cause:', 'digital-library-membership' ); ?></strong> <?php echo esc_html( $recaptcha_conn['message'] ); ?></p>
+											<p class="text-[11px] text-amber-700 font-normal leading-relaxed"><?php echo esc_html( $recaptcha_conn['message'] ); ?></p>
 										</div>
 									<?php else : ?>
 										<div class="flex items-center gap-2 p-3.5 bg-surface-container-high border border-outline-variant/30 text-secondary rounded-xl text-xs font-semibold">
@@ -1707,27 +1735,27 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 									<?php endif; ?>
 								</div>
 
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div id="dlm-recaptcha-settings-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all duration-200 <?php echo dlm_is_recaptcha_enabled() ? '' : 'opacity-50'; ?>">
 									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Mode</label>
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'ReCAPTCHA Mode', 'digital-library-membership' ); ?></label>
 										<select name="dlm_recaptcha_mode" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
 											<option value="production" <?php selected( get_option( 'dlm_recaptcha_mode', 'production' ), 'production' ); ?>><?php esc_html_e( 'Live Production Mode', 'digital-library-membership' ); ?></option>
 											<option value="testing" <?php selected( get_option( 'dlm_recaptcha_mode' ), 'testing' ); ?>><?php esc_html_e( 'Developer Testing Mode', 'digital-library-membership' ); ?></option>
 										</select>
 									</div>
 									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Version</label>
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'ReCAPTCHA Version', 'digital-library-membership' ); ?></label>
 										<select name="dlm_recaptcha_version" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
 											<option value="v2" <?php selected( get_option( 'dlm_recaptcha_version', 'v2' ), 'v2' ); ?>>v2 Checkbox ("I'm not a robot")</option>
 											<option value="v3" <?php selected( get_option( 'dlm_recaptcha_version' ), 'v3' ); ?>>v3 Invisible</option>
 										</select>
 									</div>
 									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Site Key</label>
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'ReCAPTCHA Site Key', 'digital-library-membership' ); ?></label>
 										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="text" name="dlm_recaptcha_site_key" value="<?php echo esc_attr( get_option( 'dlm_recaptcha_site_key' ) ); ?>" placeholder="e.g. 6LdK...">
 									</div>
 									<div class="space-y-1">
-										<label class="text-xs font-bold text-on-surface-variant uppercase">ReCAPTCHA Secret Key</label>
+										<label class="text-xs font-bold text-on-surface-variant uppercase"><?php esc_html_e( 'ReCAPTCHA Secret Key', 'digital-library-membership' ); ?></label>
 										<input class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" type="password" name="dlm_recaptcha_secret_key" value="<?php echo esc_attr( get_option( 'dlm_recaptcha_secret_key' ) ); ?>" placeholder="e.g. 6LdK_secret...">
 									</div>
 								</div>

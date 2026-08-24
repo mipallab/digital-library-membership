@@ -7,7 +7,7 @@ jQuery(document).ready(function($) {
     // Google ReCAPTCHA Token retriever
     function dlmGetRecaptchaToken($form, actionName, callback) {
         var params = window.dlmParams || window.dlmDashboardParams || {};
-        if (!params.recaptchaSiteKey) {
+        if (!params.recaptchaSiteKey || params.recaptchaEnabled === false || params.recaptchaEnabled === 'no') {
             callback('');
             return;
         }

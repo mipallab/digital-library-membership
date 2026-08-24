@@ -112,6 +112,7 @@ class DLM {
 			add_action( 'update_option_dlm_recaptcha_site_key', 'dlm_clear_recaptcha_conn_transient' );
 			add_action( 'update_option_dlm_recaptcha_secret_key', 'dlm_clear_recaptcha_conn_transient' );
 			add_action( 'update_option_dlm_recaptcha_mode', 'dlm_clear_recaptcha_conn_transient' );
+			add_action( 'update_option_dlm_recaptcha_enable', 'dlm_clear_recaptcha_conn_transient' );
 			add_action( 'admin_post_dlm_save_book', array( $this->admin, 'handle_save_book' ) );
 			add_action( 'admin_post_dlm_edit_book', array( $this->admin, 'handle_edit_book' ) );
 			add_action( 'admin_post_dlm_delete_book', array( $this->admin, 'handle_delete_book' ) );
@@ -311,11 +312,12 @@ class DLM {
 		}
 
 		// Google ReCAPTCHA Integration
-		$recaptcha_mode     = get_option( 'dlm_recaptcha_mode', 'production' );
-		$recaptcha_site_key = ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' );
-		$recaptcha_version  = ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' );
+		$recaptcha_is_enabled = dlm_is_recaptcha_enabled();
+		$recaptcha_mode       = get_option( 'dlm_recaptcha_mode', 'production' );
+		$recaptcha_site_key   = $recaptcha_is_enabled ? ( ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' ) ) : '';
+		$recaptcha_version    = $recaptcha_is_enabled ? ( ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' ) ) : 'v2';
 
-		if ( $recaptcha_site_key ) {
+		if ( $recaptcha_is_enabled && $recaptcha_site_key ) {
 			if ( $recaptcha_version === 'v3' ) {
 				wp_enqueue_script( 'google-recaptcha', 'https://www.google.com/recaptcha/api.js?render=' . esc_attr( $recaptcha_site_key ), array(), DLM_VERSION, true );
 			} else {
@@ -349,8 +351,9 @@ class DLM {
 			'paypalLifetimePlanId' => get_option( 'dlm_paypal_lifetime_plan_id' ),
 			'nonce'             => wp_create_nonce( 'dlm_public_nonce' ),
 			'useWooCommerce'    => class_exists( 'WooCommerce' ) && ( get_option( 'dlm_wc_monthly_product' ) || get_option( 'dlm_wc_yearly_product' ) || get_option( 'dlm_wc_lifetime_product' ) ),
-			'recaptchaSiteKey'  => ( $recaptcha_mode === 'testing' ) ? '6LeIxAcTAAAAAJcZVRqy9m71zuoE0tV7mP9XXqgC' : get_option( 'dlm_recaptcha_site_key' ),
-			'recaptchaVersion'  => ( $recaptcha_mode === 'testing' ) ? 'v2' : get_option( 'dlm_recaptcha_version', 'v2' ),
+			'recaptchaEnabled'  => $recaptcha_is_enabled,
+			'recaptchaSiteKey'  => $recaptcha_site_key,
+			'recaptchaVersion'  => $recaptcha_version,
 		) );
 	}
 
@@ -405,28 +408,30 @@ class DLM {
 			return;
 		}
 
-		$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
-		if ( 'testing' === $recaptcha_mode ) {
-			?>
-			<div class="notice notice-warning is-dismissible">
-				<p>
-					<strong><?php esc_html_e( 'DLM Security Notice:', 'digital-library-membership' ); ?></strong>
-					<?php esc_html_e( 'reCAPTCHA is currently running in TEST mode. Real bot protection is disabled site-wide.', 'digital-library-membership' ); ?>
-				</p>
-			</div>
-			<?php
-		}
+		if ( dlm_is_recaptcha_enabled() ) {
+			$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
+			if ( 'testing' === $recaptcha_mode ) {
+				?>
+				<div class="notice notice-warning is-dismissible">
+					<p>
+						<strong><?php esc_html_e( 'DLM Security Notice:', 'digital-library-membership' ); ?></strong>
+						<?php esc_html_e( 'reCAPTCHA is currently running in TEST mode. Real bot protection is disabled site-wide.', 'digital-library-membership' ); ?>
+					</p>
+				</div>
+				<?php
+			}
 
-		$recaptcha_secret = get_option( 'dlm_recaptcha_secret_key' );
-		if ( 'testing' !== $recaptcha_mode && empty( $recaptcha_secret ) ) {
-			?>
-			<div class="notice notice-warning is-dismissible">
-				<p>
-					<strong><?php esc_html_e( 'DLM Notice:', 'digital-library-membership' ); ?></strong>
-					<?php esc_html_e( 'reCAPTCHA secret key is not set. Login and registration forms currently have no bot protection.', 'digital-library-membership' ); ?>
-				</p>
-			</div>
-			<?php
+			$recaptcha_secret = get_option( 'dlm_recaptcha_secret_key' );
+			if ( 'testing' !== $recaptcha_mode && empty( $recaptcha_secret ) ) {
+				?>
+				<div class="notice notice-warning is-dismissible">
+					<p>
+						<strong><?php esc_html_e( 'DLM Notice:', 'digital-library-membership' ); ?></strong>
+						<?php esc_html_e( 'reCAPTCHA secret key is not set. Login and registration forms currently have no bot protection.', 'digital-library-membership' ); ?>
+					</p>
+				</div>
+				<?php
+			}
 		}
 
 		$stripe_secret = get_option( 'dlm_stripe_secret_key' );
@@ -1102,10 +1107,32 @@ if ( ! function_exists( 'dlm_user_can_access_book' ) ) {
 }
 
 /**
+ * Global helper function to check if Google reCAPTCHA is enabled
+ */
+if ( ! function_exists( 'dlm_is_recaptcha_enabled' ) ) {
+	function dlm_is_recaptcha_enabled() {
+		$enabled = get_option( 'dlm_recaptcha_enable', '' );
+		if ( '' === $enabled ) {
+			// If not set yet, check if keys exist or testing mode
+			$site_key   = get_option( 'dlm_recaptcha_site_key', '' );
+			$secret_key = get_option( 'dlm_recaptcha_secret_key', '' );
+			$mode       = get_option( 'dlm_recaptcha_mode', 'production' );
+			return ( 'testing' === $mode || ! empty( $site_key ) || ! empty( $secret_key ) );
+		}
+		return ( 'yes' === $enabled || '1' === $enabled || 1 === $enabled || true === $enabled );
+	}
+}
+
+/**
  * Global helper function to verify Google ReCAPTCHA token (v2 or v3)
  */
 if ( ! function_exists( 'dlm_verify_recaptcha' ) ) {
 	function dlm_verify_recaptcha( $token ) {
+		// If reCAPTCHA is turned OFF, bypass verification completely
+		if ( ! dlm_is_recaptcha_enabled() ) {
+			return true;
+		}
+
 		$recaptcha_mode = get_option( 'dlm_recaptcha_mode', 'production' );
 		if ( $recaptcha_mode === 'testing' ) {
 			$secret_key = '6LeIxAcTAAAAAGG-vFI1TnFTxW2mYgPGW7N5a3BJ';
@@ -1156,6 +1183,13 @@ if ( ! function_exists( 'dlm_verify_recaptcha' ) ) {
  */
 if ( ! function_exists( 'dlm_get_recaptcha_connection_status' ) ) {
 	function dlm_get_recaptcha_connection_status() {
+		if ( ! dlm_is_recaptcha_enabled() ) {
+			return array(
+				'status'  => 'disabled',
+				'message' => __( 'Google reCAPTCHA is currently Turned OFF (Disabled).', 'digital-library-membership' ),
+			);
+		}
+
 		$mode = get_option( 'dlm_recaptcha_mode', 'production' );
 		if ( 'testing' === $mode ) {
 			return array(
@@ -1170,13 +1204,13 @@ if ( ! function_exists( 'dlm_get_recaptcha_connection_status' ) ) {
 		if ( empty( $site_key ) || empty( $secret_key ) ) {
 			return array(
 				'status'  => 'not_set',
-				'message' => __( 'ReCAPTCHA keys are not configured.', 'digital-library-membership' ),
+				'message' => __( 'ReCAPTCHA is Enabled but API keys are missing.', 'digital-library-membership' ),
 			);
 		}
 
 		return array(
 			'status'  => 'connected',
-			'message' => __( 'ReCAPTCHA credentials configured.', 'digital-library-membership' ),
+			'message' => __( 'ReCAPTCHA is Enabled and configured properly.', 'digital-library-membership' ),
 		);
 	}
 }

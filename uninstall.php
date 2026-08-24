@@ -59,6 +59,7 @@ if ( '1' === $delete_data || true === $delete_data ) {
 		'dlm_wc_lifetime_product',
 		'dlm_privacy_policy_page_id',
 		'dlm_terms_page_id',
+		'dlm_recaptcha_enable',
 		'dlm_recaptcha_version',
 		'dlm_recaptcha_site_key',
 		'dlm_recaptcha_secret_key',

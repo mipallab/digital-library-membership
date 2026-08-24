@@ -501,6 +501,18 @@ function initWPBannerMediaUploader(btnId, inputId, idInputId, previewId, placeho
 
 /* 4. SETTINGS SUB-TAB SWITCHING */
 function initSettingsTabs() {
+    window.toggleRecaptchaFields = function(statusVal) {
+        const isEnabled = (statusVal === 'yes' || statusVal === true || statusVal === '1');
+        const fields = document.getElementById('dlm-recaptcha-settings-fields');
+        if (fields) {
+            if (isEnabled) {
+                fields.classList.remove('opacity-50');
+            } else {
+                fields.classList.add('opacity-50');
+            }
+        }
+    };
+
     window.switchSettingsTab = function(tabName) {
         // Toggle tab highlights
         const tabIds = ['general', 'stripe', 'paypal', 'woocommerce', 'social', 'security', 'demo'];
