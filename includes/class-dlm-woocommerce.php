@@ -711,7 +711,7 @@ class DLM_WooCommerce {
 		}
 
 		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
-			return home_url( '/' );
+			return dlm_get_page_url( 'checkout' );
 		}
 
 		$order_id     = $order->get_id();
@@ -997,11 +997,6 @@ class DLM_WooCommerce {
 			return;
 		}
 
-		// Never redirect if on DLM dedicated checkout page or library account page
-		if ( ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) || ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) ) {
-			return;
-		}
-
 		// Check for pay_for_order request (either via query args or URI path)
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$is_dlm_pay_action = isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) );
@@ -1039,20 +1034,16 @@ class DLM_WooCommerce {
 					}
 					status_header( 200 );
 
-					$clean_url = $this->get_clean_order_pay_url( $order );
-
-					// If current URL is a legacy /order-pay/ path, redirect safely to clean standalone pay URL
-					$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-					if ( ! empty( $req_uri ) && false !== strpos( $req_uri, '/order-pay/' ) && ! $is_dlm_pay_action ) {
-						wp_safe_redirect( $clean_url );
-						exit;
-					}
-
 					// Render standalone headless order pay screen directly
 					$this->render_standalone_order_pay_template( $order );
 					exit;
 				}
 			}
+		}
+
+		// Never redirect if on DLM dedicated checkout page or library account page
+		if ( ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) || ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) ) {
+			return;
 		}
 
 		// Allow WooCommerce order payment page (e.g. /checkout/order-pay/123/?pay_for_order=true&key=wc_order_xyz)

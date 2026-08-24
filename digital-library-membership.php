@@ -16,8 +16,8 @@
  * Plugin URI:        https://profiles.wordpress.org/mipallab123/digital-library-membership
  * Description:       A premium, secure subscription membership plugin to read digital books frontend with physical page-flip feel, native Elementor GSAP widgets, touch carousels, and addons.
  * Version:           3.2.3
- * Author:            Bridgeway36
- * Author URI:        https://bridgeway36.com/
+ * Author:            Majadul Islam Pallab
+ * Author URI:        https://profiles.wordpress.org/mipallab123
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain:       digital-library-membership
