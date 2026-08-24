@@ -163,7 +163,7 @@ class DLM_Activator {
 		}
 
 		// Update DB version tracking
-		update_option( 'dlm_db_version', '2.5.0' );
+		update_option( 'dlm_db_version', '2.6.0' );
 
 		// Setup secure storage directory
 		self::setup_secure_directory();
@@ -191,33 +191,47 @@ class DLM_Activator {
 		$pages = array(
 			'library'  => array(
 				'title'     => __( 'Library', 'digital-library-membership' ),
+				'slug'      => 'library',
 				'shortcode' => '[dlm_library]',
 				'option'    => 'dlm_library_page_id',
 			),
 			'account'  => array(
 				'title'     => __( 'Library Account', 'digital-library-membership' ),
+				'slug'      => 'library-account',
 				'shortcode' => '[dlm_account]',
 				'option'    => 'dlm_account_page_id',
 			),
 			'pricing'  => array(
 				'title'     => __( 'Plan', 'digital-library-membership' ),
+				'slug'      => 'plan',
 				'shortcode' => '[dlm_pricing]',
 				'option'    => 'dlm_pricing_page_id',
 			),
 			'checkout' => array(
-				'title'     => __( 'Checkout', 'digital-library-membership' ),
+				'title'     => __( 'Library Checkout', 'digital-library-membership' ),
+				'slug'      => 'library-checkout',
 				'shortcode' => '[dlm_checkout]',
 				'option'    => 'dlm_checkout_page_id',
 			),
 		);
 
-		foreach ( $pages as $page_info ) {
+		foreach ( $pages as $page_key => $page_info ) {
 			$page_id  = get_option( $page_info['option'] );
 			$page_obj = $page_id ? get_post( $page_id ) : null;
+
+			// Check if page exists by slug if option is missing or invalid
+			if ( ! $page_obj || 'trash' === $page_obj->post_status ) {
+				$existing_by_slug = get_page_by_path( $page_info['slug'] );
+				if ( $existing_by_slug && 'trash' !== $existing_by_slug->post_status ) {
+					$page_obj = $existing_by_slug;
+					update_option( $page_info['option'], (int) $existing_by_slug->ID );
+				}
+			}
 
 			if ( ! $page_obj || 'trash' === $page_obj->post_status ) {
 				$new_page_id = wp_insert_post( array(
 					'post_title'     => $page_info['title'],
+					'post_name'      => $page_info['slug'],
 					'post_content'   => $page_info['shortcode'],
 					'post_status'    => 'publish',
 					'post_type'      => 'page',
@@ -226,6 +240,29 @@ class DLM_Activator {
 
 				if ( $new_page_id && ! is_wp_error( $new_page_id ) ) {
 					update_option( $page_info['option'], $new_page_id );
+				}
+			} else {
+				// If existing checkout page still has conflicting slug 'checkout' or title 'Checkout', migrate it to 'library-checkout'
+				if ( 'checkout' === $page_key ) {
+					$needs_update = false;
+					$update_args  = array( 'ID' => $page_obj->ID );
+
+					if ( 'checkout' === $page_obj->post_name ) {
+						$update_args['post_name'] = 'library-checkout';
+						$needs_update             = true;
+					}
+					if ( 'Checkout' === $page_obj->post_title ) {
+						$update_args['post_title'] = __( 'Library Checkout', 'digital-library-membership' );
+						$needs_update              = true;
+					}
+					if ( empty( $page_obj->post_content ) || false === strpos( $page_obj->post_content, '[dlm_checkout]' ) ) {
+						$update_args['post_content'] = '[dlm_checkout]';
+						$needs_update                = true;
+					}
+
+					if ( $needs_update ) {
+						wp_update_post( $update_args );
+					}
 				}
 			}
 		}
@@ -291,7 +328,7 @@ class DLM_Activator {
 	 */
 	public static function check_and_upgrade_db() {
 		$installed_ver = get_option( 'dlm_db_version', '1.0.0' );
-		if ( version_compare( $installed_ver, '2.5.0', '<' ) ) {
+		if ( version_compare( $installed_ver, '2.6.0', '<' ) ) {
 			self::activate();
 		}
 	}

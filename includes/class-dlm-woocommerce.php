@@ -849,7 +849,7 @@ class DLM_WooCommerce {
 	 * Enqueue luxury Library Checkout styles on WooCommerce checkout page
 	 */
 	public function enqueue_checkout_styles() {
-		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
+		if ( ( function_exists( 'is_checkout' ) && is_checkout() ) || ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) ) {
 			wp_enqueue_style( 'dashicons' );
 			wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
 		}
@@ -968,6 +968,11 @@ class DLM_WooCommerce {
 
 		// Never redirect in WP Admin, WP AJAX, WP CRON, WP CLI, REST API, or WooCommerce background API/Webhooks
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+			return;
+		}
+
+		// Never redirect if on DLM dedicated checkout page or library account page
+		if ( ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) || ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) ) {
 			return;
 		}
 

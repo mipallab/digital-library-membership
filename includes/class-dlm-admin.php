@@ -1201,13 +1201,13 @@ class DLM_Admin {
 				$display_name,
 				$user_email,
 				$reset_url,
-				home_url( '/checkout/' )
+				dlm_get_page_url( 'account' )
 			);
 		} else {
 			$body = sprintf(
 				__( "Hello %1\$s,\n\nAn administrator has activated a manual membership subscription on your account.\n\nLogin Page: %2\$s\n\nEnjoy reading our premium digital books.\n\nBest regards,\nDigital Library Team", 'digital-library-membership' ),
 				$display_name,
-				home_url( '/checkout/' )
+				dlm_get_page_url( 'account' )
 			);
 		}
 		

@@ -2139,7 +2139,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			userAchievements: <?php echo json_encode( $achievements ); ?>,
 			userNotes: <?php echo json_encode( $notes ); ?>,
 			favoriteBooks: <?php echo json_encode( $fav_books ); ?>,
-			checkoutUrl: '<?php echo esc_js( home_url( '/checkout/' ) ); ?>',
+			checkoutUrl: '<?php echo esc_js( dlm_get_page_url( 'checkout' ) ); ?>',
 			shouldShowOnboarding: <?php echo $should_show_onboarding ? 'true' : 'false'; ?>,
 			onboardingCompleted: '<?php echo esc_js( $onboarding_completed ); ?>'
 		};

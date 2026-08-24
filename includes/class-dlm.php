@@ -585,7 +585,7 @@ class DLM {
 					$user->display_name,
 					ucfirst( $sub->plan_interval ),
 					date_i18n( get_option( 'date_format' ), strtotime( $sub->expires_at ) ),
-					home_url( '/checkout/' )
+					dlm_get_page_url( 'checkout' )
 				);
 
 				wp_mail( $to, $subject, $body );
@@ -779,17 +779,17 @@ class DLM {
 			return;
 		}
 
-		// Never redirect if already on the account dashboard page
-		if ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) {
+		// Never redirect if already on the account dashboard page or dedicated checkout page
+		if ( ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) || ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) ) {
 			return;
 		}
 
-		// 1. Redirect if ?plan=... parameter is accessed on non-account page (e.g. external /checkout/?plan=yearly or /plan/)
+		// 1. Redirect if ?plan=... parameter is accessed on non-account / non-checkout page (e.g. external /plan/)
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['plan'] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$plan = sanitize_key( wp_unslash( $_GET['plan'] ) );
-			$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'account' ) ) . '#checkout';
+			$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'checkout' ) );
 			wp_safe_redirect( $redirect_url );
 			exit;
 		}
@@ -891,6 +891,22 @@ if ( ! function_exists( 'dlm_get_page_id' ) ) {
 			return $page_id;
 		}
 
+		// Discovery for dedicated library checkout page
+		if ( 'checkout' === $page_key || 'library-checkout' === $page_key ) {
+			$checkout_id = (int) get_option( 'dlm_checkout_page_id', 0 );
+			if ( $checkout_id > 0 && 'publish' === get_post_status( $checkout_id ) ) {
+				return $checkout_id;
+			}
+			$slugs = array( 'library-checkout', 'dlm-checkout' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					update_option( 'dlm_checkout_page_id', (int) $found->ID );
+					return (int) $found->ID;
+				}
+			}
+		}
+
 		// Fallback discovery for account page
 		if ( 'account' === $page_key || 'library-account' === $page_key ) {
 			$slugs = array( 'library-account', 'library-membership', 'member-dashboard', 'account', 'my-library' );
@@ -904,7 +920,7 @@ if ( ! function_exists( 'dlm_get_page_id' ) ) {
 		}
 
 		if ( 'pricing' === $page_key || 'plan' === $page_key ) {
-			$slugs = array( 'pricing', 'plans', 'plan', 'membership-plans' );
+			$slugs = array( 'plan', 'pricing', 'plans', 'membership-plans' );
 			foreach ( $slugs as $slug ) {
 				$found = get_page_by_path( $slug );
 				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
@@ -914,7 +930,48 @@ if ( ! function_exists( 'dlm_get_page_id' ) ) {
 			}
 		}
 
+		if ( 'library' === $page_key || 'digital-library' === $page_key ) {
+			$slugs = array( 'library', 'digital-library', 'books' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					update_option( 'dlm_library_page_id', (int) $found->ID );
+					return (int) $found->ID;
+				}
+			}
+		}
+
 		return 0;
+	}
+}
+
+/**
+ * Global helper function to check if current query is the Library Checkout page
+ */
+if ( ! function_exists( 'dlm_is_checkout_page' ) ) {
+	function dlm_is_checkout_page() {
+		$checkout_page_id = dlm_get_page_id( 'checkout' );
+		if ( $checkout_page_id > 0 && is_page( $checkout_page_id ) ) {
+			return true;
+		}
+
+		if ( is_page( array( 'library-checkout', 'dlm-checkout' ) ) ) {
+			return true;
+		}
+
+		global $post;
+		if ( $post && is_a( $post, 'WP_Post' ) ) {
+			if ( has_shortcode( $post->post_content, 'dlm_checkout' ) ) {
+				return true;
+			}
+		}
+
+		$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		if ( false !== strpos( $req_uri, '/library-checkout' ) ) {
+			return true;
+		}
+
+		return false;
 	}
 }
 
@@ -958,8 +1015,24 @@ if ( ! function_exists( 'dlm_get_page_url' ) ) {
 			return get_permalink( $page_id );
 		}
 
+		// Dedicated Library Checkout page
+		if ( 'checkout' === $page_key || 'library-checkout' === $page_key ) {
+			$checkout_id = dlm_get_page_id( 'checkout' );
+			if ( $checkout_id && 'publish' === get_post_status( $checkout_id ) ) {
+				return get_permalink( $checkout_id );
+			}
+			$slugs = array( 'library-checkout', 'dlm-checkout' );
+			foreach ( $slugs as $slug ) {
+				$found = get_page_by_path( $slug );
+				if ( $found && 'publish' === get_post_status( $found->ID ) ) {
+					return get_permalink( $found->ID );
+				}
+			}
+			return home_url( '/library-checkout/' );
+		}
+
 		// Robust discovery for Member Account Dashboard page
-		if ( 'account' === $page_key || 'library-account' === $page_key || 'checkout' === $page_key || 'membership' === $page_key ) {
+		if ( 'account' === $page_key || 'library-account' === $page_key || 'membership' === $page_key ) {
 			$account_id = dlm_get_page_id( 'account' );
 			if ( $account_id && 'publish' === get_post_status( $account_id ) ) {
 				return get_permalink( $account_id );
@@ -980,7 +1053,7 @@ if ( ! function_exists( 'dlm_get_page_url' ) ) {
 			if ( $pricing_id && 'publish' === get_post_status( $pricing_id ) ) {
 				return get_permalink( $pricing_id );
 			}
-			$slugs = array( 'pricing', 'plans', 'plan', 'membership-plans' );
+			$slugs = array( 'plan', 'pricing', 'plans', 'membership-plans' );
 			foreach ( $slugs as $slug ) {
 				$found = get_page_by_path( $slug );
 				if ( $found && 'publish' === get_post_status( $found->ID ) ) {

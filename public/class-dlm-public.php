@@ -664,7 +664,7 @@ class DLM_Public {
 	}
 
 	/**
-	 * Shortcode dlm_checkout - Renders checkout & payment options for the selected plan
+	 * Shortcode dlm_checkout - Renders luxury checkout & payment options for the selected plan
 	 */
 	public function render_checkout() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -677,10 +677,17 @@ class DLM_Public {
 			$package  = reset( $packages );
 		}
 
+		$plan_id       = $package ? ( $package['id'] ?? $selected_plan ) : $selected_plan;
 		$plan_name     = $package ? $package['name'] : __( 'Monthly Membership', 'digital-library-membership' );
 		$plan_price    = $package ? number_format( floatval( $package['price'] ), 2 ) : '9.99';
 		$plan_interval = $package && ! empty( $package['interval'] ) ? $package['interval'] : 'monthly';
-		$plan_period   = ( 'lifetime' === $plan_interval ) ? __( '/one-time', 'digital-library-membership' ) : ( ( 'yearly' === $plan_interval ) ? __( '/yr', 'digital-library-membership' ) : __( '/mo', 'digital-library-membership' ) );
+		$plan_period   = ( 'lifetime' === $plan_interval ) ? __( '/one-time', 'digital-library-membership' ) : ( ( 'yearly' === $plan_interval ) ? __( '/year', 'digital-library-membership' ) : __( '/month', 'digital-library-membership' ) );
+		$plan_features = ( $package && ! empty( $package['features'] ) && is_array( $package['features'] ) ) ? $package['features'] : array(
+			__( 'Unlimited Digital Reader & Flipbook Access', 'digital-library-membership' ),
+			__( 'Interactive Audio Player & High-Res Reading', 'digital-library-membership' ),
+			__( 'Personal Notes & Reading Journal', 'digital-library-membership' ),
+			__( 'Curated Daily Recommendations & XP Awards', 'digital-library-membership' ),
+		);
 
 		$currency      = get_option( 'dlm_currency', 'USD' );
 		$user_id       = get_current_user_id();
@@ -688,117 +695,447 @@ class DLM_Public {
 		$is_active     = $user_id ? $this->db->has_active_membership( $user_id ) : false;
 
 		if ( $sub && $sub->status === 'pending_approval' ) {
-			return '<div class="dlm-msg-box info" style="background:#fff9e6; border:1px solid #ffe0b3; color:#b36b00; padding:15px; border-radius:12px; margin-bottom:20px;">
-				<p>' . esc_html__( 'Your subscription request (Manual Payment) is pending administrator approval. Please wait for the admin to verify and approve your transaction.', 'digital-library-membership' ) . '</p>
+			return '<div class="dlm-msg-box info" style="background:#fff9e6; border:1px solid #ffe0b3; color:#b36b00; padding:20px; border-radius:16px; margin:30px auto; max-width:700px; text-align:center;">
+				<i class="fa-solid fa-clock" style="font-size:24px; margin-bottom:10px; display:block;"></i>
+				<h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700;">' . esc_html__( 'Verification Pending', 'digital-library-membership' ) . '</h3>
+				<p style="margin:0; font-size:14px; line-height:1.5;">' . esc_html__( 'Your subscription request (Manual Payment) is pending administrator approval. Please wait for the admin to verify and approve your transaction.', 'digital-library-membership' ) . '</p>
+				<a href="' . esc_url( dlm_get_page_url( 'account' ) ) . '" style="display:inline-block; margin-top:15px; padding:8px 20px; background:#b36b00; color:#fff; border-radius:10px; font-weight:600; text-decoration:none; font-size:13px;">' . esc_html__( 'Go to Library Account', 'digital-library-membership' ) . '</a>
 			</div>';
 		}
 
 		if ( $is_active ) {
-			return '<div class="dlm-msg-box success"><p>' . __( 'You already have an active membership subscription! Visit your account page to manage your subscription.', 'digital-library-membership' ) . ' <a href="' . esc_url( dlm_get_page_url( 'account' ) ) . '">' . __( 'Library Account', 'digital-library-membership' ) . '</a></p></div>';
+			return '<div class="dlm-msg-box success" style="background:#e6f4ea; border:1px solid #ceead6; color:#137333; padding:20px; border-radius:16px; margin:30px auto; max-width:700px; text-align:center;">
+				<i class="fa-solid fa-circle-check" style="font-size:24px; margin-bottom:10px; display:block;"></i>
+				<h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700;">' . esc_html__( 'Active Membership', 'digital-library-membership' ) . '</h3>
+				<p style="margin:0; font-size:14px;">' . esc_html__( 'You already have an active membership subscription! Visit your account page to manage your reading access.', 'digital-library-membership' ) . '</p>
+				<a href="' . esc_url( dlm_get_page_url( 'account' ) ) . '" style="display:inline-block; margin-top:15px; padding:8px 20px; background:#137333; color:#fff; border-radius:10px; font-weight:600; text-decoration:none; font-size:13px;">' . esc_html__( 'Go to Library Account', 'digital-library-membership' ) . '</a>
+			</div>';
 		}
 
-		// Check if WooCommerce product is configured for this plan
-		$wc_product_id = 0;
-		if ( class_exists( 'WooCommerce' ) ) {
-			if ( ! empty( $package['wc_product_id'] ) ) {
-				$wc_product_id = intval( $package['wc_product_id'] );
-			} else {
-				$wc_product_id = intval( get_option( 'dlm_wc_' . $plan_interval . '_product' ) );
-			}
-		}
+		// Gateway detection
+		$enable_wc     = dlm_is_gateway_enabled( 'woocommerce' ) && class_exists( 'WooCommerce' );
+		$enable_stripe = dlm_is_gateway_enabled( 'stripe' ) && get_option( 'dlm_stripe_publishable_key' );
+		$enable_paypal = dlm_is_gateway_enabled( 'paypal' ) && get_option( 'dlm_paypal_client_id' );
+		$enable_manual = dlm_is_gateway_enabled( 'manual' );
+
+		$active_gateways = array();
+		if ( $enable_wc )     $active_gateways[] = 'woocommerce';
+		if ( $enable_stripe ) $active_gateways[] = 'stripe';
+		if ( $enable_paypal ) $active_gateways[] = 'paypal';
+		if ( $enable_manual ) $active_gateways[] = 'manual';
+
+		$default_gateway = ! empty( $active_gateways ) ? reset( $active_gateways ) : 'stripe';
+		$pricing_url     = dlm_get_page_url( 'pricing' );
+		$account_url     = dlm_get_page_url( 'account' );
+
+		// Enqueue dedicated luxury styling
+		wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
 
 		ob_start();
 		?>
-		<div class="dlm-checkout-page-container dlm-container" style="max-width: 680px; margin: 0 auto;">
-			<!-- Plan Summary Card -->
-			<div class="dlm-plan-summary-card" style="background:#fff; border:1px solid #d2d2d7; border-radius:20px; padding:25px 30px; margin-bottom:25px; box-shadow:0 4px 20px rgba(0,0,0,0.03); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
-				<div>
-					<span style="font-size:12px; font-weight:700; text-transform:uppercase; color:#8e8e93; letter-spacing:0.05em;"><?php esc_html_e( 'Selected Subscription Plan', 'digital-library-membership' ); ?></span>
-					<h2 style="margin:4px 0 0 0; font-size:22px; color:#1d1d1f;"><?php echo esc_html( $plan_name ); ?></h2>
-				</div>
-				<div style="text-align:right;">
-					<div style="font-size:24px; font-weight:800; color:#0071e3;">
-						$<span id="selected-plan-amount"><?php echo esc_html( $plan_price ); ?></span>
-						<span style="font-size:14px; font-weight:400; color:#8e8e93;"><?php echo esc_html( $plan_period ); ?></span>
+		<div class="dlm-checkout-page-root">
+			<div class="dlm-checkout-container">
+				
+				<!-- Page Header -->
+				<div class="dlm-checkout-header">
+					<a href="<?php echo esc_url( $pricing_url ); ?>" class="dlm-checkout-back-btn" title="<?php esc_attr_e( 'Back to Plans', 'digital-library-membership' ); ?>">
+						<i class="fa-solid fa-arrow-left"></i>
+					</a>
+					<div class="dlm-checkout-header-content">
+						<span class="dlm-badge-eyebrow"><?php esc_html_e( 'Review your selection', 'digital-library-membership' ); ?></span>
+						<h1 class="dlm-checkout-title"><?php esc_html_e( 'Secure Checkout', 'digital-library-membership' ); ?></h1>
 					</div>
-					<a href="<?php echo esc_url( dlm_get_page_url( 'pricing' ) ); ?>" style="font-size:13px; color:#0071e3; text-decoration:underline; font-weight:600;"><?php esc_html_e( 'Change Plan', 'digital-library-membership' ); ?></a>
 				</div>
-			</div>
 
-			<?php if ( ! is_user_logged_in() ) : ?>
-				<!-- Guest Checkout Notice & Auth Prompt -->
-				<div class="dlm-msg-box info" style="background:#f0f7ff; border:1px solid #cce5ff; color:#004085; padding:15px 20px; border-radius:12px; margin-bottom:20px; text-align:center;">
-					<p style="margin:0; font-size:14px;"><?php esc_html_e( 'Please sign in or create an account to complete your checkout.', 'digital-library-membership' ); ?></p>
-				</div>
-				<?php 
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Pre-escaped HTML auth template.
-				echo $this->get_login_prompt_html(); 
-				?>
-			<?php else : ?>
-				<!-- Payment Methods Container for Logged-In Users -->
-				<div class="dlm-payment-box" style="background:#fff; border:1px solid #d2d2d7; border-radius:20px; padding:30px; box-shadow:0 4px 20px rgba(0,0,0,0.03);">
-					<h3 style="margin-top:0; margin-bottom:20px; font-size:18px; font-weight:700; color:#1d1d1f;"><?php esc_html_e( 'Select Payment Method', 'digital-library-membership' ); ?></h3>
+				<div class="dlm-checkout-grid">
+					
+					<!-- LEFT COLUMN: Customer Information & Payment Methods -->
+					<div class="dlm-checkout-left-col">
+						
+						<!-- Section 1: Customer Account Info -->
+						<div class="dlm-checkout-section-card">
+							<h3 class="dlm-checkout-section-title">
+								<span class="dlm-step-num">1</span>
+								<?php esc_html_e( 'Account Information', 'digital-library-membership' ); ?>
+							</h3>
+							
+							<?php if ( ! is_user_logged_in() ) : ?>
+								<div class="dlm-msg-box info" style="background:#f0f7ff; border:1px solid #cce5ff; color:#004085; padding:15px 20px; border-radius:12px; margin-bottom:20px; text-align:center; font-size:14px;">
+									<?php esc_html_e( 'Please sign in or create an account to complete your checkout and link your membership.', 'digital-library-membership' ); ?>
+								</div>
+								<?php 
+								// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+								echo $this->get_login_prompt_html(); 
+								?>
+							<?php else : 
+								$current_u = wp_get_current_user();
+							?>
+								<div class="dlm-logged-in-badge" style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:#f9f9fb; border:1px solid rgba(0,0,0,0.08); border-radius:16px;">
+									<div style="display:flex; align-items:center; gap:12px;">
+										<div style="width:40px; height:40px; border-radius:50%; background:#855300; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px;">
+											<?php echo esc_html( strtoupper( substr( $current_u->display_name ?: $current_u->user_login, 0, 1 ) ) ); ?>
+										</div>
+										<div>
+											<p style="margin:0; font-weight:700; font-size:14px; color:#1a1c1c;"><?php echo esc_html( $current_u->display_name ); ?></p>
+											<p style="margin:0; font-size:12px; color:#6b7280;"><?php echo esc_html( $current_u->user_email ); ?></p>
+										</div>
+									</div>
+									<span style="font-size:12px; font-weight:600; color:#16a34a; background:#e6f4ea; padding:4px 10px; border-radius:20px;">
+										<i class="fa-solid fa-circle-check"></i> <?php esc_html_e( 'Logged In', 'digital-library-membership' ); ?>
+									</span>
+								</div>
+							<?php endif; ?>
+						</div>
 
+						<?php if ( is_user_logged_in() ) : ?>
+						<!-- Section 2: Choose Payment Method -->
+						<div class="dlm-checkout-section-card">
+							<h3 class="dlm-checkout-section-title">
+								<span class="dlm-step-num">2</span>
+								<?php esc_html_e( 'Choose Payment Method', 'digital-library-membership' ); ?>
+							</h3>
 
+							<?php if ( empty( $active_gateways ) ) : ?>
+								<div style="padding:24px; background:#f9f9fb; border-radius:16px; text-align:center;">
+									<i class="fa-solid fa-lock" style="font-size:24px; color:#6b7280; margin-bottom:8px; display:block;"></i>
+									<p style="margin:0 0 4px; font-weight:700; font-size:14px; color:#1a1c1c;"><?php esc_html_e( 'No payment methods currently active.', 'digital-library-membership' ); ?></p>
+									<p style="margin:0; font-size:12px; color:#6b7280;"><?php esc_html_e( 'Please contact the site administrator to complete your subscription.', 'digital-library-membership' ); ?></p>
+								</div>
+							<?php else : ?>
+								<div class="dlm-payment-tabs-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:24px;">
+									<?php if ( $enable_wc ) : ?>
+									<button type="button" class="dlm-payment-tab-btn <?php echo ( 'woocommerce' === $default_gateway ) ? 'active' : ''; ?>" data-gateway="woocommerce" onclick="selectStandaloneGateway('woocommerce')" style="padding:14px 16px; border-radius:14px; border:<?php echo ( 'woocommerce' === $default_gateway ) ? '2px solid #855300' : '1px solid rgba(0,0,0,0.12)'; ?>; background:#fff; text-align:left; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:10px;">
+										<i class="fa-solid fa-bag-shopping" style="color:<?php echo ( 'woocommerce' === $default_gateway ) ? '#855300' : '#6b7280'; ?>; font-size:18px;"></i>
+										<div>
+											<p style="margin:0; font-weight:700; font-size:13px; color:#1a1c1c;">WooCommerce</p>
+											<p style="margin:0; font-size:10px; color:#6b7280;">Store Gateway</p>
+										</div>
+									</button>
+									<?php endif; ?>
 
-					<div class="dlm-payment-options">
-						<!-- Stripe Checkout Button -->
-						<button id="dlm-stripe-btn" class="dlm-btn dlm-btn-stripe dlm-btn-block select-plan-btn" data-interval="<?php echo esc_attr( $selected_plan ); ?>">
-							<span class="stripe-icon"></span> <?php esc_html_e( 'Pay with Credit/Debit Card (Stripe)', 'digital-library-membership' ); ?>
-						</button>
+									<?php if ( $enable_stripe ) : ?>
+									<button type="button" class="dlm-payment-tab-btn <?php echo ( 'stripe' === $default_gateway ) ? 'active' : ''; ?>" data-gateway="stripe" onclick="selectStandaloneGateway('stripe')" style="padding:14px 16px; border-radius:14px; border:<?php echo ( 'stripe' === $default_gateway ) ? '2px solid #855300' : '1px solid rgba(0,0,0,0.12)'; ?>; background:#fff; text-align:left; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:10px;">
+										<i class="fa-solid fa-credit-card" style="color:<?php echo ( 'stripe' === $default_gateway ) ? '#855300' : '#6b7280'; ?>; font-size:18px;"></i>
+										<div>
+											<p style="margin:0; font-weight:700; font-size:13px; color:#1a1c1c;">Stripe</p>
+											<p style="margin:0; font-size:10px; color:#6b7280;">Credit / Debit</p>
+										</div>
+									</button>
+									<?php endif; ?>
 
-						<div style="text-align: center; margin: 15px 0; color: #888;">— <?php esc_html_e( 'OR', 'digital-library-membership' ); ?> —</div>
+									<?php if ( $enable_paypal ) : ?>
+									<button type="button" class="dlm-payment-tab-btn <?php echo ( 'paypal' === $default_gateway ) ? 'active' : ''; ?>" data-gateway="paypal" onclick="selectStandaloneGateway('paypal')" style="padding:14px 16px; border-radius:14px; border:<?php echo ( 'paypal' === $default_gateway ) ? '2px solid #855300' : '1px solid rgba(0,0,0,0.12)'; ?>; background:#fff; text-align:left; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:10px;">
+										<i class="fa-brands fa-paypal" style="color:<?php echo ( 'paypal' === $default_gateway ) ? '#855300' : '#6b7280'; ?>; font-size:18px;"></i>
+										<div>
+											<p style="margin:0; font-weight:700; font-size:13px; color:#1a1c1c;">PayPal</p>
+											<p style="margin:0; font-size:10px; color:#6b7280;">PayPal Smart</p>
+										</div>
+									</button>
+									<?php endif; ?>
 
-						<!-- PayPal Button container -->
-						<div id="paypal-button-container" style="margin-bottom:15px;"></div>
+									<?php if ( $enable_manual ) : ?>
+									<button type="button" class="dlm-payment-tab-btn <?php echo ( 'manual' === $default_gateway ) ? 'active' : ''; ?>" data-gateway="manual" onclick="selectStandaloneGateway('manual')" style="padding:14px 16px; border-radius:14px; border:<?php echo ( 'manual' === $default_gateway ) ? '2px solid #855300' : '1px solid rgba(0,0,0,0.12)'; ?>; background:#fff; text-align:left; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:10px;">
+										<i class="fa-solid fa-building-columns" style="color:<?php echo ( 'manual' === $default_gateway ) ? '#855300' : '#6b7280'; ?>; font-size:18px;"></i>
+										<div>
+											<p style="margin:0; font-weight:700; font-size:13px; color:#1a1c1c;">Bank Transfer</p>
+											<p style="margin:0; font-size:10px; color:#6b7280;">Manual Review</p>
+										</div>
+									</button>
+									<?php endif; ?>
+								</div>
 
-						<!-- WooCommerce Checkout Option (if configured & active) -->
-						<?php if ( $wc_product_id > 0 ) : ?>
-							<div style="text-align: center; margin: 15px 0; color: #888;">— <?php esc_html_e( 'OR', 'digital-library-membership' ); ?> —</div>
-							<button id="dlm-wc-btn" class="dlm-btn dlm-btn-block select-plan-btn" style="background:#7f54b7; color:#fff;" data-interval="<?php echo esc_attr( $selected_plan ); ?>">
-								🛒 <?php esc_html_e( 'Pay via WooCommerce Checkout', 'digital-library-membership' ); ?>
-							</button>
+								<!-- Gateway Panels -->
+								<?php if ( $enable_wc ) : ?>
+								<div id="standalone-gateway-panel-woocommerce" class="standalone-gw-panel <?php echo ( 'woocommerce' === $default_gateway ) ? '' : 'hidden'; ?>" style="<?php echo ( 'woocommerce' === $default_gateway ) ? '' : 'display:none;'; ?>">
+									<div style="padding:20px; background:#f9f9fb; border-radius:16px; margin-bottom:16px; border:1px solid rgba(0,0,0,0.06);">
+										<p style="margin:0; font-size:13px; color:#53433a; line-height:1.5;">
+											<?php esc_html_e( 'Pay securely through payment gateways configured in your WooCommerce store (Credit Card, bKash, Nagad, etc.).', 'digital-library-membership' ); ?>
+										</p>
+									</div>
+									<button type="button" id="dlm-standalone-wc-btn" class="dlm-btn-place-order" style="width:100%; height:52px; background:#855300; color:#fff; border:none; border-radius:14px; font-weight:700; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(133,83,0,0.25);">
+										<span><?php esc_html_e( 'Proceed to WooCommerce Checkout', 'digital-library-membership' ); ?></span>
+										<i class="fa-solid fa-arrow-right"></i>
+									</button>
+								</div>
+								<?php endif; ?>
+
+								<?php if ( $enable_stripe ) : ?>
+								<div id="standalone-gateway-panel-stripe" class="standalone-gw-panel <?php echo ( 'stripe' === $default_gateway ) ? '' : 'hidden'; ?>" style="<?php echo ( 'stripe' === $default_gateway ) ? '' : 'display:none;'; ?>">
+									<div style="padding:20px; background:#f9f9fb; border-radius:16px; margin-bottom:16px; border:1px solid rgba(0,0,0,0.06);">
+										<p style="margin:0; font-size:13px; color:#53433a; line-height:1.5;">
+											<?php esc_html_e( 'Stripe handles instant card authentication securely. Pressing complete checkout will redirect to Stripe\'s encrypted payment window.', 'digital-library-membership' ); ?>
+										</p>
+									</div>
+									<button type="button" id="dlm-standalone-stripe-btn" class="dlm-btn-place-order" style="width:100%; height:52px; background:#855300; color:#fff; border:none; border-radius:14px; font-weight:700; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(133,83,0,0.25);">
+										<span><?php esc_html_e( 'Complete Secure Checkout (Stripe)', 'digital-library-membership' ); ?></span>
+										<i class="fa-solid fa-arrow-right"></i>
+									</button>
+								</div>
+								<?php endif; ?>
+
+								<?php if ( $enable_paypal ) : ?>
+								<div id="standalone-gateway-panel-paypal" class="standalone-gw-panel <?php echo ( 'paypal' === $default_gateway ) ? '' : 'hidden'; ?>" style="<?php echo ( 'paypal' === $default_gateway ) ? '' : 'display:none;'; ?>">
+									<div id="standalone-paypal-button-container" style="min-height:50px;"></div>
+								</div>
+								<?php endif; ?>
+
+								<?php if ( $enable_manual ) : ?>
+								<div id="standalone-gateway-panel-manual" class="standalone-gw-panel <?php echo ( 'manual' === $default_gateway ) ? '' : 'hidden'; ?>" style="<?php echo ( 'manual' === $default_gateway ) ? '' : 'display:none;'; ?>">
+									<div style="padding:20px; background:#f9f9fb; border-radius:16px; margin-bottom:16px; border:1px solid rgba(0,0,0,0.06);">
+										<h4 style="margin:0 0 10px 0; font-size:14px; font-weight:700; color:#1a1c1c;"><?php esc_html_e( 'Direct Bank Transfer Instructions', 'digital-library-membership' ); ?></h4>
+										<div style="font-size:13px; color:#53433a; line-height:1.6; background:#fff; padding:14px; border-radius:12px; border:1px solid rgba(0,0,0,0.08);">
+											<?php echo wp_kses_post( get_option( 'dlm_manual_payment_instructions', __( 'Please transfer funds directly to our bank details and submit your reference code below.', 'digital-library-membership' ) ) ); ?>
+										</div>
+									</div>
+									<div style="margin-bottom:16px;">
+										<label style="display:block; font-size:12px; font-weight:700; text-transform:uppercase; color:#6b7280; margin-bottom:6px;"><?php esc_html_e( 'Transaction Reference Code *', 'digital-library-membership' ); ?></label>
+										<input type="text" id="standalone-manual-ref-input" style="width:100%; height:48px; padding:0 16px; border-radius:12px; border:1px solid rgba(0,0,0,0.15); font-size:14px;" placeholder="<?php esc_attr_e( 'e.g. Wire transfer / mobile payment transaction ID', 'digital-library-membership' ); ?>" required>
+									</div>
+									<button type="button" id="dlm-standalone-manual-submit-btn" class="dlm-btn-place-order" style="width:100%; height:52px; background:#855300; color:#fff; border:none; border-radius:14px; font-weight:700; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(133,83,0,0.25);">
+										<span><?php esc_html_e( 'Submit Reference Code', 'digital-library-membership' ); ?></span>
+										<i class="fa-solid fa-arrow-right"></i>
+									</button>
+								</div>
+								<?php endif; ?>
+
+							<?php endif; ?>
+						</div>
 						<?php endif; ?>
 
-						<div style="text-align: center; margin: 15px 0; color: #888;">— <?php esc_html_e( 'OR', 'digital-library-membership' ); ?> —</div>
+					</div>
 
-						<!-- Manual Bank Transfer Option -->
-						<button id="dlm-manual-toggle-btn" class="dlm-btn dlm-btn-block" style="background:#f5f5f7; border: 1px solid #d2d2d7; color:#1d1d1f;">
-							💼 <?php esc_html_e( 'Direct Bank / Manual Transfer', 'digital-library-membership' ); ?>
-						</button>
-
-						<!-- Manual Payment Form (Hidden initially) -->
-						<div id="dlm-manual-checkout-fields" style="display:none; margin-top:20px; border-top:1px solid #d2d2d7; padding-top:20px; text-align:left;">
-							<div class="dlm-manual-instructions" style="background:#f5f5f7; padding: 15px; border-radius: 12px; font-size:13px; line-height:1.4; color:#515154; margin-bottom:15px; border-left:4px solid #0071e3;">
-								<?php echo wp_kses_post( get_option( 'dlm_manual_payment_instructions', __( 'Please transfer funds directly to our bank details and submit your reference code below.', 'digital-library-membership' ) ) ); ?>
+					<!-- RIGHT COLUMN: Order Summary Card -->
+					<div class="dlm-checkout-right-col">
+						<div class="dlm-summary-card">
+							
+							<!-- Luxury Gradient Banner Header -->
+							<div class="dlm-summary-header-banner" style="background: linear-gradient(135deg, #855300 0%, #3e2600 100%);">
+								<span class="dlm-summary-badge">
+									<i class="fa-solid fa-lock"></i> <?php esc_html_e( 'SECURE GATEWAY', 'digital-library-membership' ); ?>
+								</span>
+								<h3 class="dlm-summary-plan-title" id="standalone-summary-plan-title">
+									<?php echo esc_html( $plan_name ); ?>
+								</h3>
 							</div>
-							<p>
-								<label for="manual_txn_reference" style="font-weight:600; font-size:13px;"><?php esc_html_e( 'Transaction Reference Code *', 'digital-library-membership' ); ?></label>
-								<input type="text" id="manual_txn_reference" style="width:100%; border:1px solid #d2d2d7; border-radius:8px; padding:10px; margin-top:5px; font-size:14px;" placeholder="e.g. wire transfer confirmation code">
-							</p>
-							<button id="dlm-submit-manual-payment-btn" class="dlm-btn dlm-btn-primary dlm-btn-block" style="margin-top:10px;"><?php esc_html_e( 'Submit Reference Code', 'digital-library-membership' ); ?></button>
+
+							<!-- Summary Card Body -->
+							<div class="dlm-summary-body">
+								
+								<div class="dlm-summary-items-list">
+									<div class="dlm-summary-item-row">
+										<div>
+											<div class="dlm-summary-item-name"><?php echo esc_html( $plan_name ); ?></div>
+											<div class="dlm-summary-item-desc"><?php esc_html_e( 'Unlimited Digital Reader & Flipbook Access', 'digital-library-membership' ); ?></div>
+										</div>
+										<div class="dlm-summary-item-price">$<?php echo esc_html( $plan_price ); ?></div>
+									</div>
+								</div>
+
+								<!-- Features Checklist -->
+								<ul style="list-style:none; padding:0; margin:16px 0; border-top:1px solid rgba(0,0,0,0.06); border-bottom:1px solid rgba(0,0,0,0.06); padding-top:14px; padding-bottom:14px;">
+									<?php foreach ( $plan_features as $feat ) : ?>
+										<li style="display:flex; align-items:center; gap:8px; font-size:12px; color:#53433a; margin-bottom:8px;">
+											<i class="fa-solid fa-circle-check" style="color:#855300; font-size:13px; flex-shrink:0;"></i>
+											<span><?php echo esc_html( $feat ); ?></span>
+										</li>
+									<?php endforeach; ?>
+								</ul>
+
+								<!-- Calculation Breakdown -->
+								<div class="dlm-summary-calc-row">
+									<span><?php esc_html_e( 'Subtotal', 'digital-library-membership' ); ?></span>
+									<span>$<?php echo esc_html( $plan_price ); ?></span>
+								</div>
+								<div class="dlm-summary-calc-row">
+									<span><?php esc_html_e( 'Tax / VAT (0%)', 'digital-library-membership' ); ?></span>
+									<span>$0.00</span>
+								</div>
+
+								<div class="dlm-summary-total-row">
+									<span class="dlm-summary-total-label"><?php esc_html_e( 'Total Due', 'digital-library-membership' ); ?></span>
+									<span class="dlm-summary-total-amount">$<?php echo esc_html( $plan_price ); ?><span style="font-size:13px; font-weight:500; color:#6b7280;"><?php echo esc_html( $plan_period ); ?></span></span>
+								</div>
+
+								<div style="text-align:center; margin-top:12px;">
+									<a href="<?php echo esc_url( $pricing_url ); ?>" style="font-size:12px; color:#855300; font-weight:700; text-decoration:underline;">
+										<?php esc_html_e( 'Change Membership Plan', 'digital-library-membership' ); ?>
+									</a>
+								</div>
+
+								<!-- Trust & Features List -->
+								<div class="dlm-summary-trust-list" style="margin-top:20px;">
+									<div class="dlm-summary-trust-item">
+										<span class="dlm-check"><i class="fa-solid fa-check"></i></span>
+										<span><?php esc_html_e( '256-Bit SSL Encrypted Checkout', 'digital-library-membership' ); ?></span>
+									</div>
+									<div class="dlm-summary-trust-item">
+										<span class="dlm-check"><i class="fa-solid fa-check"></i></span>
+										<span><?php esc_html_e( 'Instant Digital Access After Payment', 'digital-library-membership' ); ?></span>
+									</div>
+									<div class="dlm-summary-trust-item">
+										<span class="dlm-check"><i class="fa-solid fa-check"></i></span>
+										<span><?php esc_html_e( 'Automated Member Activation', 'digital-library-membership' ); ?></span>
+									</div>
+								</div>
+
+							</div>
+						</div>
+
+						<!-- Security Footer Badges -->
+						<div class="dlm-checkout-security-footer">
+							<span><i class="fa-solid fa-shield-halved"></i> <?php esc_html_e( '256-Bit SSL Encryption', 'digital-library-membership' ); ?></span>
+							<span>&bull;</span>
+							<span><i class="fa-solid fa-bolt"></i> <?php esc_html_e( 'Verified Gateway', 'digital-library-membership' ); ?></span>
 						</div>
 					</div>
+
 				</div>
-			<?php endif; ?>
+
+			</div>
 		</div>
 
 		<script type="text/javascript">
-			jQuery(document).ready(function($) {
-				if (typeof renderPayPalButtons === 'function') {
-					renderPayPalButtons('<?php echo esc_js( $selected_plan ); ?>');
+			function selectStandaloneGateway(gw) {
+				jQuery('.dlm-payment-tab-btn').css({ 'border': '1px solid rgba(0,0,0,0.12)' }).find('i').css({ 'color': '#6b7280' });
+				jQuery('.dlm-payment-tab-btn[data-gateway="' + gw + '"]').css({ 'border': '2px solid #855300' }).find('i').css({ 'color': '#855300' });
+				jQuery('.standalone-gw-panel').hide();
+				jQuery('#standalone-gateway-panel-' + gw).show();
+
+				if (gw === 'paypal' && typeof renderStandalonePayPal === 'function') {
+					renderStandalonePayPal();
 				}
+			}
+
+			function renderStandalonePayPal() {
+				jQuery('#standalone-paypal-button-container').html('');
+				if (typeof paypal === 'undefined') {
+					jQuery('#standalone-paypal-button-container').html('<p style="color:#d32f2f; font-size:12px; padding:10px;">PayPal JS SDK failed to load. Please verify Client ID in settings.</p>');
+					return;
+				}
+				const planInterval = '<?php echo esc_js( $plan_interval ); ?>';
+				paypal.Buttons({
+					style: {
+						shape: 'rect',
+						color: 'gold',
+						layout: 'vertical',
+						label: planInterval === 'lifetime' ? 'checkout' : 'subscribe'
+					},
+					createSubscription: function(data, actions) {
+						const actualPlanId = (planInterval === 'yearly') ? 
+							(window.dlmParams.paypalYearlyPlanId || '') : 
+							(window.dlmParams.paypalMonthlyPlanId || '');
+						if (!actualPlanId) {
+							alert('PayPal Plan ID is not configured in settings.');
+							return;
+						}
+						return actions.subscription.create({ plan_id: actualPlanId });
+					},
+					createOrder: function(data, actions) {
+						return actions.order.create({
+							purchase_units: [{
+								amount: {
+									value: '<?php echo esc_js( $plan_price ); ?>'
+								}
+							}]
+						});
+					},
+					onApprove: function(data, actions) {
+						const subId = data.subscriptionID || data.orderID;
+						jQuery.post(window.dlmParams.ajaxUrl, {
+							action: 'dlm_paypal_capture_order',
+							nonce: window.dlmParams.nonce,
+							subscription_id: subId,
+							interval: planInterval
+						}, function(res) {
+							if (res.success && res.data && res.data.redirect) {
+								window.location.href = res.data.redirect;
+							} else {
+								window.location.href = '<?php echo esc_js( add_query_arg( 'payment', 'success', $account_url ) ); ?>';
+							}
+						});
+					}
+				}).render('#standalone-paypal-button-container');
+			}
+
+			jQuery(document).ready(function($) {
+				const defaultGw = '<?php echo esc_js( $default_gateway ); ?>';
+				if (defaultGw) {
+					selectStandaloneGateway(defaultGw);
+				}
+
+				// WooCommerce Trigger
+				$('#dlm-standalone-wc-btn').on('click', function(e) {
+					e.preventDefault();
+					const $btn = $(this);
+					$btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> <span>Redirecting to WooCommerce...</span>');
+					$.post(window.dlmParams.ajaxUrl, {
+						action: 'dlm_wc_create_subscription_order',
+						nonce: window.dlmParams.nonce,
+						interval: '<?php echo esc_js( $plan_interval ); ?>'
+					}, function(res) {
+						if (res.success && res.data && res.data.redirect) {
+							window.location.href = res.data.redirect;
+						} else {
+							alert((res && res.data && res.data.message) || 'Unable to proceed to WooCommerce checkout.');
+							$btn.prop('disabled', false).html('<span>Proceed to WooCommerce Checkout</span> <i class="fa-solid fa-arrow-right"></i>');
+						}
+					}).fail(function() {
+						alert('Checkout connection timeout.');
+						$btn.prop('disabled', false).html('<span>Proceed to WooCommerce Checkout</span> <i class="fa-solid fa-arrow-right"></i>');
+					});
+				});
+
+				// Stripe Trigger
+				$('#dlm-standalone-stripe-btn').on('click', function(e) {
+					e.preventDefault();
+					const $btn = $(this);
+					$btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> <span>Connecting to Stripe securely...</span>');
+					$.post(window.dlmParams.ajaxUrl, {
+						action: 'dlm_stripe_create_session',
+						nonce: window.dlmParams.nonce,
+						interval: '<?php echo esc_js( $plan_interval ); ?>'
+					}, function(res) {
+						if (res.success && res.data && res.data.url) {
+							window.location.href = res.data.url;
+						} else {
+							alert((res && res.data && res.data.message) || 'Stripe initialization failed.');
+							$btn.prop('disabled', false).html('<span>Complete Secure Checkout (Stripe)</span> <i class="fa-solid fa-arrow-right"></i>');
+						}
+					}).fail(function() {
+						alert('Stripe server timeout.');
+						$btn.prop('disabled', false).html('<span>Complete Secure Checkout (Stripe)</span> <i class="fa-solid fa-arrow-right"></i>');
+					});
+				});
+
+				// Manual Payment Trigger
+				$('#dlm-standalone-manual-submit-btn').on('click', function(e) {
+					e.preventDefault();
+					const ref = $('#standalone-manual-ref-input').val().trim();
+					if (!ref) {
+						alert('Please enter your transaction reference code.');
+						return;
+					}
+					const $btn = $(this);
+					$btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> <span>Submitting reference code...</span>');
+					$.post(window.dlmParams.ajaxUrl, {
+						action: 'dlm_submit_manual_payment',
+						nonce: window.dlmParams.nonce,
+						interval: '<?php echo esc_js( $plan_interval ); ?>',
+						reference: ref
+					}, function(res) {
+						if (res.success) {
+							window.location.href = '<?php echo esc_js( add_query_arg( 'payment', 'pending', $account_url ) ); ?>';
+						} else {
+							alert((res && res.data && res.data.message) || 'Manual payment submission failed.');
+							$btn.prop('disabled', false).html('<span>Submit Reference Code</span> <i class="fa-solid fa-arrow-right"></i>');
+						}
+					}).fail(function() {
+						alert('Connection timeout.');
+						$btn.prop('disabled', false).html('<span>Submit Reference Code</span> <i class="fa-solid fa-arrow-right"></i>');
+					});
+				});
 			});
 		</script>
-
-		<!-- PayPal JS SDK loads dynamically based on Client ID setting -->
-		<?php
-		$paypal_client_id = get_option( 'dlm_paypal_client_id' );
-		if ( $paypal_client_id ) :
-			// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript, WordPress.WP.EnqueuedResourceParameters.MissingVersion
-			wp_enqueue_script( 'dlm-paypal-sdk', 'https://www.paypal.com/sdk/js?client-id=' . esc_attr( $paypal_client_id ) . '&vault=true&intent=subscription', array(), null, true );
-		endif;
-		?>
 		<?php
 		return ob_get_clean();
 	}
