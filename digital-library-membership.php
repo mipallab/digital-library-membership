@@ -15,9 +15,9 @@
  * Plugin Name:       Digital Library Membership
  * Plugin URI:        https://profiles.wordpress.org/mipallab123/digital-library-membership
  * Description:       A premium, secure subscription membership plugin to read digital books frontend with physical page-flip feel, native Elementor GSAP widgets, touch carousels, and addons.
- * Version:           3.2.2
- * Author:            Mipallab
- * Author URI:        https://mipallab.com/
+ * Version:           3.2.3
+ * Author:            Bridgeway36
+ * Author URI:        https://bridgeway36.com/
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain:       digital-library-membership
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Define Plugin Constants
  */
-define( 'DLM_VERSION', '3.2.2' );
+define( 'DLM_VERSION', '3.2.3' );
 define( 'DLM_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DLM_URL', plugin_dir_url( __FILE__ ) );
 

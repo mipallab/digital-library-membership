@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.2.2
+Stable tag: 3.2.3
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -28,13 +28,6 @@ Secure digital library membership with realistic 3D flipbook reader, DRM protect
   * **Purchase Only**: Individual direct sales with permanent read & download access.
   * **Hybrid Access**: Free for active subscribers or available for one-off purchase by non-subscribers.
 * **Gutenberg & Elementor Ready**:
-  * Native Gutenberg blocks and shortcode compatibility across all page templates.
-  * Dedicated Elementor Header Navigation widget (`DLM_Elementor_Header_Nav`) with comprehensive styling controls.
-  * Elementor Featured Book Hero Slider (`DLM_Elementor_Featured_Slider`) with 3D perspective floating covers, dynamic cache-safe CTA hydration, and live release countdown timers.
-* **1-Click Social Sign-In**:
-  * Seamless "Continue with Google" (OAuth 2.0 / OIDC) and "Continue with Apple" authentication with CSRF state protection and auto-account provisioning.
-* **Dual Payment Gateway Engine**:
-  * **Default Direct Engine**: Stripe Checkout & PayPal Subscriptions with automated webhook synchronizations.
   * **Headless WooCommerce Engine**: Seamless headless checkout flow, order-to-access provisioning, instant refund revocations, and time-limited secure downloads.
 * **Hardened DRM & Reading Security**:
   * Chunked range streaming through an authenticated REST API (raw file path never exposed).
@@ -108,6 +101,12 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.2.3 =
+* Feature: Standalone full-screen Library Checkout template (`templates/library-checkout-template.php`) isolating checkout from theme headers and conflicts.
+* Enhanced: Direct headless routing for WooCommerce order payments via `/library-checkout/` with native gateway rendering.
+* Feature: Google reCAPTCHA v2/v3 toggle switcher with real-time API connection status test and defensive bypass.
+* Enhanced: Dedicated slug isolation (`library-checkout`) with automatic legacy page migration and routing synchronization.
 
 = 3.2.2 =
 * Feature: Dedicated luxury 2-column Library Checkout template matching Member Dashboard `#checkout` design system with dynamic WooCommerce payment gateways and live totals.
