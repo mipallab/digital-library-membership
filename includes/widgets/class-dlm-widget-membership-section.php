@@ -278,7 +278,7 @@ class DLM_Widget_Membership_Section extends \Elementor\Widget_Base {
 				}
 			}
 
-			if ( empty( $plans ) ) {
+			if ( empty( $plans ) && empty( $raw_packages ) ) {
 				$plans = ! empty( $settings['plans'] ) ? $settings['plans'] : array();
 			}
 		} else {

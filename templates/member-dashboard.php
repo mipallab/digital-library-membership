@@ -112,8 +112,16 @@ if ( $is_logged_in ) {
 }
 
 // Pricing options
-$currency = get_option( 'dlm_currency', 'USD' );
+$currency       = get_option( 'dlm_currency', '$' );
 $payment_engine = function_exists( 'dlm_get_payment_engine' ) ? dlm_get_payment_engine() : get_option( 'dlm_payment_engine', 'default' );
+$wc_is_active   = class_exists( 'WooCommerce' );
+
+// Single source of truth packages
+$all_packages    = dlm_get_packages();
+$active_packages = array_filter( $all_packages, function( $p ) {
+	return ! isset( $p['status'] ) || 'active' === $p['status'];
+} );
+
 $pkg_monthly  = dlm_get_package( 'monthly' );
 $pkg_yearly   = dlm_get_package( 'yearly' );
 $pkg_lifetime = dlm_get_package( 'lifetime' );
@@ -1502,62 +1510,76 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 
 			<!-- Pricing Tiers Grid -->
 			<section class="mb-16">
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-					<!-- Monthly Plan Card -->
-					<div class="bg-white border border-outline-variant/30 rounded-[32px] p-8 flex flex-col shadow-sm book-card-shadow">
-						<div class="mb-8">
-							<span class="text-secondary bg-secondary-container/40 px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Reader</span>
-							<h3 class="font-bold text-xl text-on-surface mb-2">Monthly Access</h3>
-							<div class="flex items-baseline gap-1 mt-4">
-								<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $price_monthly ); ?></span>
-								<span class="text-secondary font-body-md">/month</span>
-							</div>
-						</div>
-						<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Unlimited digital reading</li>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Real-time reading journal logs</li>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Saves streaks & achievements</li>
-						</ul>
-						<button onclick="goToCheckout('monthly', '<?php echo esc_attr( $price_monthly ); ?>')" class="w-full py-3 bg-secondary-container text-on-secondary-container font-semibold rounded-2xl hover:opacity-80 transition-opacity">Select Plan</button>
+				<?php if ( empty( $active_packages ) ) : ?>
+					<div class="p-12 text-center bg-white border border-outline-variant/30 rounded-[32px] max-w-xl mx-auto book-card-shadow">
+						<i class="fa-solid fa-crown text-4xl text-primary mb-4 block"></i>
+						<h3 class="font-bold text-xl text-on-surface mb-2"><?php esc_html_e( 'No Plans Currently Available', 'digital-library-membership' ); ?></h3>
+						<p class="text-sm text-secondary"><?php esc_html_e( 'Please check back soon or contact support for assistance.', 'digital-library-membership' ); ?></p>
 					</div>
+				<?php else : ?>
+					<div class="grid grid-cols-1 <?php echo ( count( $active_packages ) === 1 ) ? 'max-w-md' : ( ( count( $active_packages ) === 2 ) ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3 max-w-5xl' ); ?> gap-8 mx-auto">
+						<?php 
+						foreach ( $active_packages as $pkg_id => $pkg ) : 
+							$pkg_price    = floatval( $pkg['price'] ?? 0 );
+							$pkg_name     = ! empty( $pkg['name'] ) ? $pkg['name'] : ucfirst( $pkg_id );
+							$pkg_badge    = ! empty( $pkg['badge'] ) ? $pkg['badge'] : '';
+							$pkg_interval = ! empty( $pkg['interval'] ) ? $pkg['interval'] : $pkg_id;
+							$pkg_features = ( ! empty( $pkg['features'] ) && is_array( $pkg['features'] ) ) ? $pkg['features'] : array();
+							$is_featured  = ( 'yearly' === $pkg_interval || ! empty( $pkg['is_featured'] ) );
 
-					<!-- Yearly Plan Card -->
-					<div class="bg-white border-2 border-primary rounded-[32px] p-8 flex flex-col relative shadow-xl book-card-shadow">
-						<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap">BEST VALUE</div>
-						<div class="mb-8">
-							<span class="text-primary bg-primary/10 px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Scholar</span>
-							<h3 class="font-bold text-xl text-on-surface mb-2">Yearly Membership</h3>
-							<div class="flex items-baseline gap-1 mt-4">
-								<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $price_yearly ); ?></span>
-								<span class="text-secondary font-body-md">/year</span>
-							</div>
-						</div>
-						<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Everything in Monthly</li>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Save ~30% annually</li>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Collector badges unlocked</li>
-						</ul>
-						<button onclick="goToCheckout('yearly', '<?php echo esc_attr( $price_yearly ); ?>')" class="w-full py-3 bg-primary text-white font-semibold rounded-2xl hover:bg-primary-container transition-colors shadow-lg shadow-primary/20">Subscribe Yearly</button>
-					</div>
+							$interval_label = '/month';
+							if ( 'yearly' === $pkg_interval ) {
+								$interval_label = '/year';
+							} elseif ( 'lifetime' === $pkg_interval ) {
+								$interval_label = '/one-time';
+							} elseif ( 'quarterly' === $pkg_interval ) {
+								$interval_label = '/quarter';
+							}
+						?>
+						<div class="bg-white border <?php echo $is_featured ? 'border-2 border-primary shadow-xl' : 'border-outline-variant/30 shadow-sm'; ?> rounded-[32px] p-8 flex flex-col relative book-card-shadow transition-all duration-300 hover:-translate-y-1">
+							<?php if ( $is_featured ) : ?>
+								<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap shadow-md">
+									<?php echo esc_html( ! empty( $pkg['badge_top'] ) ? $pkg['badge_top'] : __( 'BEST VALUE', 'digital-library-membership' ) ); ?>
+								</div>
+							<?php endif; ?>
 
-					<!-- Lifetime Plan Card -->
-					<div class="bg-white border border-outline-variant/30 rounded-[32px] p-8 flex flex-col shadow-sm book-card-shadow">
-						<div class="mb-8">
-							<span class="text-secondary bg-secondary-container/40 px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">The Collector</span>
-							<h3 class="font-bold text-xl text-on-surface mb-2">Lifetime Access</h3>
-							<div class="flex items-baseline gap-1 mt-4">
-								<span class="text-3xl font-bold text-on-surface">$<?php echo esc_html( $price_lifetime ); ?></span>
-								<span class="text-secondary font-body-md">/one-time</span>
+							<div class="mb-8">
+								<?php if ( ! empty( $pkg_badge ) ) : ?>
+									<span class="<?php echo $is_featured ? 'text-primary bg-primary/10' : 'text-secondary bg-secondary-container/40'; ?> px-3 py-1 rounded-full text-xs uppercase font-semibold mb-4 inline-block">
+										<?php echo esc_html( $pkg_badge ); ?>
+									</span>
+								<?php endif; ?>
+								<h3 class="font-bold text-xl text-on-surface mb-2"><?php echo esc_html( $pkg_name ); ?></h3>
+								<div class="flex items-baseline gap-1 mt-4">
+									<span class="text-3xl font-bold text-on-surface"><?php echo esc_html( $currency ); ?><?php echo esc_html( number_format( $pkg_price, 2 ) ); ?></span>
+									<span class="text-secondary font-body-md"><?php echo esc_html( $interval_label ); ?></span>
+								</div>
 							</div>
+
+							<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
+								<?php foreach ( $pkg_features as $feature ) : ?>
+									<li class="flex items-center gap-2">
+										<i class="fa-solid fa-circle-check text-primary shrink-0"></i>
+										<span><?php echo esc_html( $feature ); ?></span>
+									</li>
+								<?php endforeach; ?>
+							</ul>
+
+							<button onclick="goToCheckout('<?php echo esc_attr( $pkg_id ); ?>', '<?php echo esc_attr( number_format( $pkg_price, 2, '.', '' ) ); ?>', '<?php echo esc_attr( $pkg_name ); ?>')" class="w-full py-3 <?php echo $is_featured ? 'bg-primary text-white font-semibold shadow-lg shadow-primary/20 hover:bg-primary-container' : 'bg-secondary-container text-on-secondary-container font-semibold hover:opacity-80'; ?> rounded-2xl transition-all cursor-pointer">
+								<?php 
+								if ( 'lifetime' === $pkg_interval ) {
+									esc_html_e( 'Unlock Lifetime', 'digital-library-membership' );
+								} elseif ( 'yearly' === $pkg_interval ) {
+									esc_html_e( 'Subscribe Yearly', 'digital-library-membership' );
+								} else {
+									esc_html_e( 'Select Plan', 'digital-library-membership' );
+								}
+								?>
+							</button>
 						</div>
-						<ul class="space-y-4 mb-8 flex-1 text-sm text-on-surface-variant">
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> Unlimited permanent access</li>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> No recurring bills or fees</li>
-							<li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-primary"></i> All future books included</li>
-						</ul>
-						<button onclick="goToCheckout('lifetime', '<?php echo esc_attr( $price_lifetime ); ?>')" class="w-full py-3 bg-secondary-container text-on-secondary-container font-semibold rounded-2xl hover:opacity-80 transition-opacity">Unlock Lifetime</button>
+						<?php endforeach; ?>
 					</div>
-				</div>
+				<?php endif; ?>
 			</section>
 		</div>
 
@@ -1762,51 +1784,96 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				<div class="lg:col-span-7 space-y-8">
 					<section class="space-y-4">
 						<h3 class="font-bold text-[18px] text-on-surface">1. Choose Payment Method</h3>
-						<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-							<!-- Stripe options -->
-							<button class="flex items-center justify-between p-5 border-2 border-primary rounded-xl text-left method-btn" id="checkout-method-stripe" onclick="toggleCheckoutPaymentMethod('stripe')">
+						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+							<?php if ( $wc_is_active ) : ?>
+							<!-- WooCommerce Option -->
+							<button class="flex items-center justify-between p-4 border-2 border-primary rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-woocommerce" onclick="toggleCheckoutPaymentMethod('woocommerce')">
 								<div class="flex items-center gap-3">
-									<i class="fa-solid fa-credit-card text-primary text-lg"></i>
+									<i class="fa-solid fa-bag-shopping text-primary text-lg shrink-0"></i>
 									<div>
-										<p class="font-bold text-sm">Stripe</p>
+										<p class="font-bold text-sm text-on-surface">WooCommerce</p>
+										<p class="text-[10px] text-secondary">bKash, Nagad & Gateways</p>
+									</div>
+								</div>
+								<div class="w-4 h-4 rounded-full border border-primary flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary" id="woocommerce-dot"></div>
+								</div>
+							</button>
+							<?php endif; ?>
+
+							<!-- Stripe options -->
+							<button class="flex items-center justify-between p-4 border <?php echo $wc_is_active ? 'border-outline-variant/30' : 'border-2 border-primary'; ?> rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-stripe" onclick="toggleCheckoutPaymentMethod('stripe')">
+								<div class="flex items-center gap-3">
+									<i class="fa-solid fa-credit-card <?php echo $wc_is_active ? 'text-secondary' : 'text-primary'; ?> text-lg shrink-0"></i>
+									<div>
+										<p class="font-bold text-sm text-on-surface">Stripe</p>
 										<p class="text-[10px] text-secondary">Card Checkout</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border border-primary flex items-center justify-center"><div class="w-2.5 h-2.5 rounded-full bg-primary" id="stripe-dot"></div></div>
+								<div class="w-4 h-4 rounded-full border <?php echo $wc_is_active ? 'border-outline-variant' : 'border-primary'; ?> flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary <?php echo $wc_is_active ? 'hidden' : ''; ?>" id="stripe-dot"></div>
+								</div>
 							</button>
 
 							<!-- PayPal Option -->
-							<button class="flex items-center justify-between p-5 border border-outline-variant/30 rounded-xl text-left method-btn" id="checkout-method-paypal" onclick="toggleCheckoutPaymentMethod('paypal')">
+							<button class="flex items-center justify-between p-4 border border-outline-variant/30 rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-paypal" onclick="toggleCheckoutPaymentMethod('paypal')">
 								<div class="flex items-center gap-3">
-									<i class="fa-brands fa-paypal text-secondary text-lg"></i>
+									<i class="fa-brands fa-paypal text-secondary text-lg shrink-0"></i>
 									<div>
-										<p class="font-bold text-sm">PayPal</p>
+										<p class="font-bold text-sm text-on-surface">PayPal</p>
 										<p class="text-[10px] text-secondary">External Wallet</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center"><div class="w-2.5 h-2.5 rounded-full bg-primary hidden" id="paypal-dot"></div></div>
+								<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary hidden" id="paypal-dot"></div>
+								</div>
 							</button>
 
 							<!-- Manual Option -->
-							<button class="flex items-center justify-between p-5 border border-outline-variant/30 rounded-xl text-left method-btn" id="checkout-method-manual" onclick="toggleCheckoutPaymentMethod('manual')">
+							<button class="flex items-center justify-between p-4 border border-outline-variant/30 rounded-xl text-left method-btn cursor-pointer transition-all" id="checkout-method-manual" onclick="toggleCheckoutPaymentMethod('manual')">
 								<div class="flex items-center gap-3">
-									<i class="fa-solid fa-building-columns text-secondary text-lg"></i>
+									<i class="fa-solid fa-building-columns text-secondary text-lg shrink-0"></i>
 									<div>
-										<p class="font-bold text-sm">Bank Transfer</p>
+										<p class="font-bold text-sm text-on-surface">Bank Transfer</p>
 										<p class="text-[10px] text-secondary">Manual Review</p>
 									</div>
 								</div>
-								<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center"><div class="w-2.5 h-2.5 rounded-full bg-primary hidden" id="manual-dot"></div></div>
+								<div class="w-4 h-4 rounded-full border border-outline-variant flex items-center justify-center shrink-0">
+									<div class="w-2.5 h-2.5 rounded-full bg-primary hidden" id="manual-dot"></div>
+								</div>
 							</button>
 						</div>
 					</section>
 
 					<!-- Payment Forms -->
-					<div id="stripe-checkout-container" class="space-y-6">
+					<?php if ( $wc_is_active ) : ?>
+					<div id="woocommerce-checkout-container" class="space-y-6">
+						<div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 space-y-3">
+							<div class="flex items-center gap-3">
+								<div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg font-bold shrink-0">
+									<i class="fa-solid fa-shield-halved"></i>
+								</div>
+								<div>
+									<h4 class="font-bold text-sm text-on-surface"><?php esc_html_e( 'WooCommerce Secure Gateway', 'digital-library-membership' ); ?></h4>
+									<p class="text-xs text-secondary"><?php esc_html_e( 'Pay safely via your preferred site gateway (bKash, Nagad, Credit/Debit Cards, Rocket, etc.)', 'digital-library-membership' ); ?></p>
+								</div>
+							</div>
+							<p class="text-xs text-secondary leading-relaxed pt-2 border-t border-outline-variant/20">
+								<?php esc_html_e( 'Clicking the button below will create your headless order and redirect you to the payment page instantly.', 'digital-library-membership' ); ?>
+							</p>
+						</div>
+						<button id="wc-checkout-btn" onclick="triggerWooCommerceSubscriptionOrder()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer shadow-lg shadow-primary/20">
+							<span><?php esc_html_e( 'Proceed to WooCommerce Checkout', 'digital-library-membership' ); ?></span>
+							<i class="fa-solid fa-arrow-right"></i>
+						</button>
+					</div>
+					<?php endif; ?>
+
+					<div id="stripe-checkout-container" class="<?php echo $wc_is_active ? 'hidden' : ''; ?> space-y-6">
 						<div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20">
 							<p class="text-sm text-secondary leading-relaxed">Stripe handles card validation securely. Pressing "Complete Secure Checkout" redirects to Stripe's payment interface.</p>
 						</div>
-						<button onclick="triggerStripeCheckoutSession()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+						<button onclick="triggerStripeCheckoutSession()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer">
 							<span>Complete Secure Checkout</span> <i class="fa-solid fa-arrow-right"></i>
 						</button>
 					</div>
@@ -1826,7 +1893,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 								<input class="w-full h-12 px-4 bg-white border border-outline-variant/30 rounded-xl text-body-md" id="checkout-manual-ref" placeholder="e.g. Wire transaction reference ID" type="text">
 							</div>
 						</div>
-						<button onclick="triggerManualPaymentSubmission()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+						<button onclick="triggerManualPaymentSubmission()" class="w-full h-14 bg-primary text-white font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer">
 							<span>Submit Reference Code</span> <i class="fa-solid fa-arrow-right"></i>
 						</button>
 					</div>
@@ -2667,10 +2734,10 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 		// CHECKOUT BILLING GATEWAY FLOW
 		// -------------------------------------------------------------
 		let checkoutInterval = 'monthly';
-		let checkoutMethod = 'stripe';
-		let checkoutPrice = '12.00';
+		let checkoutMethod = <?php echo ( $wc_is_active && 'default' !== $payment_engine ) ? "'woocommerce'" : "'stripe'"; ?>;
+		let checkoutPrice = '<?php echo esc_js( $price_monthly ); ?>';
 
-		function goToCheckout(interval, price) {
+		function goToCheckout(interval, price, planName = '') {
 			if (window.dlmParams.isPendingApproval) {
 				Aurelian.toast('You already have a payment pending approval.', { duration: 4000 });
 				return;
@@ -2678,44 +2745,17 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			checkoutInterval = interval;
 			checkoutPrice = price;
 
-			if ('<?php echo esc_js($payment_engine); ?>' === 'woocommerce') {
-				Aurelian.toast('Initializing secure checkout...', { accent: true });
-				jQuery.post(dlmParams.ajaxUrl, {
-					action: 'dlm_wc_create_subscription_order',
-					nonce: dlmParams.nonce,
-					interval: interval
-				}, function(res) {
-					if (res.success && res.data && res.data.redirect) {
-						window.location.href = res.data.redirect;
-					} else {
-						const msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to proceed to checkout.';
-						Aurelian.toast(msg);
-					}
-				}).fail(function() {
-					Aurelian.toast('Checkout connection timeout.');
-				});
-				return;
-			}
-
-			let planLabel = 'Monthly Plan';
-			let sumTitle = 'Monthly Subscription';
-			if (interval === 'yearly') {
-				planLabel = 'Yearly Plan';
-				sumTitle = 'Yearly Subscription';
-			} else if (interval === 'lifetime') {
-				planLabel = 'Lifetime Access';
-				sumTitle = 'Lifetime Access Membership';
-			}
+			let planLabel = planName || (interval.charAt(0).toUpperCase() + interval.slice(1) + ' Plan');
+			let sumTitle = planName || (interval.charAt(0).toUpperCase() + interval.slice(1) + ' Subscription');
 
 			jQuery('#checkout-plan-name').text(planLabel);
 			jQuery('#checkout-summary-title').text(sumTitle);
-			jQuery('#checkout-summary-price, #checkout-calc-subtotal, #checkout-calc-total').text('$' + price);
+			jQuery('#checkout-summary-price, #checkout-calc-subtotal, #checkout-calc-total').text('<?php echo esc_js( $currency ); ?>' + parseFloat(price).toFixed(2));
 
 			showTab('checkout');
 			
-			if (checkoutMethod === 'paypal') {
-				setupPayPalSDKInstance();
-			}
+			const defaultMethod = <?php echo ( $wc_is_active && 'default' !== $payment_engine ) ? "'woocommerce'" : "'stripe'"; ?>;
+			toggleCheckoutPaymentMethod(defaultMethod);
 		}
 
 		function toggleCheckoutPaymentMethod(method) {
@@ -2723,17 +2763,45 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			jQuery('.method-btn').removeClass('border-primary').addClass('border-outline-variant/30');
 			jQuery('.method-btn svg, .method-btn i').removeClass('text-primary').addClass('text-secondary');
 			jQuery('.method-btn div.border-primary').addClass('border-outline-variant').removeClass('border-primary');
-			jQuery('.method-btn #stripe-dot, .method-btn #paypal-dot, .method-btn #manual-dot').addClass('hidden');
+			jQuery('.method-btn #woocommerce-dot, .method-btn #stripe-dot, .method-btn #paypal-dot, .method-btn #manual-dot').addClass('hidden');
 
-			jQuery('#checkout-method-' + method).addClass('border-primary').removeClass('border-outline-variant/30');
-			jQuery('#checkout-method-' + method + ' #stripe-dot, #checkout-method-' + method + ' #paypal-dot, #checkout-method-' + method + ' #manual-dot').removeClass('hidden');
+			const activeBtn = jQuery('#checkout-method-' + method);
+			if (activeBtn.length) {
+				activeBtn.addClass('border-primary').removeClass('border-outline-variant/30');
+				activeBtn.find('i').addClass('text-primary').removeClass('text-secondary');
+				activeBtn.find('#' + method + '-dot').removeClass('hidden');
+				activeBtn.find('div.border-outline-variant').addClass('border-primary').removeClass('border-outline-variant');
+			}
 
-			jQuery('#stripe-checkout-container, #paypal-checkout-container, #manual-checkout-container').addClass('hidden');
+			jQuery('#woocommerce-checkout-container, #stripe-checkout-container, #paypal-checkout-container, #manual-checkout-container').addClass('hidden');
 			jQuery('#' + method + '-checkout-container').removeClass('hidden');
 
 			if (method === 'paypal') {
 				setupPayPalSDKInstance();
 			}
+		}
+
+		function triggerWooCommerceSubscriptionOrder() {
+			const btn = jQuery('#wc-checkout-btn');
+			btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> <span>Connecting to WooCommerce...</span>');
+			Aurelian.toast('Initializing secure WooCommerce checkout...', { accent: true });
+
+			jQuery.post(dlmParams.ajaxUrl, {
+				action: 'dlm_wc_create_subscription_order',
+				nonce: dlmParams.nonce,
+				interval: checkoutInterval
+			}, function(res) {
+				if (res.success && res.data && res.data.redirect) {
+					window.location.href = res.data.redirect;
+				} else {
+					const msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to proceed to WooCommerce checkout.';
+					Aurelian.toast(msg);
+					btn.prop('disabled', false).html('<span>Proceed to WooCommerce Checkout</span> <i class="fa-solid fa-arrow-right"></i>');
+				}
+			}).fail(function() {
+				Aurelian.toast('Checkout connection timeout.');
+				btn.prop('disabled', false).html('<span>Proceed to WooCommerce Checkout</span> <i class="fa-solid fa-arrow-right"></i>');
+			});
 		}
 
 		function triggerStripeCheckoutSession() {

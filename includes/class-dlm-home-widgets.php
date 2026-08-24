@@ -1364,7 +1364,7 @@ final class DLM_Home_Widgets {
 			}
 		}
 
-		if ( empty( $plans ) ) {
+		if ( empty( $plans ) && empty( $raw_packages ) ) {
 			$plans = array(
 				array(
 					'plan_name'     => 'Monthly Reader Pass',
