@@ -1115,7 +1115,9 @@ class DLM_WooCommerce {
 				if ( isset( $_GET['plan'] ) ) {
 					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 					$plan = sanitize_key( wp_unslash( $_GET['plan'] ) );
-					$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'account' ) ) . '#checkout';
+					$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'checkout' ) );
+				} else {
+					$redirect_url = dlm_get_page_url( 'checkout' );
 				}
 				$should_redirect = true;
 			}
