@@ -572,49 +572,65 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Build clean, 100% robust order payment URL that works across all permalink structures
+	 * Build clean, 100% standalone headless order payment URL that has ZERO dependency on WooCommerce checkout page.
 	 *
-	 * @param WC_Order $order
-	 * @return string
+	 * @param WC_Order $order WooCommerce Order.
+	 * @return string Clean headless order payment URL.
 	 */
 	public function get_clean_order_pay_url( $order ) {
+		if ( function_exists( 'dlm_get_order_pay_url' ) ) {
+			return dlm_get_order_pay_url( $order );
+		}
+
 		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
 			return home_url( '/' );
 		}
 
-		$order_id  = $order->get_id();
-		$order_key = $order->get_order_key();
+		$order_id    = $order->get_id();
+		$order_key   = $order->get_order_key();
+		$account_url = dlm_get_page_url( 'account' );
 
-		$checkout_page_id = wc_get_page_id( 'checkout' );
-		$checkout_url     = ( $checkout_page_id > 0 ) ? get_permalink( $checkout_page_id ) : '';
-
-		if ( empty( $checkout_url ) || 'trash' === get_post_status( $checkout_page_id ) ) {
-			$checkout_url = home_url( '/checkout/' );
-		}
-
-		// Detect if base checkout URL has query parameters (e.g. ?page_id=23) or if permalinks are plain
-		$permalink_structure = get_option( 'permalink_structure' );
-		if ( empty( $permalink_structure ) || false !== strpos( $checkout_url, '?' ) ) {
-			$pay_url = add_query_arg(
-				array(
-					'order-pay'     => $order_id,
-					'pay_for_order' => 'true',
-					'key'           => $order_key,
-				),
-				$checkout_url
-			);
-		} else {
-			$pay_url = trailingslashit( $checkout_url ) . 'order-pay/' . $order_id . '/';
-			$pay_url = add_query_arg(
-				array(
-					'pay_for_order' => 'true',
-					'key'           => $order_key,
-				),
-				$pay_url
-			);
-		}
+		$pay_url = add_query_arg(
+			array(
+				'dlm_action'    => 'order_pay',
+				'order-pay'     => $order_id,
+				'pay_for_order' => 'true',
+				'key'           => $order_key,
+			),
+			$account_url
+		);
 
 		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
+	}
+
+	/**
+	 * Render standalone headless order pay screen with zero dependency on WooCommerce pages.
+	 *
+	 * @param WC_Order $order
+	 */
+	public function render_standalone_order_pay_template( $order ) {
+		global $wp;
+		$wp->query_vars['order-pay'] = $order->get_id();
+
+		// Enqueue necessary WooCommerce scripts and styles for payment gateways
+		if ( class_exists( 'WC_Frontend_Scripts' ) ) {
+			WC_Frontend_Scripts::load_scripts();
+		}
+		wp_enqueue_script( 'wc-checkout' );
+		wp_enqueue_style( 'woocommerce-general' );
+		wp_enqueue_style( 'woocommerce-layout' );
+		wp_enqueue_style( 'dashicons' );
+
+		get_header();
+
+		$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
+		if ( file_exists( $custom_pay_template ) ) {
+			include $custom_pay_template;
+		} else {
+			woocommerce_order_pay( $order->get_id() );
+		}
+
+		get_footer();
 	}
 
 	/**
@@ -701,12 +717,18 @@ class DLM_WooCommerce {
 
 		// Check for pay_for_order request (either via query args or URI path)
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) || isset( $_GET['key'] ) ) {
+		$is_dlm_pay_action = isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $is_dlm_pay_action || isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) || isset( $_GET['key'] ) ) {
 			$order_id = 0;
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( isset( $_GET['order-pay'] ) ) {
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				$order_id = absint( $_GET['order-pay'] );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			} elseif ( isset( $_GET['order_id'] ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$order_id = absint( $_GET['order_id'] );
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			} elseif ( isset( $_GET['dlm_order_pay'] ) ) {
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -732,12 +754,16 @@ class DLM_WooCommerce {
 
 					$clean_url = $this->get_clean_order_pay_url( $order );
 
-					// If current URL is malformed, redirect safely to canonical clean pay URL
-					if ( ! empty( $_SERVER['REQUEST_URI'] ) && false !== strpos( $_SERVER['REQUEST_URI'], '/order-pay/' ) && false !== strpos( $clean_url, 'page_id=' ) ) {
+					// If current URL is a legacy /order-pay/ path, redirect safely to clean standalone pay URL
+					$req_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+					if ( ! empty( $req_uri ) && false !== strpos( $req_uri, '/order-pay/' ) && ! $is_dlm_pay_action ) {
 						wp_safe_redirect( $clean_url );
 						exit;
 					}
-					return; // Allow pay-for-order screen to load!
+
+					// Render standalone headless order pay screen directly
+					$this->render_standalone_order_pay_template( $order );
+					exit;
 				}
 			}
 		}

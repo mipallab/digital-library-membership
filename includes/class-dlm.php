@@ -926,6 +926,32 @@ if ( ! function_exists( 'dlm_is_gateway_enabled' ) ) {
 }
 
 /**
+ * Global helper function to get standalone headless order pay URL with zero dependency on WooCommerce checkout page
+ */
+if ( ! function_exists( 'dlm_get_order_pay_url' ) ) {
+	function dlm_get_order_pay_url( $order ) {
+		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
+			return home_url( '/' );
+		}
+		$order_id    = $order->get_id();
+		$order_key   = $order->get_order_key();
+		$account_url = dlm_get_page_url( 'account' );
+
+		$pay_url = add_query_arg(
+			array(
+				'dlm_action'    => 'order_pay',
+				'order-pay'     => $order_id,
+				'pay_for_order' => 'true',
+				'key'           => $order_key,
+			),
+			$account_url
+		);
+
+		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
+	}
+}
+
+/**
  * Global helper function to check if a user has an active membership subscription
  */
 if ( ! function_exists( 'dlm_user_has_active_subscription' ) ) {

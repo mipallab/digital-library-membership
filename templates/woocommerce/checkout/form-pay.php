@@ -82,7 +82,10 @@ $currency_symbol = get_woocommerce_currency_symbol( $order->get_currency() );
 		</div>
 
 		<!-- Payment Form -->
-		<form id="order_review" method="post" action="<?php echo esc_url( $order->get_checkout_payment_url() ); ?>">
+		<?php
+		$pay_form_action = function_exists( 'dlm_get_order_pay_url' ) ? dlm_get_order_pay_url( $order ) : $order->get_checkout_payment_url();
+		?>
+		<form id="order_review" method="post" action="<?php echo esc_url( $pay_form_action ); ?>">
 			<?php if ( $order->needs_payment() ) : ?>
 				<div id="payment" style="background: transparent; padding: 0;">
 					<h4 style="font-size: 15px; font-weight: 700; color: #1a1c1c; margin: 0 0 16px 0;">
