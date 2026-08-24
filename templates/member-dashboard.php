@@ -113,7 +113,7 @@ if ( $is_logged_in ) {
 
 // Pricing options
 $currency = get_option( 'dlm_currency', 'USD' );
-$payment_engine = dlm_get_payment_engine();
+$payment_engine = function_exists( 'dlm_get_payment_engine' ) ? dlm_get_payment_engine() : get_option( 'dlm_payment_engine', 'default' );
 $pkg_monthly  = dlm_get_package( 'monthly' );
 $pkg_yearly   = dlm_get_package( 'yearly' );
 $pkg_lifetime = dlm_get_package( 'lifetime' );

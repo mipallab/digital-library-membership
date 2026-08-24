@@ -544,7 +544,7 @@ class DLM_Public {
 				isActive: <?php echo json_encode( $is_active ); ?>,
 				pricingUrl: <?php echo json_encode( $pricing_url ); ?>,
 				currency: <?php echo json_encode( $currency ); ?>,
-				paymentEngine: <?php echo json_encode( dlm_get_payment_engine() ); ?>,
+				paymentEngine: <?php echo json_encode( function_exists( 'dlm_get_payment_engine' ) ? dlm_get_payment_engine() : 'default' ); ?>,
 				ajaxUrl: <?php echo json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
 				nonce: <?php echo json_encode( wp_create_nonce( 'dlm_public_nonce' ) ); ?>,
 				restNonce: <?php echo json_encode( wp_create_nonce( 'wp_rest' ) ); ?>,

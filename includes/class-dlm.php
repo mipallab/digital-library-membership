@@ -1274,3 +1274,16 @@ if ( ! function_exists( 'dlm_save_packages' ) ) {
 		return $updated;
 	}
 }
+
+/**
+ * Get active payment engine ('default' or 'woocommerce')
+ */
+if ( ! function_exists( 'dlm_get_payment_engine' ) ) {
+	function dlm_get_payment_engine() {
+		$engine = get_option( 'dlm_payment_engine', 'default' );
+		if ( 'woocommerce' === $engine && ! class_exists( 'WooCommerce' ) ) {
+			return 'default';
+		}
+		return $engine ? $engine : 'default';
+	}
+}
