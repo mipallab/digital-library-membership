@@ -273,7 +273,7 @@ class DLM_Widget_Membership_Section extends \Elementor\Widget_Base {
 						'badge_text'    => ! empty( $pkg['badge'] ) ? $pkg['badge'] : esc_html__( 'BEST VALUE', 'digital-library-membership' ),
 						'features_list' => is_array( $pkg['features'] ?? '' ) ? implode( "\n", $pkg['features'] ) : ( $pkg['features'] ?? '' ),
 						'btn_text'      => esc_html__( 'Choose Plan', 'digital-library-membership' ),
-						'btn_link'      => array( 'url' => add_query_arg( 'plan', $pkg['interval'] ?? 'monthly', $checkout_url ) ),
+						'btn_link'      => array( 'url' => add_query_arg( 'plan', $pkg['interval'] ?? 'monthly', $checkout_url ) . '#checkout' ),
 					);
 				}
 			}

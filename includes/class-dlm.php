@@ -766,17 +766,34 @@ class DLM {
 	}
 
 	/**
-	 * Redirect any page loaded with payment query parameters to the account dashboard
+	 * Redirect any page loaded with payment or plan query parameters to the account dashboard
 	 */
 	public function handle_payment_status_redirect() {
+		// Do not redirect in AJAX or REST API requests
+		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+			return;
+		}
+
+		$account_page_id = dlm_get_page_id( 'account' );
+
+		// 1. Redirect if ?plan=... parameter is accessed on non-account page (e.g. /checkout/?plan=yearly)
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['plan'] ) && ( ! $account_page_id || ! is_page( $account_page_id ) ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$plan = sanitize_key( wp_unslash( $_GET['plan'] ) );
+			$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'account' ) ) . '#checkout';
+			wp_safe_redirect( $redirect_url );
+			exit;
+		}
+
+		// 2. Redirect if payment return status parameter is present
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['payment'] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$payment = sanitize_key( wp_unslash( $_GET['payment'] ) );
 			$valid_statuses = array( 'success', 'active', 'pending', 'cancelled', 'cancel', 'failed', 'faild' );
 			if ( in_array( $payment, $valid_statuses, true ) ) {
-				$account_page_id = dlm_get_page_id( 'account' );
-				if ( ! is_page( $account_page_id ) ) {
+				if ( ! $account_page_id || ! is_page( $account_page_id ) ) {
 					$query_args = array(
 						'payment' => $payment,
 					);
@@ -861,7 +878,7 @@ if ( ! function_exists( 'dlm_get_page_id' ) ) {
 }
 
 /**
- * Global helper function to get DLM page URL
+ * Global helper function to get DLM page URL with smart fallbacks
  */
 if ( ! function_exists( 'dlm_get_page_url' ) ) {
 	function dlm_get_page_url( $page_key ) {
@@ -869,6 +886,27 @@ if ( ! function_exists( 'dlm_get_page_url' ) ) {
 		if ( $page_id && 'publish' === get_post_status( $page_id ) ) {
 			return get_permalink( $page_id );
 		}
+
+		// Fallback for checkout or membership: point to Member Account Dashboard
+		if ( 'checkout' === $page_key || 'membership' === $page_key ) {
+			$account_id = dlm_get_page_id( 'account' );
+			if ( $account_id && 'publish' === get_post_status( $account_id ) ) {
+				return get_permalink( $account_id );
+			}
+		}
+
+		// Fallback for pricing / plan: point to pricing page or account dashboard
+		if ( 'pricing' === $page_key || 'plan' === $page_key ) {
+			$pricing_id = dlm_get_page_id( 'pricing' );
+			if ( $pricing_id && 'publish' === get_post_status( $pricing_id ) ) {
+				return get_permalink( $pricing_id );
+			}
+			$account_id = dlm_get_page_id( 'account' );
+			if ( $account_id && 'publish' === get_post_status( $account_id ) ) {
+				return get_permalink( $account_id );
+			}
+		}
+
 		return home_url( '/' . $page_key . '/' );
 	}
 }

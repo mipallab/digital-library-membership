@@ -1359,7 +1359,7 @@ final class DLM_Home_Widgets {
 					'badge_text'    => ! empty( $pkg['badge'] ) ? $pkg['badge'] : esc_html__( 'BEST VALUE', 'digital-library-membership' ),
 					'features_list' => is_array( $pkg['features'] ?? '' ) ? $pkg['features'] : explode( "\n", $pkg['features'] ?? '' ),
 					'btn_text'      => esc_html__( 'Choose Plan', 'digital-library-membership' ),
-					'btn_link'      => add_query_arg( 'plan', $pkg['interval'] ?? 'monthly', $checkout_url ),
+					'btn_link'      => add_query_arg( 'plan', $pkg['interval'] ?? 'monthly', $checkout_url ) . '#checkout',
 				);
 			}
 		}

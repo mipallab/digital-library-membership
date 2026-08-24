@@ -688,6 +688,12 @@ class DLM_WooCommerce {
 		// 5. Standard Checkout (redirect when it's NOT an order-pay screen)
 		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
 			if ( ! is_wc_endpoint_url( 'order-pay' ) && ! is_wc_endpoint_url( 'order-received' ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				if ( isset( $_GET['plan'] ) ) {
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+					$plan = sanitize_key( wp_unslash( $_GET['plan'] ) );
+					$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'account' ) ) . '#checkout';
+				}
 				$should_redirect = true;
 			}
 		}

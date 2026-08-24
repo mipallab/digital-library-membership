@@ -3305,7 +3305,35 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 				const validTabs = ['library', 'discover', 'journal', 'collections', 'membership', 'achievements', 'settings', 'checkout'];
 				let targetTab = null;
 
-				// Check URL hash (#membership, #library, etc.)
+				// 1. Check URL query parameter for plan (?plan=yearly, ?plan=lifetime, ?plan=monthly)
+				try {
+					const urlParams = new URLSearchParams(window.location.search);
+					const planParam = urlParams.get('plan');
+					if (planParam) {
+						const rawPackages = <?php echo json_encode( $active_packages ); ?>;
+						let targetPkg = rawPackages[planParam] || Object.values(rawPackages).find(p => (p.interval === planParam || p.id === planParam));
+						if (targetPkg) {
+							const pkgPrice = targetPkg.price || '0.00';
+							const pkgName = targetPkg.name || planParam;
+							const pkgInterval = targetPkg.interval || targetPkg.id || planParam;
+							goToCheckout(pkgInterval, pkgPrice, pkgName);
+							return;
+						} else {
+							const defaultPrices = {
+								monthly: '<?php echo esc_js( $price_monthly ); ?>',
+								yearly: '<?php echo esc_js( $price_yearly ); ?>',
+								lifetime: '<?php echo esc_js( $price_lifetime ); ?>'
+							};
+							const pKey = planParam.toLowerCase();
+							const pPrice = defaultPrices[pKey] || '9.99';
+							const pName = planParam.charAt(0).toUpperCase() + planParam.slice(1) + ' Plan';
+							goToCheckout(pKey, pPrice, pName);
+							return;
+						}
+					}
+				} catch (e) {}
+
+				// 2. Check URL hash (#membership, #library, etc.)
 				if (window.location.hash) {
 					const hash = window.location.hash.replace('#', '').toLowerCase().trim();
 					if (validTabs.includes(hash)) {
@@ -3313,7 +3341,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 					}
 				}
 
-				// Check URL query parameter (?tab=membership, etc.)
+				// 3. Check URL query parameter (?tab=membership, etc.)
 				if (!targetTab) {
 					try {
 						const urlParams = new URLSearchParams(window.location.search);
