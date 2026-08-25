@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.2.3
+Stable tag: 3.2.4
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -101,6 +101,11 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.2.4 =
+* Fixed: WooCommerce checkout flow rendering payment gateways inline via `[dlm_checkout]` shortcode instead of standalone template to eliminate homepage redirect.
+* Feature: Same-plan detection — prevents duplicate WooCommerce order creation when user is already subscribed to the selected plan with a friendly dashboard redirect message.
+* Enhanced: Simplified `redirect_woocommerce_pages()` routing precedence for reliable order-pay request handling across all page contexts.
 
 = 3.2.3 =
 * Feature: Standalone full-screen Library Checkout template (`templates/library-checkout-template.php`) isolating checkout from theme headers and conflicts.
