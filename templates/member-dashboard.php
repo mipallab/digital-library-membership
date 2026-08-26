@@ -1044,14 +1044,21 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 						<p class="text-sm text-secondary leading-relaxed">
 							<?php esc_html_e( 'Your transaction was successful and your access has been unlocked instantly.', 'digital-library-membership' ); ?>
 						</p>
-						<?php if ( $completed_order_id > 0 ) : ?>
+						<?php 
+						if ( $completed_order_id > 0 ) : 
+							$legit_order = function_exists( 'wc_get_order' ) ? wc_get_order( $completed_order_id ) : null;
+							if ( $legit_order && $legit_order->get_customer_id() === get_current_user_id() ) :
+						?>
 							<p class="text-xs text-secondary/80 font-mono pt-1">
 								<?php
 								/* translators: %d: Completed order reference ID */
 								echo esc_html( sprintf( __( 'Order Reference: #%d', 'digital-library-membership' ), $completed_order_id ) );
 								?>
 							</p>
-						<?php endif; ?>
+						<?php 
+							endif;
+						endif; 
+						?>
 					</div>
 
 					<div class="pt-2 flex flex-col sm:flex-row gap-3">
@@ -3304,8 +3311,8 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 					nonce: '<?php echo esc_js( $dlm_public_nonce ); ?>',
 					book_id: bookId
 				}, function(res) {
-					if (res.success && res.data && res.data.payment_url) {
-						window.location.href = res.data.payment_url;
+					if (res.success && res.data && res.data.redirect) {
+						window.location.href = res.data.redirect;
 					} else {
 						const msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to initiate purchase.';
 						toast(msg);

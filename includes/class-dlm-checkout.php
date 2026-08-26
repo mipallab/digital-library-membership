@@ -715,10 +715,14 @@ class DLM_Checkout {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce is not active.', 'digital-library-membership' ) ) );
 		}
 
-		// Clear cart and add product
+		// Clear cart and add product with metadata
 		if ( function_exists( 'WC' ) && WC()->cart ) {
 			WC()->cart->empty_cart();
-			WC()->cart->add_to_cart( $product_id );
+			WC()->cart->add_to_cart( $product_id, 1, 0, array(), array(
+				'dlm_order_type'    => 'subscription',
+				'dlm_package_id'    => $interval,
+				'dlm_plan_interval' => $interval,
+			) );
 			wp_send_json_success( array( 'redirect' => wc_get_checkout_url() ) );
 		} else {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce cart system could not be initialized.', 'digital-library-membership' ) ) );

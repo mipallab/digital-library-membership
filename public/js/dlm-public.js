@@ -764,8 +764,8 @@ jQuery(document).ready(function($) {
             nonce: nonce,
             book_id: bookId
         }, function(res) {
-            if (res.success && res.data && res.data.payment_url) {
-                window.location.href = res.data.payment_url;
+            if (res.success && res.data && res.data.redirect) {
+                window.location.href = res.data.redirect;
             } else {
                 var msg = (res && res.data && res.data.message) ? res.data.message : 'Unable to proceed to checkout.';
                 alert(msg);

@@ -62,26 +62,27 @@ class DLM_WooCommerce {
 		add_action( 'woocommerce_order_status_refunded', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 
-		// Headless template override for checkout/order-pay and checkout/form-checkout
-		add_filter( 'wc_get_template', array( $this, 'override_order_pay_template' ), 20, 5 );
-		add_filter( 'woocommerce_locate_template', array( $this, 'locate_order_pay_template' ), 20, 3 );
-		add_filter( 'the_content', array( $this, 'ensure_order_pay_rendered' ), 1 );
+		// Template override for WooCommerce native checkout (form-checkout.php)
+		add_filter( 'wc_get_template', array( $this, 'override_checkout_template' ), 20, 5 );
+		add_filter( 'woocommerce_locate_template', array( $this, 'locate_checkout_template' ), 20, 3 );
 
 		// Enqueue luxury Library Checkout styles on WooCommerce checkout page
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_styles' ), 20 );
 
-		// Register order-pay rewrite endpoint and ensure essential WooCommerce pages exist
-		add_action( 'init', array( $this, 'register_order_pay_rewrite' ) );
+		// Clean unneeded checkout fields (company, order notes, shipping) for sleek digital checkout
+		add_filter( 'woocommerce_checkout_fields', array( $this, 'filter_checkout_fields' ), 20 );
+
+		// Ensure essential WooCommerce pages exist
 		add_action( 'init', array( $this, 'ensure_woocommerce_pages_exist' ), 5 );
 
 		// Transfer cart custom metadata to order line item during WooCommerce checkout
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'transfer_cart_item_meta_to_order' ), 10, 4 );
 
-		// Standalone URL and Page overrides so WooCommerce never redirects to home or missing pages
-		add_filter( 'woocommerce_get_checkout_page_id', array( $this, 'filter_checkout_page_id' ), 999 );
-		add_filter( 'woocommerce_is_checkout', array( $this, 'filter_is_checkout' ), 999 );
-		add_filter( 'woocommerce_get_checkout_url', array( $this, 'filter_woocommerce_checkout_url' ), 999 );
-		add_filter( 'woocommerce_get_checkout_payment_url', array( $this, 'filter_checkout_payment_url' ), 999, 2 );
+		// Force account registration to be strictly required on checkout (Guest checkout disabled for digital access)
+		add_filter( 'woocommerce_checkout_registration_required', '__return_true', 999 );
+		add_filter( 'woocommerce_checkout_registration_enabled', '__return_true', 999 );
+
+		// Return & Cancel URL overrides to return cleanly to DLM Library Account dashboard
 		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 999, 2 );
 		add_filter( 'woocommerce_get_checkout_order_received_url', array( $this, 'filter_order_return_url' ), 999, 2 );
 		add_filter( 'woocommerce_get_cancel_url', array( $this, 'filter_order_cancel_url' ), 999, 2 );
@@ -229,7 +230,7 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * AJAX handler: Create headless WC_Order for individual book purchase
+	 * AJAX handler: Add book virtual product to WooCommerce cart and return native checkout redirect URL
 	 */
 	public function ajax_create_book_order() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
@@ -238,7 +239,7 @@ class DLM_WooCommerce {
 			wp_send_json_error( array( 'message' => __( 'Please sign in or register to purchase books.', 'digital-library-membership' ) ) );
 		}
 
-		if ( ! class_exists( 'WooCommerce' ) ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'WC' ) || ! WC()->cart ) {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce payment engine is not available.', 'digital-library-membership' ) ) );
 		}
 
@@ -248,8 +249,16 @@ class DLM_WooCommerce {
 		}
 
 		$book = $this->db->get_book( $book_id );
-		if ( ! $book ) {
-			wp_send_json_error( array( 'message' => __( 'Book not found.', 'digital-library-membership' ) ) );
+		if ( ! $book || ( isset( $book->status ) && 'publish' !== $book->status ) ) {
+			wp_send_json_error( array( 'message' => __( 'This book is not available for purchase.', 'digital-library-membership' ) ) );
+		}
+
+		if ( isset( $book->access_type ) && 'subscription_only' === $book->access_type ) {
+			wp_send_json_error( array( 'message' => __( 'This book is exclusive to active subscribers. Please select a membership plan.', 'digital-library-membership' ) ) );
+		}
+
+		if ( isset( $book->access_type ) && 'free' === $book->access_type ) {
+			wp_send_json_error( array( 'message' => __( 'This book is freely available to read in our library!', 'digital-library-membership' ), 'already_owned' => true, 'read_url' => home_url( '/read/' . $book_id . '/' ) ) );
 		}
 
 		$user_id = get_current_user_id();
@@ -281,49 +290,20 @@ class DLM_WooCommerce {
 		// Ensure essential WooCommerce checkout pages exist
 		$this->ensure_woocommerce_pages_exist();
 
-		$user = wp_get_current_user();
-
 		try {
-			// Prime WooCommerce Cart so all payment gateways (bKash, Nagad, Stripe, PayPal) function natively
-			if ( function_exists( 'WC' ) && WC()->cart ) {
-				WC()->cart->empty_cart();
-				WC()->cart->add_to_cart( $product_id, 1, 0, array(), array(
-					'dlm_order_type' => 'book_purchase',
-					'dlm_book_id'    => $book_id,
-				) );
-			}
-
-			// Create WC_Order in pending state
-			$order = wc_create_order( array( 'customer_id' => $user->ID ) );
-			$order->add_product( $product, 1 );
-
-			$order->set_address( array(
-				'first_name' => $user->first_name ?: $user->display_name,
-				'last_name'  => $user->last_name ?: '',
-				'email'      => $user->user_email,
-			), 'billing' );
-
-			$order->update_meta_data( '_dlm_order_type', 'book_purchase' );
-			$order->update_meta_data( '_dlm_book_id', $book_id );
-			$order->calculate_totals();
-			$order->update_status( 'pending', __( 'DLM pay-per-book order initialized.', 'digital-library-membership' ) );
-
-			// Insert pending purchase record into plugin database
-			$currency = get_option( 'dlm_currency', 'USD' );
-			$this->db->insert_book_purchase( array(
-				'user_id'        => $user->ID,
-				'book_id'        => $book_id,
-				'order_id'       => (string) $order->get_id(),
-				'amount'         => floatval( $order->get_total() ),
-				'currency'       => $currency,
-				'payment_engine' => 'woocommerce',
-				'status'         => 'pending',
+			// Clear cart and add the selected book with item metadata
+			WC()->cart->empty_cart();
+			$cart_item_key = WC()->cart->add_to_cart( $product_id, 1, 0, array(), array(
+				'dlm_order_type' => 'book_purchase',
+				'dlm_book_id'    => $book_id,
 			) );
 
-			$checkout_url = $this->get_clean_order_pay_url( $order );
+			if ( ! $cart_item_key ) {
+				wp_send_json_error( array( 'message' => __( 'Could not add book to checkout cart.', 'digital-library-membership' ) ) );
+			}
+
 			wp_send_json_success( array(
-				'redirect' => $checkout_url,
-				'order_id' => $order->get_id(),
+				'redirect' => wc_get_checkout_url(),
 			) );
 		} catch ( Exception $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ) );
@@ -331,7 +311,7 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * AJAX handler: Create WC_Order and prime Cart for subscription plan purchase
+	 * AJAX handler: Add subscription virtual product to WooCommerce cart and return native checkout redirect URL
 	 */
 	public function ajax_create_subscription_order() {
 		check_ajax_referer( 'dlm_public_nonce', 'nonce' );
@@ -340,20 +320,19 @@ class DLM_WooCommerce {
 			wp_send_json_error( array( 'message' => __( 'Please sign in or register to subscribe.', 'digital-library-membership' ) ) );
 		}
 
-		if ( ! class_exists( 'WooCommerce' ) ) {
+		if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'WC' ) || ! WC()->cart ) {
 			wp_send_json_error( array( 'message' => __( 'WooCommerce payment engine is not available.', 'digital-library-membership' ) ) );
 		}
 
 		$plan    = isset( $_POST['interval'] ) ? sanitize_text_field( wp_unslash( $_POST['interval'] ) ) : 'monthly';
 		$package = dlm_get_package( $plan );
-		if ( ! $package ) {
-			$packages = dlm_get_packages();
-			$package  = reset( $packages );
+		if ( ! $package || ( isset( $package['status'] ) && 'inactive' === $package['status'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'The selected membership package is not currently available.', 'digital-library-membership' ) ) );
 		}
 
-		$package_id = $package ? $package['id'] : $plan;
-		$interval   = ( $package && ! empty( $package['interval'] ) ) ? $package['interval'] : 'monthly';
-		$plan_name  = $package ? $package['name'] : ucfirst( $interval );
+		$package_id = $package['id'];
+		$interval   = ! empty( $package['interval'] ) ? $package['interval'] : 'monthly';
+		$plan_name  = ! empty( $package['name'] ) ? $package['name'] : ucfirst( $interval );
 
 		// Same-plan detection: if user already has an active subscription on the same interval, reject
 		$user_id    = get_current_user_id();
@@ -383,39 +362,21 @@ class DLM_WooCommerce {
 		// Ensure essential WooCommerce checkout pages exist
 		$this->ensure_woocommerce_pages_exist();
 
-		$user = wp_get_current_user();
-
 		try {
-			// Prime WooCommerce Cart so all payment gateways (bKash, Nagad, Stripe, PayPal) function natively
-			if ( function_exists( 'WC' ) && WC()->cart ) {
-				WC()->cart->empty_cart();
-				WC()->cart->add_to_cart( $product_id, 1, 0, array(), array(
-					'dlm_order_type'    => 'subscription',
-					'dlm_package_id'    => $package_id,
-					'dlm_plan_interval' => $interval,
-				) );
+			// Clear cart and add the selected membership package with item metadata
+			WC()->cart->empty_cart();
+			$cart_item_key = WC()->cart->add_to_cart( $product_id, 1, 0, array(), array(
+				'dlm_order_type'    => 'subscription',
+				'dlm_package_id'    => $package_id,
+				'dlm_plan_interval' => $interval,
+			) );
+
+			if ( ! cart_item_key ) {
+				wp_send_json_error( array( 'message' => __( 'Could not add membership plan to checkout cart.', 'digital-library-membership' ) ) );
 			}
 
-			// Create WC_Order directly in PHP
-			$order = wc_create_order( array( 'customer_id' => $user->ID ) );
-			$order->add_product( $product, 1 );
-
-			$order->set_address( array(
-				'first_name' => $user->first_name ?: $user->display_name,
-				'last_name'  => $user->last_name ?: '',
-				'email'      => $user->user_email,
-			), 'billing' );
-
-			$order->update_meta_data( '_dlm_order_type', 'subscription' );
-			$order->update_meta_data( '_dlm_package_id', $package_id );
-			$order->update_meta_data( '_dlm_plan_interval', $interval );
-			$order->calculate_totals();
-			$order->update_status( 'pending', __( 'DLM subscription order initialized.', 'digital-library-membership' ) );
-
-			$checkout_url = $this->get_clean_order_pay_url( $order );
 			wp_send_json_success( array(
-				'redirect' => $checkout_url,
-				'order_id' => $order->get_id(),
+				'redirect' => wc_get_checkout_url(),
 			) );
 		} catch ( Exception $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ) );
@@ -457,6 +418,16 @@ class DLM_WooCommerce {
 		if ( ! $user_id ) {
 			return;
 		}
+
+		// Atomic Lock & Idempotency: prevent race conditions between async webhooks and sync browser redirects
+		$lock_key = 'dlm_proc_lock_' . $order_id;
+		if ( get_transient( $lock_key ) || 'yes' === $order->get_meta( '_dlm_processed' ) ) {
+			return;
+		}
+		set_transient( $lock_key, '1', 60 );
+
+		$order->update_meta_data( '_dlm_processed', 'yes' );
+		$order->save();
 
 		if ( $order_type === 'book_purchase' ) {
 			$book_id = intval( $order->get_meta( '_dlm_book_id' ) );
@@ -622,14 +593,6 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Register rewrite rule so /order-pay/45/ is recognized cleanly without 404
-	 */
-	public function register_order_pay_rewrite() {
-		add_rewrite_tag( '%dlm_order_pay%', '([0-9]+)' );
-		add_rewrite_rule( '^order-pay/([0-9]+)/?$', 'index.php?dlm_order_pay=$matches[1]&pay_for_order=true', 'top' );
-	}
-
-	/**
 	 * Automatically create or restore essential WooCommerce pages (Checkout & Cart) if deleted.
 	 */
 	public function ensure_woocommerce_pages_exist() {
@@ -719,201 +682,45 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Build clean, 100% standalone headless order payment URL that has ZERO dependency on WooCommerce checkout page.
-	 *
-	 * @param WC_Order $order WooCommerce Order.
-	 * @return string Clean headless order payment URL.
-	 */
-	public function get_clean_order_pay_url( $order ) {
-		if ( function_exists( 'dlm_get_order_pay_url' ) ) {
-			return dlm_get_order_pay_url( $order );
-		}
-
-		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
-			return dlm_get_page_url( 'checkout' );
-		}
-
-		$order_id     = $order->get_id();
-		$order_key    = $order->get_order_key();
-		$checkout_url = dlm_get_page_url( 'checkout' );
-
-		$pay_url = add_query_arg(
-			array(
-				'dlm_action'    => 'order_pay',
-				'order-pay'     => $order_id,
-				'pay_for_order' => 'true',
-				'key'           => $order_key,
-			),
-			$checkout_url
-		);
-
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
-	}
-
-	/**
-	 * Ensure WooCommerce always has a valid checkout page ID (fallback to Library Account page)
-	 */
-	public function filter_checkout_page_id( $page_id ) {
-		if ( $page_id <= 0 || 'publish' !== get_post_status( $page_id ) ) {
-			$account_id = dlm_get_page_id( 'account' );
-			if ( $account_id > 0 ) {
-				return $account_id;
-			}
-		}
-		return $page_id;
-	}
-
-	/**
-	 * Mark is_checkout = true during DLM order payment flows
-	 */
-	public function filter_is_checkout( $is_checkout ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) ) ) {
-			return true;
-		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) ) {
-			return true;
-		}
-		return $is_checkout;
-	}
-
-	/**
-	 * Render standalone headless order pay screen with zero dependency on WooCommerce pages.
-	 *
-	 * @param WC_Order $order
-	 */
-	public function render_standalone_order_pay_template( $order ) {
-		global $wp;
-		$wp->query_vars['order-pay'] = $order->get_id();
-
-		// Handle direct POST submission fallback if needed
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		if ( isset( $_POST['woocommerce_pay'], $_POST['woocommerce-pay-nonce'] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			if ( wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['woocommerce-pay-nonce'] ) ), 'woocommerce-pay' ) ) {
-				$order_id = $order->get_id();
-				// phpcs:ignore WordPress.Security.NonceVerification.Missing
-				$payment_method = isset( $_POST['payment_method'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_method'] ) ) : '';
-				if ( ! empty( $payment_method ) && function_exists( 'WC' ) && WC()->payment_gateways() ) {
-					$gateways = WC()->payment_gateways()->get_available_payment_gateways();
-					if ( isset( $gateways[ $payment_method ] ) ) {
-						$result = $gateways[ $payment_method ]->process_payment( $order_id );
-						if ( isset( $result['result'] ) && 'success' === $result['result'] && ! empty( $result['redirect'] ) ) {
-							// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External gateway redirect.
-							wp_redirect( esc_url_raw( $result['redirect'] ) );
-							exit;
-						}
-					}
-				}
-			}
-		}
-
-		// Enqueue necessary WooCommerce scripts and styles for payment gateways
-		if ( class_exists( 'WC_Frontend_Scripts' ) ) {
-			WC_Frontend_Scripts::load_scripts();
-		}
-		wp_enqueue_script( 'wc-checkout' );
-		wp_enqueue_style( 'woocommerce-general' );
-		wp_enqueue_style( 'woocommerce-layout' );
-		wp_enqueue_style( 'dashicons' );
-		wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
-
-		$site_name = get_bloginfo( 'name' );
-		?>
-		<!DOCTYPE html>
-		<html class="light" <?php language_attributes(); ?>>
-		<head>
-			<meta charset="<?php bloginfo( 'charset' ); ?>">
-			<meta content="width=device-width, initial-scale=1.0" name="viewport">
-			<title><?php esc_html_e( 'Order Payment', 'digital-library-membership' ); ?> | <?php echo esc_html( $site_name ); ?></title>
-			<?php wp_head(); ?>
-			<style>
-				body {
-					margin: 0;
-					padding: 0;
-					background-color: #fafafa;
-					font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-					-webkit-font-smoothing: antialiased;
-				}
-			</style>
-		</head>
-		<body class="bg-[#fafafa] text-[#1a1c1c] antialiased">
-			<div id="dlm-order-pay-root" class="min-h-screen">
-				<?php
-				$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
-				if ( file_exists( $custom_pay_template ) ) {
-					include $custom_pay_template;
-				} else {
-					woocommerce_order_pay( $order->get_id() );
-				}
-				?>
-			</div>
-			<?php wp_footer(); ?>
-		</body>
-		</html>
-		<?php
-		exit;
-	}
-
-	/**
-	 * Ensure WooCommerce Order Pay and Classic Checkout form renders if current request is on checkout
-	 */
-	public function ensure_order_pay_rendered( $content ) {
-		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
-			return $content;
-		}
-
-		// 1. Check for pay_for_order screen
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) ) {
-			if ( ! shortcode_exists( 'woocommerce_checkout' ) || false === strpos( $content, 'woocommerce-checkout' ) ) {
-				ob_start();
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				$order_pay_id = isset( $_GET['order-pay'] ) ? absint( wp_unslash( $_GET['order-pay'] ) ) : 0;
-				woocommerce_order_pay( $order_pay_id );
-				$pay_html = ob_get_clean();
-				if ( ! empty( $pay_html ) ) {
-					return $pay_html;
-				}
-			}
-		}
-
-		// 2. If checkout page content has Gutenberg WooCommerce Blocks, replace with classic [woocommerce_checkout]
-		if ( ! is_wc_endpoint_url( 'order-pay' ) && ! is_wc_endpoint_url( 'order-received' ) ) {
-			if ( false !== strpos( $content, 'wp:woocommerce/checkout' ) ) {
-				return do_shortcode( '[woocommerce_checkout]' );
-			}
-		}
-
-		return $content;
-	}
-
-	/**
 	 * Enqueue luxury Library Checkout styles on WooCommerce checkout page
 	 */
 	public function enqueue_checkout_styles() {
 		if ( ( function_exists( 'is_checkout' ) && is_checkout() ) || ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) ) {
 			wp_enqueue_style( 'dashicons' );
+			wp_enqueue_style( 'dlm-font-awesome', DLM_URL . 'admin/css/font-awesome.min.css', array(), '6.4.0' );
+			wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap', array(), DLM_VERSION );
 			wp_enqueue_style( 'dlm-woocommerce-checkout', DLM_URL . 'public/css/dlm-woocommerce-checkout.css', array(), DLM_VERSION );
 		}
 	}
 
 	/**
-	 * Template override: locate checkout/form-checkout.php and checkout/form-pay.php
+	 * Clean up unneeded checkout fields (company, order notes, shipping) for digital membership and book checkout.
+	 * Preserves essential billing fields (name, email, phone/address if required) and never modifies WooCommerce nonces/form actions.
+	 *
+	 * @param array $fields WooCommerce checkout fields array.
+	 * @return array Cleaned fields.
 	 */
-	public function locate_order_pay_template( $template, $template_name, $template_path ) {
+	public function filter_checkout_fields( $fields ) {
+		if ( isset( $fields['billing']['billing_company'] ) ) {
+			unset( $fields['billing']['billing_company'] );
+		}
+		if ( isset( $fields['order']['order_comments'] ) ) {
+			unset( $fields['order']['order_comments'] );
+		}
+		if ( isset( $fields['shipping'] ) ) {
+			unset( $fields['shipping'] );
+		}
+		return $fields;
+	}
+
+	/**
+	 * Template override: locate checkout/form-checkout.php
+	 */
+	public function locate_checkout_template( $template, $template_name, $template_path ) {
 		if ( false !== strpos( $template_name, 'form-checkout.php' ) ) {
 			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
 			if ( file_exists( $custom_checkout_template ) ) {
 				return $custom_checkout_template;
-			}
-		}
-		if ( false !== strpos( $template_name, 'form-pay.php' ) ) {
-			$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
-			if ( file_exists( $custom_pay_template ) ) {
-				return $custom_pay_template;
 			}
 		}
 		return $template;
@@ -922,44 +729,14 @@ class DLM_WooCommerce {
 	/**
 	 * Template override filter via wc_get_template
 	 */
-	public function override_order_pay_template( $located, $template_name, $args, $template_path, $default_path ) {
+	public function override_checkout_template( $located, $template_name, $args, $template_path, $default_path ) {
 		if ( false !== strpos( $template_name, 'form-checkout.php' ) ) {
 			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
 			if ( file_exists( $custom_checkout_template ) ) {
 				return $custom_checkout_template;
 			}
 		}
-		if ( false !== strpos( $template_name, 'form-pay.php' ) ) {
-			$custom_pay_template = DLM_PATH . 'templates/woocommerce/checkout/form-pay.php';
-			if ( file_exists( $custom_pay_template ) ) {
-				return $custom_pay_template;
-			}
-		}
 		return $located;
-	}
-
-	/**
-	 * Override WooCommerce Checkout URL when checkout page is not present
-	 */
-	public function filter_woocommerce_checkout_url( $url ) {
-		$checkout_page_id = wc_get_page_id( 'checkout' );
-		if ( $checkout_page_id <= 0 || 'publish' !== get_post_status( $checkout_page_id ) ) {
-			return dlm_get_page_url( 'account' );
-		}
-		return $url;
-	}
-
-	/**
-	 * Override checkout payment URL to point directly to clean standalone headless order-pay
-	 */
-	public function filter_checkout_payment_url( $url, $order ) {
-		if ( is_numeric( $order ) ) {
-			$order = wc_get_order( $order );
-		}
-		if ( $order && is_a( $order, 'WC_Order' ) ) {
-			return $this->get_clean_order_pay_url( $order );
-		}
-		return $url;
 	}
 
 	/**
@@ -1002,131 +779,103 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Redirect all standard WooCommerce pages (Shop, Cart, My Account, Product views,
-	 * and standard empty Cart Checkout) to the DLM Library Account Dashboard page.
-	 * WooCommerce operates purely as a headless payment processing engine.
+	 * Transparent redirect logic for non-checkout WooCommerce pages.
+	 * WooCommerce operates purely as a headless payment processing engine for the digital library.
 	 */
 	public function redirect_woocommerce_pages() {
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			return;
 		}
 
-		// Never redirect in WP Admin, WP AJAX, WP CRON, WP CLI, REST API, or WooCommerce background API/Webhooks
+		// 1. SYSTEM EXEMPTIONS: Never redirect in Admin, AJAX, Cron, REST API, or Gateway Callbacks
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
 			return;
 		}
-
-		// Check for pay_for_order request (either via query args or URI path)
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$is_dlm_pay_action = isset( $_GET['dlm_action'] ) && 'order_pay' === sanitize_key( wp_unslash( $_GET['dlm_action'] ) );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( $is_dlm_pay_action || isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) ) {
-			// Order-pay requests are handled by the [dlm_checkout] shortcode's render_order_pay_inline().
-			// Let the request pass through to the library-checkout-template.php without redirect.
+		if ( ! empty( $_GET['wc-api'] ) || ! empty( $_GET['wc-ajax'] ) ) {
 			return;
 		}
 
-		// Never redirect if on DLM dedicated checkout page or library account page
+		// 2. RETRY / PAYMENT / ORDER ENDPOINT EXEMPTIONS:
+		// Always allow direct access to payment retry, order review, and thank-you endpoints
+		if ( function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page() ) {
+			return;
+		}
+		if ( function_exists( 'is_wc_endpoint_url' ) && ( is_wc_endpoint_url( 'order-pay' ) || is_wc_endpoint_url( 'order-received' ) || is_wc_endpoint_url( 'view-order' ) ) ) {
+			return;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) ) {
+			return;
+		}
+
+		// 3. DLM CUSTOM PAGE EXEMPTIONS: Never redirect if already on custom DLM pages
 		if ( ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) || ( function_exists( 'dlm_is_account_page' ) && dlm_is_account_page() ) ) {
 			return;
 		}
 
-		// Allow WooCommerce order payment page (e.g. /checkout/order-pay/123/?pay_for_order=true&key=wc_order_xyz)
-		if ( function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page() ) {
-			return;
-		}
-		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
-			return;
+		$is_logged_in   = is_user_logged_in();
+		$dashboard_url  = dlm_get_page_url( 'account' );
+		$library_url    = dlm_get_page_url( 'library' );
+		
+		// Determine login-aware destination:
+		// Logged-in users -> DLM Library Account Dashboard (/library-account/)
+		// Logged-out users -> DLM Auth Portal with redirect_to pointing directly to Dashboard
+		if ( $is_logged_in ) {
+			$auth_target_url = $dashboard_url ?: home_url( '/' );
+		} else {
+			$auth_target_url = add_query_arg(
+				array( 'redirect_to' => rawurlencode( $dashboard_url ) ),
+				$dashboard_url ?: wp_login_url( $dashboard_url )
+			);
 		}
 
-		// Allow active checkout when cart has items or order payment is in progress
+		// 4. RULE: WooCommerce Checkout (/checkout/)
+		// If cart has items, NEVER redirect. If empty and not paying for order, redirect to Library/Auth.
 		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
-			// If cart has items, allow WooCommerce Checkout to render and process payment normally
 			if ( function_exists( 'WC' ) && WC()->cart && ! WC()->cart->is_empty() ) {
 				return;
 			}
-			// If paying for an existing order, allow checkout
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( isset( $_GET['pay_for_order'] ) || isset( $_GET['order-pay'] ) || isset( $_GET['key'] ) ) {
-				return;
-			}
+			wp_safe_redirect( $library_url ?: $auth_target_url );
+			exit;
 		}
 
-		// Allow gateway IPN / API callbacks
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing check for WooCommerce gateway callbacks.
-		if ( ! empty( $_GET['wc-api'] ) || ! empty( $_GET['wc-ajax'] ) || ! empty( $_GET['pay_for_order'] ) ) {
-			return;
-		}
-
-		$should_redirect = false;
-		$redirect_url    = dlm_get_page_url( 'account' );
-
-		// 1. My Account page and all sub-endpoints (/my-account/*)
-		if ( function_exists( 'is_account_page' ) && is_account_page() ) {
-			$should_redirect = true;
-		}
-
-		// 2. Cart page: if cart has items, go straight to checkout; if empty, go to library account
+		// 5. RULE: WooCommerce Cart (/cart/)
+		// Digital items skip cart directly to checkout; if cart has items, forward to /checkout/, else to library/auth.
 		if ( function_exists( 'is_cart' ) && is_cart() ) {
 			if ( function_exists( 'WC' ) && WC()->cart && ! WC()->cart->is_empty() ) {
 				wp_safe_redirect( wc_get_checkout_url() );
-				exit;
+			} else {
+				wp_safe_redirect( $is_logged_in ? ( $library_url ?: $dashboard_url ) : $auth_target_url );
 			}
-			$should_redirect = true;
+			exit;
 		}
 
-		// 3. Shop catalog, Product single views, Categories, Tags, and Product Taxonomies
+		// 6. RULE: WooCommerce Shop Catalog (/shop/)
 		if ( function_exists( 'is_shop' ) && is_shop() ) {
-			$should_redirect = true;
+			wp_safe_redirect( $is_logged_in ? ( $library_url ?: $dashboard_url ) : $auth_target_url );
+			exit;
 		}
+
+		// 7. RULE: WooCommerce Single Product & Product Taxonomies (categories, tags)
 		if ( function_exists( 'is_product' ) && is_product() ) {
-			$should_redirect = true;
+			wp_safe_redirect( $is_logged_in ? ( $library_url ?: $dashboard_url ) : $auth_target_url );
+			exit;
 		}
-		if ( function_exists( 'is_product_taxonomy' ) && is_product_taxonomy() ) {
-			$should_redirect = true;
+		if ( ( function_exists( 'is_product_category' ) && is_product_category() ) || ( function_exists( 'is_product_tag' ) && is_product_tag() ) || ( function_exists( 'is_product_taxonomy' ) && is_product_taxonomy() ) ) {
+			wp_safe_redirect( $is_logged_in ? ( $library_url ?: $dashboard_url ) : $auth_target_url );
+			exit;
 		}
-		if ( function_exists( 'is_product_category' ) && is_product_category() ) {
-			$should_redirect = true;
-		}
-		if ( function_exists( 'is_product_tag' ) && is_product_tag() ) {
-			$should_redirect = true;
-		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only query arg check for product archive.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['post_type'] ) && 'product' === sanitize_key( wp_unslash( $_GET['post_type'] ) ) ) {
-			$should_redirect = true;
+			wp_safe_redirect( $is_logged_in ? ( $library_url ?: $dashboard_url ) : $auth_target_url );
+			exit;
 		}
 
-		// 4. Thank You / Order Received endpoint - redirect to Library Account with success query arg
-		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-received' ) ) {
-			global $wp;
-			$order_id = isset( $wp->query_vars['order-received'] ) ? absint( $wp->query_vars['order-received'] ) : 0;
-			$redirect_url = add_query_arg(
-				array(
-					'payment'  => 'success',
-					'order_id' => $order_id ?: '',
-				),
-				dlm_get_page_url( 'account' )
-			);
-			$should_redirect = true;
-		}
-
-		// 5. Empty Standard Checkout (redirect when cart is empty and not paying for order)
-		if ( function_exists( 'is_checkout' ) && is_checkout() ) {
-			if ( ! is_wc_endpoint_url( 'order-pay' ) && ! is_wc_endpoint_url( 'order-received' ) ) {
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				if ( isset( $_GET['plan'] ) ) {
-					// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-					$plan = sanitize_key( wp_unslash( $_GET['plan'] ) );
-					$redirect_url = add_query_arg( array( 'plan' => $plan ), dlm_get_page_url( 'checkout' ) );
-				} else {
-					$redirect_url = dlm_get_page_url( 'checkout' );
-				}
-				$should_redirect = true;
-			}
-		}
-
-		if ( $should_redirect ) {
-			wp_safe_redirect( $redirect_url );
+		// 8. RULE: WooCommerce Base My Account Page (/my-account/)
+		// Sub-endpoints like view-order or order-pay are exempted in Rule 2 above.
+		if ( function_exists( 'is_account_page' ) && is_account_page() ) {
+			wp_safe_redirect( $auth_target_url );
 			exit;
 		}
 	}

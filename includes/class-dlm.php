@@ -396,10 +396,10 @@ class DLM {
 		add_rewrite_rule( '^read/([0-9]+)/?', 'index.php?dlm_reader=$matches[1]', 'top' );
 		add_rewrite_tag( '%dlm_reader%', '([0-9]+)' );
 
-		// One-time auto-flush rule resolver to fix 404 errors on "read/x"
-		if ( ! get_option( 'dlm_rules_flushed_v130' ) ) {
+		// One-time auto-flush rule resolver to flush out deprecated /order-pay/ and ensure clean native routing
+		if ( ! get_option( 'dlm_rules_flushed_option_b' ) ) {
 			flush_rewrite_rules();
-			update_option( 'dlm_rules_flushed_v130', 1 );
+			update_option( 'dlm_rules_flushed_option_b', 1 );
 		}
 	}
 
@@ -1097,22 +1097,7 @@ if ( ! function_exists( 'dlm_get_order_pay_url' ) ) {
 		if ( ! $order || ! is_a( $order, 'WC_Order' ) ) {
 			return dlm_get_page_url( 'checkout' );
 		}
-		$order_id     = $order->get_id();
-		$order_key    = $order->get_order_key();
-		$checkout_url = dlm_get_page_url( 'checkout' );
-
-		$pay_url = add_query_arg(
-			array(
-				'dlm_action'    => 'order_pay',
-				'order-pay'     => $order_id,
-				'pay_for_order' => 'true',
-				'key'           => $order_key,
-			),
-			$checkout_url
-		);
-
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-		return apply_filters( 'dlm_woocommerce_order_pay_url', $pay_url, $order );
+		return $order->get_checkout_payment_url();
 	}
 }
 
