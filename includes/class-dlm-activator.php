@@ -81,6 +81,7 @@ class DLM_Activator {
 			status varchar(50) NOT NULL,
 			is_demo tinyint(1) DEFAULT 0,
 			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY user_id (user_id)
 		) $charset_collate;";
@@ -327,9 +328,23 @@ class DLM_Activator {
 	 * Check and execute DB schema migration if version mismatch
 	 */
 	public static function check_and_upgrade_db() {
+		global $wpdb;
 		$installed_ver = get_option( 'dlm_db_version', '1.0.0' );
-		if ( version_compare( $installed_ver, '2.6.0', '<' ) ) {
+
+		// 1. Ensure updated_at column exists in dlm_transactions table on existing sites
+		$table_tx = $wpdb->prefix . 'dlm_transactions';
+		if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_tx ) ) === $table_tx ) {
+			$col = $wpdb->get_results( $wpdb->prepare( "SHOW COLUMNS FROM %i LIKE %s", $table_tx, 'updated_at' ) );
+			if ( empty( $col ) ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+				$wpdb->query( "ALTER TABLE `{$table_tx}` ADD `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`" );
+			}
+		}
+
+		// 2. Full DB upgrade if version is older
+		if ( version_compare( $installed_ver, '3.3.0', '<' ) ) {
 			self::activate();
+			update_option( 'dlm_db_version', '3.3.0' );
 		}
 	}
 }

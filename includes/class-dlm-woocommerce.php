@@ -371,7 +371,7 @@ class DLM_WooCommerce {
 				'dlm_plan_interval' => $interval,
 			) );
 
-			if ( ! cart_item_key ) {
+			if ( ! $cart_item_key ) {
 				wp_send_json_error( array( 'message' => __( 'Could not add membership plan to checkout cart.', 'digital-library-membership' ) ) );
 			}
 

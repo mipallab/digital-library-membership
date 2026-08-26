@@ -318,6 +318,7 @@ class DLM_DB {
 				'currency'        => sanitize_text_field( $data['currency'] ),
 				'status'          => sanitize_text_field( $data['status'] ),
 				'created_at'      => current_time( 'mysql' ),
+				'updated_at'      => current_time( 'mysql' ),
 			)
 		);
 		return $wpdb->insert_id;

@@ -273,7 +273,13 @@ class DLM_Admin {
 	 * AJAX handler to install and activate recommended plugins (Elementor, WooCommerce)
 	 */
 	public function ajax_install_activate_plugin() {
+		// Output buffering to prevent any activation notices/warnings from corrupting JSON response
+		ob_start();
+
 		if ( ! current_user_can( 'install_plugins' ) || ! current_user_can( 'activate_plugins' ) ) {
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_error( array( 'message' => __( 'Permission denied. Administrator capabilities required.', 'digital-library-membership' ) ) );
 		}
 
@@ -294,6 +300,9 @@ class DLM_Admin {
 		);
 
 		if ( ! isset( $allowed_plugins[ $slug ] ) ) {
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_error( array( 'message' => __( 'Invalid plugin requested.', 'digital-library-membership' ) ) );
 		}
 
@@ -306,6 +315,9 @@ class DLM_Admin {
 		if ( is_plugin_active( $plugin_file ) ) {
 			/* translators: %s: plugin name */
 			$msg_active = sprintf( __( '%s is already active.', 'digital-library-membership' ), $plugin_info['name'] );
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_success( array(
 				'status'  => 'active',
 				'message' => $msg_active,
@@ -316,10 +328,22 @@ class DLM_Admin {
 		if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
 			$activated = activate_plugin( $plugin_file );
 			if ( is_wp_error( $activated ) ) {
+				if ( ob_get_length() ) {
+					ob_clean();
+				}
 				wp_send_json_error( array( 'message' => $activated->get_error_message() ) );
 			}
+
+			// Ensure WooCommerce tables and installation are initialized
+			if ( 'woocommerce' === $slug && class_exists( 'WC_Install' ) ) {
+				WC_Install::install();
+			}
+
 			/* translators: %s: plugin name */
 			$msg_activated = sprintf( __( '%s activated successfully!', 'digital-library-membership' ), $plugin_info['name'] );
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_success( array(
 				'status'  => 'active',
 				'message' => $msg_activated,
@@ -336,6 +360,9 @@ class DLM_Admin {
 		) );
 
 		if ( is_wp_error( $api ) ) {
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_error( array( 'message' => $api->get_error_message() ) );
 		}
 
@@ -344,16 +371,31 @@ class DLM_Admin {
 		$install  = $upgrader->install( $api->download_link );
 
 		if ( is_wp_error( $install ) ) {
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_error( array( 'message' => $install->get_error_message() ) );
 		}
 
 		if ( true === $install || is_null( $install ) ) {
 			$activated = activate_plugin( $plugin_file );
 			if ( is_wp_error( $activated ) ) {
+				if ( ob_get_length() ) {
+					ob_clean();
+				}
 				wp_send_json_error( array( 'message' => $activated->get_error_message() ) );
 			}
+
+			// Ensure WooCommerce tables and installation are initialized
+			if ( 'woocommerce' === $slug && class_exists( 'WC_Install' ) ) {
+				WC_Install::install();
+			}
+
 			/* translators: %s: plugin name */
 			$msg_installed = sprintf( __( '%s installed and activated successfully!', 'digital-library-membership' ), $plugin_info['name'] );
+			if ( ob_get_length() ) {
+				ob_clean();
+			}
 			wp_send_json_success( array(
 				'status'  => 'active',
 				'message' => $msg_installed,
@@ -362,6 +404,9 @@ class DLM_Admin {
 
 		/* translators: %s: plugin name */
 		$msg_failed = sprintf( __( 'Could not install %s. Please install it manually from Plugins > Add New.', 'digital-library-membership' ), $plugin_info['name'] );
+		if ( ob_get_length() ) {
+			ob_clean();
+		}
 		wp_send_json_error( array( 'message' => $msg_failed ) );
 	}
 
