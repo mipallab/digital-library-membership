@@ -16,20 +16,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Get account URL for back button
-$account_url = dlm_get_page_url( 'account' );
-
-do_action( 'woocommerce_before_checkout_form', $checkout );
-
-// If checkout registration is disabled and not logged in, user cannot checkout
-if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_required() && ! is_user_logged_in() ) {
-	echo esc_html( apply_filters( 'woocommerce_checkout_must_be_logged_in_message', __( 'You must be logged in to checkout.', 'digital-library-membership' ) ) );
-	return;
-}
+$account_url = function_exists( 'dlm_get_page_url' ) ? dlm_get_page_url( 'account' ) : home_url( '/library-account/' );
 ?>
 
 <div class="dlm-checkout-page-root">
 	<div class="dlm-checkout-container">
 		
+		<?php
+		do_action( 'woocommerce_before_checkout_form', $checkout );
+
+		// If checkout registration is disabled and not logged in, user cannot checkout
+		if ( ! $checkout->is_registration_enabled() && $checkout->is_registration_required() && ! is_user_logged_in() ) {
+			echo esc_html( apply_filters( 'woocommerce_checkout_must_be_logged_in_message', __( 'You must be logged in to checkout.', 'digital-library-membership' ) ) );
+			?>
+			</div></div>
+			<?php
+			return;
+		}
+		?>
+
 		<!-- Page Header -->
 		<div class="dlm-checkout-header">
 			<a href="<?php echo esc_url( $account_url . '#membership' ); ?>" class="dlm-checkout-back-btn" title="<?php esc_attr_e( 'Back to Library', 'digital-library-membership' ); ?>">

@@ -84,9 +84,11 @@ class DLM {
 		add_action( 'init', array( $this, 'register_post_type_and_taxonomies' ) );
 
 		// WooCommerce order integration
-		if ( class_exists( 'WooCommerce' ) ) {
-			add_action( 'woocommerce_order_status_completed', array( $this->checkout, 'handle_woocommerce_order_completed' ), 10, 2 );
-		}
+		add_action( 'plugins_loaded', function() {
+			if ( class_exists( 'WooCommerce' ) ) {
+				add_action( 'woocommerce_order_status_completed', array( $this->checkout, 'handle_woocommerce_order_completed' ), 10, 2 );
+			}
+		} );
 
 		// WooCommerce add to cart AJAX
 		add_action( 'wp_ajax_dlm_wc_add_to_cart_redirect', array( $this->checkout, 'ajax_wc_add_to_cart_redirect' ) );
@@ -477,6 +479,28 @@ class DLM {
 				</p>
 			</div>
 			<?php
+		}
+
+		// Check if WooCommerce checkout page is using Gutenberg Block Checkout instead of classic shortcode
+		if ( class_exists( 'WooCommerce' ) ) {
+			$wc_checkout_id = (int) get_option( 'woocommerce_checkout_page_id', 0 );
+			if ( $wc_checkout_id > 0 ) {
+				$wc_checkout_post = get_post( $wc_checkout_id );
+				if ( $wc_checkout_post && false !== strpos( $wc_checkout_post->post_content, 'wp:woocommerce/checkout' ) ) {
+					$edit_url = get_edit_post_link( $wc_checkout_id );
+					?>
+					<div class="notice notice-warning is-dismissible">
+						<p>
+							<strong><?php esc_html_e( 'Digital Library Membership Notice:', 'digital-library-membership' ); ?></strong>
+							<?php esc_html_e( 'Your WooCommerce Checkout page is currently using WooCommerce Blocks (Gutenberg Checkout Block). For custom luxury templates and instant digital access to render correctly, please edit the checkout page and replace the block with the classic [woocommerce_checkout] shortcode.', 'digital-library-membership' ); ?>
+							<?php if ( $edit_url ) : ?>
+								<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-secondary" style="margin-left: 10px;"><?php esc_html_e( 'Edit Checkout Page', 'digital-library-membership' ); ?></a>
+							<?php endif; ?>
+						</p>
+					</div>
+					<?php
+				}
+			}
 		}
 
 		// Notice: Elementor Integration

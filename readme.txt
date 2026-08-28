@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.2.4
+Stable tag: 3.2.5
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -18,12 +18,6 @@ Secure digital library membership with realistic 3D flipbook reader, DRM protect
 
 ### Key Features
 
-* **Home Widgets & Elementor Addon Suite**:
-  * **Hero Featured Book Slider**: 3D perspective floating covers, dynamic CTA buttons, rating scores, and ambient glow.
-  * **Library Carousel & Search Grid**: Ultra-smooth Swiper carousel and live instant search filter grid with category pills and direct reader links.
-  * **Membership Pricing Section**: Interactive pricing plans with featured badges, customizable features list, and direct checkout buttons.
-  * **Review Switcher (Video/Text/Google)**: Dynamic 3-tab switcher with 16:9 video embeds, reader testimonials with avatars, and Google review summaries.
-* **3-Tier Book Access Control**:
   * **Subscription Only**: Exclusively accessible to active members with recurring subscription plans.
   * **Purchase Only**: Individual direct sales with permanent read & download access.
   * **Hybrid Access**: Free for active subscribers or available for one-off purchase by non-subscribers.
@@ -101,6 +95,12 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.2.5 =
+* Feature: Theme-agnostic luxury amber Checkout and Thank You (`order-received`) page styling preserving native theme headers, footers, and navigation menus.
+* Enhanced: Intercepted WooCommerce FSE Gutenberg Block Templates (`order-confirmation`) in WordPress block themes (Twenty Twenty-Five, Twenty Twenty-Four) ensuring custom animated luxury Thank You cards and metrics display universally.
+* Fixed: Bootstrap lifecycle hook synchronization ensuring WooCommerce template filters and stylesheets initialize reliably on `plugins_loaded`.
+* Enhanced: Toast notifications updated with HTML parsing and responsive formatting for smooth member dashboard feedback.
 
 = 3.2.4 =
 * Fixed: WooCommerce checkout flow rendering payment gateways inline via `[dlm_checkout]` shortcode instead of standalone template to eliminate homepage redirect.

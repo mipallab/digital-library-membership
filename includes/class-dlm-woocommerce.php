@@ -49,8 +49,17 @@ class DLM_WooCommerce {
 		add_action( 'wp_ajax_nopriv_dlm_wc_create_subscription_order', array( $this, 'ajax_create_subscription_order' ) );
 
 		if ( ! class_exists( 'WooCommerce' ) ) {
+			// If WooCommerce is not yet loaded during bootstrap, re-hook on plugins_loaded
+			add_action( 'plugins_loaded', array( $this, 'init' ), 10 );
 			return;
 		}
+
+		// Prevent duplicate hook registrations
+		static $initialized = false;
+		if ( $initialized ) {
+			return;
+		}
+		$initialized = true;
 
 		// Payment completion hooks
 		add_action( 'woocommerce_payment_complete', array( $this, 'handle_order_payment_completed' ), 10, 1 );
@@ -62,12 +71,38 @@ class DLM_WooCommerce {
 		add_action( 'woocommerce_order_status_refunded', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 
-		// Template override for WooCommerce native checkout (form-checkout.php)
-		add_filter( 'wc_get_template', array( $this, 'override_checkout_template' ), 20, 5 );
-		add_filter( 'woocommerce_locate_template', array( $this, 'locate_checkout_template' ), 20, 3 );
+		// Template override for WooCommerce native checkout (form-checkout.php, thankyou.php, form-pay.php)
+		add_filter( 'wc_get_template', array( $this, 'override_checkout_template' ), PHP_INT_MAX, 5 );
+		add_filter( 'woocommerce_locate_template', array( $this, 'locate_checkout_template' ), PHP_INT_MAX, 3 );
+		add_filter( 'woocommerce_locate_core_template', array( $this, 'locate_checkout_template' ), PHP_INT_MAX, 3 );
 
-		// Enqueue luxury Library Checkout styles on WooCommerce checkout page
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_styles' ), 20 );
+		// Disable WooCommerce Gutenberg Block Templates for order-confirmation & checkout so classic PHP templates render
+		add_filter( 'woocommerce_has_block_template', function( $has_template, $template_name ) {
+			if ( 'order-confirmation' === $template_name || 'checkout' === $template_name ) {
+				return false;
+			}
+			return $has_template;
+		}, PHP_INT_MAX, 2 );
+
+		add_filter( 'pre_get_block_file_template', function( $block_template, $id, $template_type ) {
+			if ( strpos( (string) $id, 'order-confirmation' ) !== false || strpos( (string) $id, 'checkout' ) !== false ) {
+				return null;
+			}
+			return $block_template;
+		}, PHP_INT_MAX, 3 );
+
+		// Intercept Order Confirmation Gutenberg blocks in FSE themes (Twenty Twenty-Five, etc.)
+		add_filter( 'pre_render_block', array( $this, 'filter_order_confirmation_blocks' ), PHP_INT_MAX, 2 );
+
+		// Clean unstyled duplicate core order details table on Thank You page (our luxury thankyou.php renders its own)
+		add_action( 'template_redirect', function() {
+			if ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) {
+				remove_action( 'woocommerce_thankyou', 'woocommerce_order_details_table', 10 );
+			}
+		}, 1 );
+
+		// Enqueue luxury Library Checkout styles on WooCommerce checkout page (priority 999 to load after theme CSS)
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_checkout_styles' ), 999 );
 
 		// Clean unneeded checkout fields (company, order notes, shipping) for sleek digital checkout
 		add_filter( 'woocommerce_checkout_fields', array( $this, 'filter_checkout_fields' ), 20 );
@@ -82,9 +117,7 @@ class DLM_WooCommerce {
 		add_filter( 'woocommerce_checkout_registration_required', '__return_true', 999 );
 		add_filter( 'woocommerce_checkout_registration_enabled', '__return_true', 999 );
 
-		// Return & Cancel URL overrides to return cleanly to DLM Library Account dashboard
-		add_filter( 'woocommerce_get_return_url', array( $this, 'filter_order_return_url' ), 999, 2 );
-		add_filter( 'woocommerce_get_checkout_order_received_url', array( $this, 'filter_order_return_url' ), 999, 2 );
+		// Cancellation URL overrides to return cleanly to DLM Library Account dashboard
 		add_filter( 'woocommerce_get_cancel_url', array( $this, 'filter_order_cancel_url' ), 999, 2 );
 		add_filter( 'woocommerce_get_cancel_url_bare', array( $this, 'filter_order_cancel_url' ), 999, 2 );
 
@@ -344,7 +377,7 @@ class DLM_WooCommerce {
 				wp_send_json_error( array(
 					'message' => sprintf(
 						/* translators: 1: Plan name, 2: Dashboard URL */
-						__( 'You are already subscribed to the %1$s plan. To switch plans, please visit your <a href="%2$s#membership" style="color:#855300;font-weight:600;text-decoration:underline;">Membership Dashboard</a>.', 'digital-library-membership' ),
+						__( 'You are already subscribed to the %1$s plan. To switch plans, please visit your <a href="%2$s#membership" style="color:#ffc066;font-weight:700;text-decoration:underline;">Membership Dashboard</a>.', 'digital-library-membership' ),
 						esc_html( $plan_name ),
 						esc_url( $dashboard_url )
 					),
@@ -682,10 +715,16 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Enqueue luxury Library Checkout styles on WooCommerce checkout page
+	 * Enqueue luxury Library Checkout styles on WooCommerce checkout and thank-you pages
 	 */
 	public function enqueue_checkout_styles() {
-		if ( ( function_exists( 'is_checkout' ) && is_checkout() ) || ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() ) ) {
+		$is_wc_checkout = ( function_exists( 'is_checkout' ) && is_checkout() ) || 
+		                  ( function_exists( 'is_order_received_page' ) && is_order_received_page() ) || 
+		                  ( function_exists( 'is_checkout_pay_page' ) && is_checkout_pay_page() ) ||
+		                  ( function_exists( 'is_wc_endpoint_url' ) && ( is_wc_endpoint_url( 'order-received' ) || is_wc_endpoint_url( 'order-pay' ) ) ) ||
+		                  ( function_exists( 'dlm_is_checkout_page' ) && dlm_is_checkout_page() );
+
+		if ( $is_wc_checkout ) {
 			wp_enqueue_style( 'dashicons' );
 			wp_enqueue_style( 'dlm-font-awesome', DLM_URL . 'admin/css/font-awesome.min.css', array(), '6.4.0' );
 			wp_enqueue_style( 'dlm-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap', array(), DLM_VERSION );
@@ -714,13 +753,24 @@ class DLM_WooCommerce {
 	}
 
 	/**
-	 * Template override: locate checkout/form-checkout.php
+	 * Template override: locate checkout templates (form-checkout.php, thankyou.php, form-pay.php)
 	 */
-	public function locate_checkout_template( $template, $template_name, $template_path ) {
-		if ( false !== strpos( $template_name, 'form-checkout.php' ) ) {
-			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
-			if ( file_exists( $custom_checkout_template ) ) {
-				return $custom_checkout_template;
+	public function locate_checkout_template( $template, $template_name, $template_path = '' ) {
+		$template_name_norm = str_replace( '\\', '/', (string) $template_name );
+		if ( false !== strpos( $template_name_norm, 'form-checkout.php' ) ) {
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php' );
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
+			}
+		} elseif ( false !== strpos( $template_name_norm, 'thankyou.php' ) || false !== strpos( $template_name_norm, 'order-received.php' ) ) {
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/thankyou.php' );
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
+			}
+		} elseif ( false !== strpos( $template_name_norm, 'form-pay.php' ) ) {
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/form-pay.php' );
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
 			}
 		}
 		return $template;
@@ -730,13 +780,71 @@ class DLM_WooCommerce {
 	 * Template override filter via wc_get_template
 	 */
 	public function override_checkout_template( $located, $template_name, $args, $template_path, $default_path ) {
-		if ( false !== strpos( $template_name, 'form-checkout.php' ) ) {
-			$custom_checkout_template = DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php';
-			if ( file_exists( $custom_checkout_template ) ) {
-				return $custom_checkout_template;
+		$template_name_norm = str_replace( '\\', '/', (string) $template_name );
+		if ( false !== strpos( $template_name_norm, 'form-checkout.php' ) ) {
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/form-checkout.php' );
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
+			}
+		} elseif ( false !== strpos( $template_name_norm, 'thankyou.php' ) || false !== strpos( $template_name_norm, 'order-received.php' ) ) {
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/thankyou.php' );
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
+			}
+		} elseif ( false !== strpos( $template_name_norm, 'form-pay.php' ) ) {
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/form-pay.php' );
+			if ( file_exists( $custom_template ) ) {
+				return $custom_template;
 			}
 		}
 		return $located;
+	}
+
+	/**
+	 * Intercept WooCommerce Order Confirmation Gutenberg Blocks in FSE block themes (Twenty Twenty-Five, Twenty Twenty-Four, etc.)
+	 * and render the custom luxury Thank You template inside the theme's standard header/footer layout.
+	 *
+	 * @param string|null $pre_render The pre-rendered block content.
+	 * @param array       $parsed_block The parsed block.
+	 * @return string|null Modified block content.
+	 */
+	public function filter_order_confirmation_blocks( $pre_render, $parsed_block ) {
+		if ( empty( $parsed_block['blockName'] ) ) {
+			return $pre_render;
+		}
+
+		$block_name = $parsed_block['blockName'];
+		if ( strpos( $block_name, 'woocommerce/order-confirmation' ) === false ) {
+			return $pre_render;
+		}
+
+		static $thankyou_rendered = false;
+
+		// On the first order confirmation block, render our luxury amber Thank You template
+		if ( ! $thankyou_rendered ) {
+			$thankyou_rendered = true;
+
+			// Get the order object
+			global $wp;
+			$order_id = 0;
+			if ( isset( $wp->query_vars['order-received'] ) ) {
+				$order_id = absint( $wp->query_vars['order-received'] );
+			} elseif ( isset( $_GET['order_id'] ) ) {
+				$order_id = absint( $_GET['order_id'] );
+			}
+
+			$order = $order_id > 0 ? wc_get_order( $order_id ) : false;
+
+			$custom_template = wp_normalize_path( DLM_PATH . 'templates/woocommerce/checkout/thankyou.php' );
+			if ( file_exists( $custom_template ) ) {
+				ob_start();
+				include $custom_template;
+				return ob_get_clean();
+			}
+		}
+
+		// Suppress all subsequent unstyled WooCommerce order confirmation blocks
+		return '';
 	}
 
 	/**

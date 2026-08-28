@@ -3244,13 +3244,13 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 			function toast(message, opts = {}) {
 				const root = ensureToastRoot();
 				const el = document.createElement('div');
-				el.textContent = message;
+				el.innerHTML = message;
 				el.style.cssText = [
-					'background:rgba(26,28,28,0.95)', 'color:#fff', 'padding:10px 20px',
+					'background:rgba(26,28,28,0.95)', 'color:#fff', 'padding:10px 22px',
 					'border-radius:999px', 'font-family:Inter,sans-serif', 'font-size:13px',
 					'font-weight:600', 'box-shadow:0 8px 24px rgba(0,0,0,0.15)',
 					'backdrop-filter:blur(8px)', 'opacity:0', 'transform:translateY(-10px)',
-					'transition:all .3s ease-out', 'white-space:nowrap'
+					'transition:all .3s ease-out', 'max-width:90vw', 'text-align:center', 'line-height:1.4'
 				].join(';');
 				if (opts.accent) {
 					el.style.background = '#855300';
@@ -3264,7 +3264,7 @@ $ajax_url = admin_url( 'admin-ajax.php' );
 					el.style.opacity = '0';
 					el.style.transform = 'translateY(-10px)';
 					setTimeout(() => el.remove(), 400);
-				}, opts.duration || 3200);
+				}, opts.duration || 4500);
 			}
 
 			function syncStreakBadges(state) {
