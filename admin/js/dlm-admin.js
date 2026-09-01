@@ -205,12 +205,39 @@ function initModalSystem() {
             jQuery('#edit-book-price-container').hide();
         }
 
+        const fileName = tr.attr('data-file-name') || '';
+        const hasFile = tr.attr('data-has-file') === '1' || !!fileName;
+
+        // Reset flags & file input
+        jQuery('#edit-book-remove-pdf-flag').val('0');
+        jQuery('#edit-book-remove-cover-flag').val('0');
+        jQuery('#edit-book-file-input').val('');
+        jQuery('#edit-book-file-input').closest('.relative').find('.select-file-label').text('Click or Drop new PDF to update / replace');
+        jQuery('#edit-book-file-input').closest('.relative').find('.fa-cloud-arrow-up').removeClass('text-primary/95').addClass('text-secondary/40');
+
+        // PDF Status
+        if (hasFile || fileName) {
+            jQuery('#edit-current-pdf-box').removeClass('hidden');
+            jQuery('#edit-pdf-removed-alert').addClass('hidden');
+            jQuery('#edit-book-current-file-name').text(fileName || 'Protected document on server');
+            jQuery('#edit-pdf-status-badge').removeClass('hidden').html('<i class="fa-solid fa-circle-check"></i> File Attached');
+        } else {
+            jQuery('#edit-current-pdf-box').addClass('hidden');
+            jQuery('#edit-pdf-removed-alert').addClass('hidden');
+            jQuery('#edit-pdf-status-badge').removeClass('hidden').html('<i class="fa-solid fa-circle-exclamation text-amber-500"></i> No PDF File');
+        }
+
+        // Cover Status
         if (cover) {
             jQuery('#edit-cover-preview').attr('src', cover).removeClass('hidden');
             jQuery('#edit-cover-placeholder').addClass('hidden');
+            jQuery('#edit-book-remove-cover-btn').removeClass('hidden');
+            jQuery('#edit-cover-status-badge').text('Cover Attached');
         } else {
             jQuery('#edit-cover-preview').addClass('hidden');
             jQuery('#edit-cover-placeholder').removeClass('hidden');
+            jQuery('#edit-book-remove-cover-btn').addClass('hidden');
+            jQuery('#edit-cover-status-badge').text('No Cover');
         }
 
         window.openModal('edit-book-modal');
@@ -413,18 +440,47 @@ function initMediaUploaders() {
         jQuery(this).addClass('hidden');
     });
 
+    // Remove Cover handler in Edit modal
+    jQuery(document).on('click', '#edit-book-remove-cover-btn', function(e) {
+        e.preventDefault();
+        jQuery('#edit-book-cover-input').val('');
+        jQuery('#edit-cover-preview').addClass('hidden').attr('src', '');
+        jQuery('#edit-cover-placeholder').removeClass('hidden');
+        jQuery('#edit-book-remove-cover-flag').val('1');
+        jQuery(this).addClass('hidden');
+        jQuery('#edit-cover-status-badge').text('Cover Removed (Save to apply)');
+    });
+
+    // Remove PDF handler in Edit modal
+    jQuery(document).on('click', '#edit-book-remove-pdf-btn', function(e) {
+        e.preventDefault();
+        jQuery('#edit-book-remove-pdf-flag').val('1');
+        jQuery('#edit-current-pdf-box').addClass('hidden');
+        jQuery('#edit-pdf-removed-alert').removeClass('hidden');
+        jQuery('#edit-pdf-status-badge').html('<i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Removal Queued');
+    });
+
+    // Undo Remove PDF handler in Edit modal
+    jQuery(document).on('click', '#edit-book-undo-remove-pdf-btn', function(e) {
+        e.preventDefault();
+        jQuery('#edit-book-remove-pdf-flag').val('0');
+        jQuery('#edit-current-pdf-box').removeClass('hidden');
+        jQuery('#edit-pdf-removed-alert').addClass('hidden');
+        jQuery('#edit-pdf-status-badge').html('<i class="fa-solid fa-circle-check"></i> File Attached');
+    });
+
     // Register drag & drop file upload format checks
     jQuery(document).on('change', '.dlm-file-input', function(e) {
         const file = e.target.files[0];
         const $container = jQuery(this).closest('.relative');
         const $label = $container.find('.select-file-label');
-        const $icon = $container.find('.fa-file-pdf');
+        const $icon = $container.find('.fa-file-pdf, .fa-cloud-arrow-up');
         
         // Remove any existing error messages
         $container.parent().find('.dlm-file-error').remove();
 
         if (!file) {
-            $label.text(jQuery(this).attr('required') ? 'Drag & Drop or Click to upload book' : 'Drag & Drop or Click to upload new file');
+            $label.text(jQuery(this).attr('required') ? 'Drag & Drop or Click to upload book' : 'Click or Drop new PDF to update / replace');
             $icon.removeClass('text-primary/95').addClass('text-secondary/40');
             return;
         }
@@ -432,7 +488,7 @@ function initMediaUploaders() {
         const ext = file.name.split('.').pop().toLowerCase();
         if (ext !== 'pdf') {
             e.target.value = '';
-            $label.text(jQuery(this).attr('required') ? 'Drag & Drop or Click to upload book' : 'Drag & Drop or Click to upload new file');
+            $label.text(jQuery(this).attr('required') ? 'Drag & Drop or Click to upload book' : 'Click or Drop new PDF to update / replace');
             $icon.removeClass('text-primary/95').addClass('text-secondary/40');
             
             // Add inline error message
@@ -444,6 +500,11 @@ function initMediaUploaders() {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
         $label.html(`<span class="text-primary font-bold">Selected:</span> ${file.name} (${sizeMB} MB)`);
         $icon.removeClass('text-secondary/40').addClass('text-primary/95');
+
+        if (this.id === 'edit-book-file-input') {
+            jQuery('#edit-book-remove-pdf-flag').val('0');
+            jQuery('#edit-pdf-status-badge').html('<i class="fa-solid fa-arrow-up-from-bracket text-primary"></i> New File Selected');
+        }
     });
 }
 
@@ -465,6 +526,11 @@ function initWPBooksMediaUploader(btnId, inputId, previewId, placeholderId) {
             jQuery('#' + inputId).val(attachment.url);
             jQuery('#' + previewId).attr('src', attachment.url).removeClass('hidden');
             jQuery('#' + placeholderId).addClass('hidden');
+            if (inputId === 'edit-book-cover-input') {
+                jQuery('#edit-book-remove-cover-flag').val('0');
+                jQuery('#edit-book-remove-cover-btn').removeClass('hidden');
+                jQuery('#edit-cover-status-badge').text('New Cover Selected');
+            }
         });
         mediaUploader.open();
     });
@@ -1090,30 +1156,66 @@ function initDemoDataActions() {
     });
 }
 
-window.showAlertModal = function(title, message, type = 'success') {
+window.showAlertModal = function(title, message, type = 'success', item = '', badgeText = '') {
     const modal = document.getElementById('dlmAlertModal');
+    const iconWrap = document.getElementById('dlmAlertIconWrap');
     const iconContainer = document.getElementById('dlmAlertIcon');
+    const pulseRing = document.getElementById('dlmAlertPulseRing');
+    const badgeEl = document.getElementById('dlmAlertBadge');
     const titleEl = document.getElementById('dlmAlertTitle');
     const messageEl = document.getElementById('dlmAlertMessage');
+    const itemWrap = document.getElementById('dlmAlertItemWrap');
+    const itemEl = document.getElementById('dlmAlertItem');
+    const btnEl = document.getElementById('dlmAlertBtn');
     
     if (!modal) return;
     
+    // Set type-specific luxury styling palettes
     if (type === 'success') {
-        iconContainer.className = "w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl bg-green-50 text-green-600 border border-green-200";
-        iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        iconContainer.className = "relative w-20 h-20 rounded-full flex items-center justify-center text-3xl bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm";
+        iconContainer.innerHTML = '<i class="fa-solid fa-check"></i>';
+        pulseRing.className = "absolute inset-0 rounded-full animate-ping opacity-30 bg-emerald-400";
+        badgeEl.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-2 bg-emerald-100 text-emerald-800 border border-emerald-200";
+        badgeEl.innerHTML = '<i class="fa-solid fa-circle-check text-[11px]"></i> ' + (badgeText || 'Success Confirmed');
+        if (btnEl) btnEl.className = "w-full py-3 px-6 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg active:scale-95 transition-all bg-emerald-600 hover:bg-emerald-700";
+    } else if (type === 'delete' || type === 'warning') {
+        iconContainer.className = "relative w-20 h-20 rounded-full flex items-center justify-center text-3xl bg-amber-50 text-amber-600 border border-amber-200 shadow-sm";
+        iconContainer.innerHTML = type === 'delete' ? '<i class="fa-solid fa-trash-can"></i>' : '<i class="fa-solid fa-triangle-exclamation"></i>';
+        pulseRing.className = "absolute inset-0 rounded-full animate-ping opacity-30 bg-amber-400";
+        badgeEl.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-2 bg-amber-100 text-amber-800 border border-amber-200";
+        badgeEl.innerHTML = (type === 'delete' ? '<i class="fa-solid fa-trash-can text-[11px]"></i> ' : '<i class="fa-solid fa-triangle-exclamation text-[11px]"></i> ') + (badgeText || 'Action Completed');
+        if (btnEl) btnEl.className = "w-full py-3 px-6 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg active:scale-95 transition-all bg-amber-600 hover:bg-amber-700";
     } else if (type === 'error') {
-        iconContainer.className = "w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl bg-red-50 text-red-600 border border-red-200";
-        iconContainer.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        iconContainer.className = "relative w-20 h-20 rounded-full flex items-center justify-center text-3xl bg-rose-50 text-rose-600 border border-rose-200 shadow-sm";
+        iconContainer.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+        pulseRing.className = "absolute inset-0 rounded-full animate-ping opacity-30 bg-rose-400";
+        badgeEl.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-2 bg-rose-100 text-rose-800 border border-rose-200";
+        badgeEl.innerHTML = '<i class="fa-solid fa-circle-exmark text-[11px]"></i> ' + (badgeText || 'Error Occurred');
+        if (btnEl) btnEl.className = "w-full py-3 px-6 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg active:scale-95 transition-all bg-rose-600 hover:bg-rose-700";
     } else {
-        iconContainer.className = "w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl bg-blue-50 text-blue-600 border border-blue-200";
+        // info / default
+        iconContainer.className = "relative w-20 h-20 rounded-full flex items-center justify-center text-3xl bg-sky-50 text-sky-600 border border-sky-200 shadow-sm";
         iconContainer.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+        pulseRing.className = "absolute inset-0 rounded-full animate-ping opacity-30 bg-sky-400";
+        badgeEl.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-2 bg-sky-100 text-sky-800 border border-sky-200";
+        badgeEl.innerHTML = '<i class="fa-solid fa-circle-info text-[11px]"></i> ' + (badgeText || 'Information');
+        if (btnEl) btnEl.className = "w-full py-3 px-6 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg active:scale-95 transition-all bg-primary hover:opacity-90";
     }
     
     titleEl.textContent = title;
     messageEl.textContent = message;
     
+    // Display targeted item pill if available
+    if (item && itemEl && itemWrap) {
+        itemEl.textContent = item;
+        itemWrap.classList.remove('hidden');
+    } else if (itemWrap) {
+        itemWrap.classList.add('hidden');
+    }
+    
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
 };
 
 window.closeAlertModal = function() {
@@ -1121,91 +1223,145 @@ window.closeAlertModal = function() {
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+        document.body.style.overflow = '';
     }
 };
 
-// Auto detect success/error parameters and display alert modal
+// Auto detect success/error parameters and display luxury dynamic action modal
 jQuery(document).ready(function() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('success') || urlParams.has('deleted') || urlParams.has('error') || urlParams.has('email_sent') || urlParams.has('email_error') || urlParams.has('settings-updated')) {
-        let title = 'Notification';
-        let msg = '';
+        let title = 'Action Notification';
+        let msg = 'The requested operation has finished.';
         let type = 'success';
+        let badge = 'ADMIN NOTIFICATION';
+        const itemVal = urlParams.get('item') || '';
         
         const successVal = urlParams.get('success');
-        const deletedVal = urlParams.get('deleted');
         const errorVal = urlParams.get('error');
 
         if (urlParams.has('settings-updated')) {
             title = 'Settings Saved';
-            msg = 'Plugin settings saved successfully!';
+            msg = 'All digital library settings, gateway keys, and configurations have been successfully saved.';
+            type = 'success';
+            badge = 'CONFIGURATION SAVED';
         } else if (urlParams.has('email_sent')) {
-            title = 'Email Sent';
-            msg = 'Email notification sent successfully!';
+            title = 'Direct Email Dispatched';
+            msg = 'Notification email was successfully dispatched to the member.';
+            type = 'info';
+            badge = 'EMAIL SENT';
         } else if (urlParams.has('email_error')) {
-            title = 'Email Error';
-            msg = 'Failed to send email notification.';
+            title = 'Email Delivery Failed';
+            msg = 'Unable to send email notification. Please check your WordPress SMTP and mail settings.';
             type = 'error';
+            badge = 'DISPATCH FAILED';
         } else if (successVal === 'add_book') {
-            title = 'Book Added';
-            msg = 'Book added successfully!';
+            title = 'Book Added to Library';
+            msg = 'New book document and metadata have been securely uploaded to the protected digital catalog.';
+            type = 'success';
+            badge = 'BOOK ADDED';
         } else if (successVal === 'edit_book') {
-            title = 'Book Updated';
-            msg = 'Book updated successfully!';
+            title = 'Book Details Updated';
+            msg = 'All modifications to book title, description, pricing model, and cover have been saved successfully.';
+            type = 'success';
+            badge = 'BOOK UPDATED';
         } else if (successVal === 'delete_book') {
             title = 'Book Deleted';
-            msg = 'Book deleted successfully.';
+            msg = 'The book entry and its protected document file have been permanently removed from the library.';
+            type = 'delete';
+            badge = 'BOOK DELETED';
         } else if (successVal === 'add_member') {
             title = 'Member Added';
-            msg = 'New member created successfully!';
+            msg = 'New library subscriber profile and login credentials have been created successfully.';
+            type = 'success';
+            badge = 'MEMBER CREATED';
         } else if (successVal === 'edit_member') {
-            title = 'Member Updated';
-            msg = 'Member details updated successfully!';
+            title = 'Member Access Updated';
+            msg = 'Member subscription status, plan interval, and reading capabilities have been updated.';
+            type = 'success';
+            badge = 'ACCESS MODIFIED';
         } else if (successVal === 'delete_member') {
             title = 'Member Deleted';
-            msg = 'Member record deleted successfully.';
+            msg = 'Subscriber account and access records were permanently removed from the system.';
+            type = 'delete';
+            badge = 'MEMBER REMOVED';
         } else if (successVal === 'approve_member') {
             title = 'Subscription Approved';
-            msg = 'Member subscription approved successfully.';
+            msg = 'Subscriber manual payment has been approved and full reading access is now active.';
             type = 'success';
+            badge = 'SUBSCRIPTION ACTIVE';
         } else if (successVal === 'reject_member') {
             title = 'Subscription Rejected';
-            msg = 'Member subscription has been rejected.';
+            msg = 'Pending subscription request was rejected and reading capabilities remain suspended.';
+            type = 'warning';
+            badge = 'SUBSCRIPTION REJECTED';
+        } else if (successVal === 'package_saved') {
+            title = 'Subscription Plan Added';
+            msg = 'New membership pricing package was created and synchronized across payment gateways.';
+            type = 'success';
+            badge = 'PLAN CREATED';
+        } else if (successVal === 'package_updated') {
+            title = 'Subscription Plan Updated';
+            msg = 'Membership package parameters, pricing, and gateway sync details have been updated.';
+            type = 'success';
+            badge = 'PLAN UPDATED';
+        } else if (successVal === 'package_deleted') {
+            title = 'Subscription Plan Deleted';
+            msg = 'The membership plan package has been deleted from your catalog offerings.';
+            type = 'delete';
+            badge = 'PLAN DELETED';
+        } else if (successVal === 'package_status_toggled') {
+            title = 'Plan Status Changed';
+            msg = 'The subscription package active/inactive visibility has been toggled successfully.';
             type = 'info';
+            badge = 'STATUS TOGGLED';
         } else if (successVal === 'tx_added') {
-            title = 'Transaction Added';
-            msg = 'New transaction added successfully!';
+            title = 'Transaction Recorded';
+            msg = 'Manual payment transaction log was added and verified.';
+            type = 'success';
+            badge = 'TRANSACTION LOGGED';
         } else if (successVal === 'tx_updated') {
             title = 'Transaction Updated';
-            msg = 'Transaction status updated successfully!';
+            msg = 'Transaction status and corresponding membership access have been synchronized.';
+            type = 'success';
+            badge = 'TRANSACTION SYNCED';
         } else if (successVal === 'tx_deleted') {
             title = 'Transaction Deleted';
-            msg = 'Transaction deleted successfully.';
+            msg = 'The transaction record was removed from the audit log.';
+            type = 'delete';
+            badge = 'LOG DELETED';
         } else if (successVal === 'pages_recreated') {
-            title = 'Pages Recreated';
-            msg = 'Missing plugin pages recreated successfully!';
+            title = 'System Pages Restored';
+            msg = 'Missing digital library core pages were checked and restored with appropriate shortcodes.';
+            type = 'info';
+            badge = 'PAGES RESTORED';
         } else if (errorVal === 'file_too_large') {
-            title = 'Upload Error';
+            title = 'Upload Size Exceeded';
             const maxSize = urlParams.get('max_size') || '50';
             const uploadedSize = urlParams.get('uploaded_size') || '0';
-            msg = 'max book upload size is ' + maxSize + 'MB you upload ' + uploadedSize + ' mb.';
+            msg = `Uploaded file (${uploadedSize} MB) exceeds your maximum configured upload limit of ${maxSize} MB.`;
             type = 'error';
+            badge = 'UPLOAD ERROR';
         } else if (errorVal === 'pdf_only') {
-            title = 'Upload Error';
-            msg = 'Only PDF format is allowed for book uploads.';
+            title = 'Invalid File Format';
+            msg = 'Only PDF documents (.pdf) are permitted for digital library book uploads.';
             type = 'error';
+            badge = 'SECURITY RESTRICTION';
         } else if (successVal === '1') {
             title = 'Access Updated';
-            msg = 'Member access override settings updated successfully!';
+            msg = 'Member access override settings have been updated successfully.';
+            type = 'success';
+            badge = 'ACCESS MODIFIED';
         }
 
         if (msg) {
-            window.showAlertModal(title, msg, type);
+            window.showAlertModal(title, msg, type, itemVal, badge);
             
             // Clean up the URL parameters so reloading doesn't show it again
             urlParams.delete('success');
             urlParams.delete('deleted');
             urlParams.delete('error');
+            urlParams.delete('item');
             urlParams.delete('email_sent');
             urlParams.delete('email_error');
             urlParams.delete('settings-updated');

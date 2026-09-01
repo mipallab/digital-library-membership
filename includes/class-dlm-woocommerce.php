@@ -71,6 +71,9 @@ class DLM_WooCommerce {
 		add_action( 'woocommerce_order_status_refunded', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'handle_order_status_refunded' ), 10, 1 );
 
+		// Prevent stock reduction calls on digital books & membership orders (avoids WC_Order::reduce_order_stock deprecated notices)
+		add_filter( 'woocommerce_can_reduce_order_stock', array( $this, 'filter_digital_order_stock_reduction' ), 10, 2 );
+
 		// Template override for WooCommerce native checkout (form-checkout.php, thankyou.php, form-pay.php)
 		add_filter( 'wc_get_template', array( $this, 'override_checkout_template' ), PHP_INT_MAX, 5 );
 		add_filter( 'woocommerce_locate_template', array( $this, 'locate_checkout_template' ), PHP_INT_MAX, 3 );
@@ -171,6 +174,8 @@ class DLM_WooCommerce {
 		$product->set_regular_price( strval( $price ) );
 		$product->set_price( strval( $price ) );
 		$product->set_virtual( true );
+		$product->set_manage_stock( false );
+		$product->set_sold_individually( true );
 		$product->set_status( 'publish' );
 		$product->set_catalog_visibility( 'hidden' ); // Never visible in shop or search
 
@@ -236,6 +241,8 @@ class DLM_WooCommerce {
 		$product->set_regular_price( strval( $price ) );
 		$product->set_price( strval( $price ) );
 		$product->set_virtual( true );
+		$product->set_manage_stock( false );
+		$product->set_sold_individually( true );
 		$product->set_status( 'publish' );
 		$product->set_catalog_visibility( 'hidden' ); // Hidden from shop catalog
 
@@ -623,6 +630,24 @@ class DLM_WooCommerce {
 			delete_transient( 'dlm_analytics_summary' );
 			delete_transient( 'dlm_trending_books' );
 		}
+	}
+
+	/**
+	 * Prevent stock reduction for digital book purchases and subscription memberships
+	 * (Avoids deprecated WC_Order::reduce_order_stock notices from legacy gateways)
+	 *
+	 * @param bool     $can_reduce Whether order stock can be reduced.
+	 * @param WC_Order $order      WooCommerce Order object.
+	 * @return bool
+	 */
+	public function filter_digital_order_stock_reduction( $can_reduce, $order ) {
+		if ( $order && is_a( $order, 'WC_Order' ) ) {
+			$order_type = $order->get_meta( '_dlm_order_type' );
+			if ( in_array( $order_type, array( 'book_purchase', 'subscription' ), true ) ) {
+				return false;
+			}
+		}
+		return $can_reduce;
 	}
 
 	/**

@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.2.5
+Stable tag: 3.2.6
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -95,6 +95,14 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.2.6 =
+* Feature: Dynamic luxury feedback modal (`dlmAlertModal`) elevated to `z-[99999]` with glowing status rings and clear contextual coloring (Emerald Green for additions/edits, Amber/Gold for deletions, Crimson Red for errors, Sky Blue for system notices) with item badge highlights.
+* Fixed: Safe partial book updates (`DLM_DB::update_book()`) preventing WooCommerce product ID synchronization or metadata updates from wiping book titles, descriptions, authors, or cover images.
+* Fixed: Scheduled Book auto-publishing reliability with datetime normalization (`Y-m-d H:i:s`), self-healing WP-Cron scheduler, and runtime on-demand transition during catalog queries.
+* Enhanced: Book upload validation enforcing all 4 required fields (Title, Author, PDF Document, and Cover Image) on both frontend modal and server-side controller.
+* Feature: Comprehensive Edit Book modal controls with attached PDF file status cards, staged PDF removal queue with Undo, direct drag-and-drop replacement, and 1-click Cover image removal/updating.
+* Fixed: WooCommerce `WC_Order::reduce_order_stock` deprecation notice resolved via `woocommerce_can_reduce_order_stock` filter bypass and explicit virtual product inventory optimization.
 
 = 3.2.5 =
 * Feature: Theme-agnostic luxury amber Checkout and Thank You (`order-received`) page styling preserving native theme headers, footers, and navigation menus.

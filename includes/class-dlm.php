@@ -188,6 +188,7 @@ class DLM {
 
 		// Webhooks listeners
 		add_action( 'init', array( $this->checkout, 'handle_webhooks' ) );
+		add_action( 'init', array( $this, 'ensure_scheduled_crons' ) );
 
 		// Admin alerts hook
 		add_action( 'admin_notices', array( $this, 'display_admin_notices' ) );
@@ -781,6 +782,21 @@ class DLM {
 			return str_replace( ' src', ' defer src', $tag );
 		}
 		return $tag;
+	}
+
+	/**
+	 * Self-healing cron event validator
+	 */
+	public function ensure_scheduled_crons() {
+		if ( ! wp_next_scheduled( 'dlm_check_scheduled_books' ) ) {
+			wp_schedule_event( time(), 'hourly', 'dlm_check_scheduled_books' );
+		}
+		if ( ! wp_next_scheduled( 'dlm_daily_subscription_check' ) ) {
+			wp_schedule_event( time(), 'daily', 'dlm_daily_subscription_check' );
+		}
+		if ( ! wp_next_scheduled( 'dlm_cleanup_stale_orders' ) ) {
+			wp_schedule_event( time(), 'daily', 'dlm_cleanup_stale_orders' );
+		}
 	}
 
 	/**

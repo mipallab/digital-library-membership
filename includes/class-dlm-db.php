@@ -43,6 +43,15 @@ class DLM_DB {
 		
 		if ( $status === 'publish' && ! $include_future ) {
 			$now = current_time( 'mysql' );
+			// Self-healing runtime transition: flip any overdue future books to publish instantly
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date != '' AND publish_date <= %s",
+					$table,
+					$now
+				)
+			);
+
 			return $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM %i WHERE status = %s AND (publish_date IS NULL OR publish_date = '' OR publish_date <= %s) ORDER BY created_at DESC",
@@ -140,6 +149,11 @@ class DLM_DB {
 		global $wpdb;
 		$table = $this->get_table_name( 'books' );
 		
+		$publish_date = null;
+		if ( ! empty( $data['publish_date'] ) ) {
+			$publish_date = date( 'Y-m-d H:i:s', strtotime( str_replace( 'T', ' ', $data['publish_date'] ) ) );
+		}
+
 		$insert_data = array(
 			'title'                   => sanitize_text_field( $data['title'] ),
 			'author'                  => sanitize_text_field( $data['author'] ),
@@ -150,7 +164,7 @@ class DLM_DB {
 			'status'                  => sanitize_text_field( $data['status'] ),
 			'access_type'             => isset( $data['access_type'] ) ? sanitize_text_field( $data['access_type'] ) : 'subscription_only',
 			'price'                   => isset( $data['price'] ) ? floatval( $data['price'] ) : 0.00,
-			'publish_date'            => ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null,
+			'publish_date'            => $publish_date,
 			'is_featured'             => ! empty( $data['is_featured'] ) ? 1 : 0,
 			'featured_title'          => isset( $data['featured_title'] ) ? sanitize_text_field( $data['featured_title'] ) : '',
 			'featured_description'    => isset( $data['featured_description'] ) ? wp_kses_post( $data['featured_description'] ) : null,
@@ -522,22 +536,31 @@ class DLM_DB {
 		global $wpdb;
 		$table = $this->get_table_name( 'books' );
 		
-		$fields = array(
-			'title'           => sanitize_text_field( $data['title'] ),
-			'author'          => sanitize_text_field( $data['author'] ),
-			'description'     => wp_kses_post( $data['description'] ),
-			'cover_image_url' => esc_url_raw( $data['cover_image_url'] ),
-			'status'          => sanitize_text_field( $data['status'] ),
-		);
+		$fields = array();
 
-		if ( isset( $data['access_type'] ) ) {
+		if ( array_key_exists( 'title', $data ) ) {
+			$fields['title'] = sanitize_text_field( $data['title'] );
+		}
+		if ( array_key_exists( 'author', $data ) ) {
+			$fields['author'] = sanitize_text_field( $data['author'] );
+		}
+		if ( array_key_exists( 'description', $data ) ) {
+			$fields['description'] = wp_kses_post( $data['description'] );
+		}
+		if ( array_key_exists( 'cover_image_url', $data ) ) {
+			$fields['cover_image_url'] = esc_url_raw( $data['cover_image_url'] );
+		}
+		if ( array_key_exists( 'status', $data ) ) {
+			$fields['status'] = sanitize_text_field( $data['status'] );
+		}
+		if ( array_key_exists( 'access_type', $data ) ) {
 			$fields['access_type'] = sanitize_text_field( $data['access_type'] );
 		}
-		if ( isset( $data['price'] ) ) {
+		if ( array_key_exists( 'price', $data ) ) {
 			$fields['price'] = floatval( $data['price'] );
 		}
 		if ( array_key_exists( 'publish_date', $data ) ) {
-			$fields['publish_date'] = ! empty( $data['publish_date'] ) ? sanitize_text_field( $data['publish_date'] ) : null;
+			$fields['publish_date'] = ! empty( $data['publish_date'] ) ? date( 'Y-m-d H:i:s', strtotime( str_replace( 'T', ' ', $data['publish_date'] ) ) ) : null;
 		}
 		if ( array_key_exists( 'is_featured', $data ) ) {
 			$fields['is_featured'] = ! empty( $data['is_featured'] ) ? 1 : 0;
@@ -563,15 +586,18 @@ class DLM_DB {
 		if ( array_key_exists( 'featured_order', $data ) ) {
 			$fields['featured_order'] = intval( $data['featured_order'] );
 		}
-		if ( isset( $data['wc_product_id'] ) ) {
+		if ( array_key_exists( 'wc_product_id', $data ) ) {
 			$fields['wc_product_id'] = intval( $data['wc_product_id'] );
 		}
-
 		if ( ! empty( $data['file_path'] ) ) {
 			$fields['file_path'] = sanitize_text_field( $data['file_path'] );
 		}
 		if ( ! empty( $data['file_type'] ) ) {
 			$fields['file_type'] = sanitize_text_field( $data['file_type'] );
+		}
+
+		if ( empty( $fields ) ) {
+			return false;
 		}
 
 		return $wpdb->update( $table, $fields, array( 'id' => intval( $id ) ) );
@@ -835,8 +861,9 @@ class DLM_DB {
 
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date <= %s",
+				"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date != '' AND (publish_date <= %s OR REPLACE(publish_date, 'T', ' ') <= %s)",
 				$table,
+				$now,
 				$now
 			)
 		);

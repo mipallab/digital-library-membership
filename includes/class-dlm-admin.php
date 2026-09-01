@@ -546,8 +546,8 @@ class DLM_Admin {
 		DLM_Security::check_admin_capabilities();
 		DLM_Security::verify_nonce( 'dlm_save_book_nonce', 'dlm_nonce' );
 
-		if ( empty( $_POST['title'] ) || empty( $_FILES['book_file']['name'] ) ) {
-			wp_die( esc_html__( 'Please supply all required parameters.', 'digital-library-membership' ) );
+		if ( empty( $_POST['title'] ) || empty( $_POST['author'] ) || empty( $_FILES['book_file']['name'] ) || empty( $_POST['cover_image_url'] ) ) {
+			wp_die( esc_html__( 'Please supply all required parameters: Book Title, Author Name, PDF Document, and Cover Image.', 'digital-library-membership' ) );
 		}
 
 		$file = $_FILES['book_file'];
@@ -604,7 +604,8 @@ class DLM_Admin {
 
 		$access_type  = isset( $_POST['access_type'] ) ? sanitize_text_field( wp_unslash( $_POST['access_type'] ) ) : 'subscription_only';
 		$price        = isset( $_POST['price'] ) ? floatval( $_POST['price'] ) : 0.00;
-		$publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : null;
+		$raw_publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : '';
+		$publish_date = ! empty( $raw_publish_date ) ? date( 'Y-m-d H:i:s', strtotime( str_replace( 'T', ' ', $raw_publish_date ) ) ) : null;
 		$is_featured    = ! empty( $_POST['is_featured'] ) ? 1 : 0;
 		$featured_title = isset( $_POST['featured_title'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_title'] ) ) : '';
 		$featured_desc  = isset( $_POST['featured_description'] ) ? wp_kses_post( wp_unslash( $_POST['featured_description'] ) ) : null;
@@ -615,8 +616,11 @@ class DLM_Admin {
 		$featured_order = isset( $_POST['featured_order'] ) ? intval( $_POST['featured_order'] ) : 0;
 
 		$status = 'publish';
-		if ( isset( $_POST['status'] ) && sanitize_text_field( wp_unslash( $_POST['status'] ) ) === 'draft' ) {
+		$selected_status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'publish';
+		if ( 'draft' === $selected_status ) {
 			$status = 'draft';
+		} elseif ( 'future' === $selected_status ) {
+			$status = 'future';
 		} elseif ( ! empty( $publish_date ) && strtotime( $publish_date ) > current_time( 'timestamp' ) ) {
 			$status = 'future';
 		}
@@ -649,11 +653,15 @@ class DLM_Admin {
 			// Save category
 			if ( isset( $_POST['book_category'] ) ) {
 				$cat_id = intval( $_POST['book_category'] );
-				wp_set_object_terms( $book_id, $cat_id, 'dlm_book_category' );
+				if ( $cat_id > 0 ) {
+					wp_set_object_terms( $book_id, $cat_id, 'dlm_book_category' );
+				} else {
+					wp_set_object_terms( $book_id, array(), 'dlm_book_category' );
+				}
 			}
 			// Save tags
 			if ( isset( $_POST['book_tags'] ) ) {
-				$tags = sanitize_text_field( $_POST['book_tags'] );
+				$tags = sanitize_text_field( wp_unslash( $_POST['book_tags'] ) );
 				$tag_names = array_map( 'trim', explode( ',', $tags ) );
 				$tag_names = array_filter( $tag_names );
 				wp_set_object_terms( $book_id, $tag_names, 'dlm_book_tag' );
@@ -667,7 +675,7 @@ class DLM_Admin {
 			delete_transient( 'dlm_trending_books' );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=books&success=add_book' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=books&success=add_book&item=' . rawurlencode( $book_data['title'] ) ) );
 		exit;
 	}
 
@@ -694,7 +702,8 @@ class DLM_Admin {
 
 		$access_type  = isset( $_POST['access_type'] ) ? sanitize_text_field( wp_unslash( $_POST['access_type'] ) ) : 'subscription_only';
 		$price        = isset( $_POST['price'] ) ? floatval( $_POST['price'] ) : 0.00;
-		$publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : null;
+		$raw_publish_date = ! empty( $_POST['publish_date'] ) ? sanitize_text_field( wp_unslash( $_POST['publish_date'] ) ) : '';
+		$publish_date = ! empty( $raw_publish_date ) ? date( 'Y-m-d H:i:s', strtotime( str_replace( 'T', ' ', $raw_publish_date ) ) ) : null;
 		$is_featured    = ! empty( $_POST['is_featured'] ) ? 1 : 0;
 		$featured_title = isset( $_POST['featured_title'] ) ? sanitize_text_field( wp_unslash( $_POST['featured_title'] ) ) : '';
 		$featured_desc  = isset( $_POST['featured_description'] ) ? wp_kses_post( wp_unslash( $_POST['featured_description'] ) ) : null;
@@ -705,17 +714,25 @@ class DLM_Admin {
 		$featured_order = isset( $_POST['featured_order'] ) ? intval( $_POST['featured_order'] ) : 0;
 
 		$status = 'publish';
-		if ( isset( $_POST['status'] ) && $_POST['status'] === 'draft' ) {
+		$selected_status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'publish';
+		if ( 'draft' === $selected_status ) {
 			$status = 'draft';
+		} elseif ( 'future' === $selected_status ) {
+			$status = 'future';
 		} elseif ( ! empty( $publish_date ) && strtotime( $publish_date ) > current_time( 'timestamp' ) ) {
 			$status = 'future';
 		}
 
+		$cover_url = isset( $_POST['cover_image_url'] ) ? esc_url_raw( wp_unslash( $_POST['cover_image_url'] ) ) : '';
+		if ( ! empty( $_POST['remove_cover_image'] ) && '1' === strval( $_POST['remove_cover_image'] ) ) {
+			$cover_url = '';
+		}
+
 		$book_data = array(
-			'title'                   => sanitize_text_field( $_POST['title'] ),
-			'author'                  => sanitize_text_field( $_POST['author'] ),
-			'description'             => wp_kses_post( $_POST['description'] ),
-			'cover_image_url'         => esc_url_raw( $_POST['cover_image_url'] ),
+			'title'                   => sanitize_text_field( wp_unslash( $_POST['title'] ) ),
+			'author'                  => sanitize_text_field( wp_unslash( $_POST['author'] ) ),
+			'description'             => wp_kses_post( wp_unslash( $_POST['description'] ) ),
+			'cover_image_url'         => $cover_url,
 			'status'                  => $status,
 			'access_type'             => $access_type,
 			'price'                   => $price,
@@ -730,7 +747,7 @@ class DLM_Admin {
 			'featured_order'          => $featured_order,
 		);
 
-		// Check if a new file was uploaded
+		// Check if a new file was uploaded or existing file marked for removal
 		if ( ! empty( $_FILES['book_file']['name'] ) ) {
 			$file = $_FILES['book_file'];
 
@@ -776,7 +793,7 @@ class DLM_Admin {
 			}
 
 			// Delete old file
-			if ( file_exists( $book->file_path ) ) {
+			if ( ! empty( $book->file_path ) && file_exists( $book->file_path ) ) {
 				wp_delete_file( $book->file_path );
 			}
 
@@ -791,6 +808,13 @@ class DLM_Admin {
 
 			$book_data['file_path'] = $target_path;
 			$book_data['file_type'] = $file_ext;
+		} elseif ( ! empty( $_POST['remove_book_file'] ) && '1' === strval( $_POST['remove_book_file'] ) ) {
+			// Admin explicitly marked current PDF for removal
+			if ( ! empty( $book->file_path ) && file_exists( $book->file_path ) ) {
+				wp_delete_file( $book->file_path );
+			}
+			$book_data['file_path'] = '';
+			$book_data['file_type'] = '';
 		}
 
 		$this->db->update_book( $book_id, $book_data );
@@ -798,11 +822,15 @@ class DLM_Admin {
 		// Save category
 		if ( isset( $_POST['book_category'] ) ) {
 			$cat_id = intval( $_POST['book_category'] );
-			wp_set_object_terms( $book_id, $cat_id, 'dlm_book_category' );
+			if ( $cat_id > 0 ) {
+				wp_set_object_terms( $book_id, $cat_id, 'dlm_book_category' );
+			} else {
+				wp_set_object_terms( $book_id, array(), 'dlm_book_category' );
+			}
 		}
 		// Save tags
 		if ( isset( $_POST['book_tags'] ) ) {
-			$tags = sanitize_text_field( $_POST['book_tags'] );
+			$tags = sanitize_text_field( wp_unslash( $_POST['book_tags'] ) );
 			$tag_names = array_map( 'trim', explode( ',', $tags ) );
 			$tag_names = array_filter( $tag_names );
 			wp_set_object_terms( $book_id, $tag_names, 'dlm_book_tag' );
@@ -815,7 +843,7 @@ class DLM_Admin {
 		delete_transient( 'dlm_analytics_summary' );
 		delete_transient( 'dlm_trending_books' );
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=books&success=edit_book' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=books&success=edit_book&item=' . rawurlencode( $book_data['title'] ) ) );
 		exit;
 	}
 
@@ -827,13 +855,18 @@ class DLM_Admin {
 		DLM_Security::verify_nonce( 'dlm_delete_book_nonce', 'dlm_nonce' );
 
 		$book_id = isset( $_POST['book_id'] ) ? intval( $_POST['book_id'] ) : 0;
+		$book_title = '';
 		if ( $book_id ) {
+			$book = $this->db->get_book( $book_id );
+			if ( $book && ! empty( $book->title ) ) {
+				$book_title = $book->title;
+			}
 			$this->db->delete_book( $book_id );
 			delete_transient( 'dlm_analytics_summary' );
 			delete_transient( 'dlm_trending_books' );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=books&success=delete_book' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=books&success=delete_book' . ( $book_title ? '&item=' . rawurlencode( $book_title ) : '' ) ) );
 		exit;
 	}
 
@@ -928,7 +961,7 @@ class DLM_Admin {
 		delete_transient( 'dlm_analytics_summary' );
 		delete_transient( 'dlm_trending_books' );
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=members&success=1' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=members&success=edit_member&item=' . rawurlencode( $user_email ) ) );
 		exit;
 	}
 
@@ -1541,8 +1574,7 @@ class DLM_Admin {
 
 		$packages[ $package_id ] = $new_package;
 		dlm_save_packages( $packages );
-
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_saved' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_saved&item=' . rawurlencode( $name ) ) );
 		exit;
 	}
 
@@ -1593,7 +1625,7 @@ class DLM_Admin {
 
 		dlm_save_packages( $packages );
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_updated' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_updated&item=' . rawurlencode( $name ) ) );
 		exit;
 	}
 
@@ -1639,39 +1671,33 @@ class DLM_Admin {
 							);
 						}
 
-						$price = \Stripe\Price::create( $price_args );
-						if ( ! empty( $price->id ) ) {
-							$package['stripe_price_id'] = $price->id;
+						$stripe_price = \Stripe\Price::create( $price_args );
+						if ( ! empty( $stripe_price->id ) ) {
+							$package['stripe_price_id'] = $stripe_price->id;
 						}
 					}
-				} catch ( Exception $e ) {
-					// Gracefully capture Stripe error without blocking package persistence
-					if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-						// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-						error_log( 'DLM Stripe auto-sync error: ' . $e->getMessage() );
-					}
+				} catch ( \Exception $e ) {
+					// Silent fail or log
 				}
 			}
 		}
 
-		// 3. Auto-create PayPal Catalog Product and Billing Plan if PayPal credentials configured and plan_id is empty
+		// 3. Auto-create PayPal Product & Billing Plan if PayPal credentials configured
 		if ( empty( $package['paypal_plan_id'] ) && $package['interval'] !== 'lifetime' ) {
 			$client_id = get_option( 'dlm_paypal_client_id' );
 			$secret    = get_option( 'dlm_paypal_secret_key' );
+			$mode      = get_option( 'dlm_paypal_mode', 'sandbox' );
 
 			if ( ! empty( $client_id ) && ! empty( $secret ) ) {
-				$mode     = get_option( 'dlm_paypal_mode', 'live' );
-				$base_url = ( $mode === 'sandbox' ) ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+				$base_url = ( 'live' === $mode ) ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
 
-				// 3a. Get OAuth2 Token
+				// 3a. Get OAuth2 Bearer Token
 				$auth_response = wp_remote_post( $base_url . '/v1/oauth2/token', array(
 					'headers' => array(
 						'Accept'        => 'application/json',
 						'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ),
 					),
-					'body'    => array(
-						'grant_type' => 'client_credentials',
-					),
+					'body'    => 'grant_type=client_credentials',
 				) );
 
 				if ( ! is_wp_error( $auth_response ) ) {
@@ -1772,12 +1798,14 @@ class DLM_Admin {
 		}
 
 		$packages = dlm_get_packages();
+		$pkg_name = '';
 		if ( isset( $packages[ $package_id ] ) ) {
+			$pkg_name = ! empty( $packages[ $package_id ]['name'] ) ? $packages[ $package_id ]['name'] : $package_id;
 			unset( $packages[ $package_id ] );
 			dlm_save_packages( $packages );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_deleted' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_deleted' . ( $pkg_name ? '&item=' . rawurlencode( $pkg_name ) : '' ) ) );
 		exit;
 	}
 
@@ -1794,13 +1822,15 @@ class DLM_Admin {
 		}
 
 		$packages = dlm_get_packages();
+		$pkg_name = '';
 		if ( isset( $packages[ $package_id ] ) ) {
+			$pkg_name = ! empty( $packages[ $package_id ]['name'] ) ? $packages[ $package_id ]['name'] : $package_id;
 			$current_status = isset( $packages[ $package_id ]['status'] ) ? $packages[ $package_id ]['status'] : 'active';
 			$packages[ $package_id ]['status'] = ( 'active' === $current_status ) ? 'inactive' : 'active';
 			dlm_save_packages( $packages );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_status_toggled' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=dlm-library&tab=plans&success=package_status_toggled' . ( $pkg_name ? '&item=' . rawurlencode( $pkg_name ) : '' ) ) );
 		exit;
 	}
 

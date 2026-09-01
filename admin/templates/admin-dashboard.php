@@ -446,6 +446,8 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 										data-featured-btn1="<?php echo esc_attr( $featured_btn1 ); ?>"
 										data-featured-btn2="<?php echo esc_attr( $featured_btn2 ); ?>"
 										data-featured-order="<?php echo esc_attr( $featured_order ); ?>"
+										data-file-name="<?php echo esc_attr( ! empty( $bk->file_path ) ? basename( $bk->file_path ) : '' ); ?>"
+										data-has-file="<?php echo ( ! empty( $bk->file_path ) && file_exists( $bk->file_path ) ) ? '1' : '0'; ?>"
 									>
 										<td class="px-8 py-4">
 											<div class="w-14 h-20 rounded-lg shadow-md overflow-hidden bg-surface-variant shrink-0">
@@ -2054,8 +2056,8 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						<input name="title" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="e.g. The Quiet Forest" type="text" required>
 					</div>
 					<div class="space-y-1">
-						<label class="text-xs font-bold text-on-surface-variant uppercase">Author Name</label>
-						<input name="author" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="e.g. Liam Sterling" type="text">
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Author Name *</label>
+						<input name="author" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="e.g. Liam Sterling" type="text" required>
 					</div>
 					<div class="space-y-1">
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Description</label>
@@ -2114,14 +2116,14 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						</div>
 					</div>
 					<div class="space-y-1">
-						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Cover Image</label>
+						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Cover Image *</label>
 						<div class="flex items-center gap-4">
 							<div class="w-14 h-20 bg-surface-container rounded-lg border border-outline-variant/20 flex items-center justify-center text-secondary/30 overflow-hidden shrink-0">
 								<img id="add-cover-preview" class="w-full h-full object-cover hidden" alt="Cover Preview">
 								<i id="add-cover-placeholder" class="fa-regular fa-image text-2xl"></i>
 							</div>
 							<div class="flex-grow flex gap-2">
-								<input type="text" name="cover_image_url" id="add-book-cover-input" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="Cover Image URL">
+								<input type="text" name="cover_image_url" id="add-book-cover-input" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="Cover Image URL" required>
 								<button type="button" id="add-book-select-cover-btn" class="bg-surface-container-high px-4 py-2 rounded-xl text-xs font-bold hover:bg-surface-container-highest border border-outline-variant/30 shrink-0">Select</button>
 							</div>
 						</div>
@@ -2195,6 +2197,7 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						<select name="status" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
 							<option value="publish">Published</option>
 							<option value="draft">Draft</option>
+							<option value="future">Scheduled</option>
 						</select>
 					</div>
 				</div>
@@ -2274,29 +2277,79 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Tags (comma separated)</label>
 						<input name="book_tags" id="edit-book-tags" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="e.g. classic, fiction, history" type="text">
 					</div>
-					<div class="space-y-1">
-						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Document File (Leave empty to keep existing)</label>
-						<div class="relative flex flex-col items-center justify-center border-2 border-dashed border-outline-variant/30 rounded-2xl p-6 bg-surface-container-low/20 hover:border-primary/50 transition-colors group cursor-pointer h-32">
-							<input type="file" name="book_file" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer dlm-file-input">
-							<div class="text-center space-y-2 pointer-events-none">
-								<i class="fa-solid fa-file-pdf text-3xl text-secondary/40 group-hover:text-primary/70 transition-colors"></i>
-								<p class="text-xs font-semibold text-on-surface select-file-label">Drag & Drop or Click to upload new file</p>
-								<p class="text-[10px] text-secondary">Only PDF format is allowed for book uploads. (max 50MB)</p>
+					<!-- Book PDF Document: Current info, Remove, and Replace -->
+					<div class="space-y-2">
+						<div class="flex justify-between items-center">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Book Document File (.pdf)</label>
+							<span id="edit-pdf-status-badge" class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+								<i class="fa-solid fa-circle-check"></i> File Attached
+							</span>
+						</div>
+
+						<!-- Current PDF Status Box with Remove Action -->
+						<div id="edit-current-pdf-box" class="p-3 bg-surface-container-low rounded-2xl border border-outline-variant/20 flex items-center justify-between gap-3">
+							<div class="flex items-center gap-3 overflow-hidden">
+								<div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 text-lg">
+									<i class="fa-solid fa-file-pdf"></i>
+								</div>
+								<div class="min-w-0">
+									<p id="edit-book-current-file-name" class="text-xs font-bold text-on-surface truncate">book_document.pdf</p>
+									<p class="text-[10px] text-secondary">Active protected document on server</p>
+								</div>
+							</div>
+							<button type="button" id="edit-book-remove-pdf-btn" class="px-3 py-1.5 rounded-xl text-xs font-bold text-error bg-error-container/20 hover:bg-error-container/40 border border-error/20 shrink-0 transition-colors">
+								<i class="fa-solid fa-trash-can mr-1"></i> Remove PDF
+							</button>
+						</div>
+
+						<!-- Alert if marked for removal -->
+						<div id="edit-pdf-removed-alert" class="hidden p-3 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2 text-xs font-semibold text-amber-800">
+								<i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+								<span>PDF marked for removal upon saving.</span>
+							</div>
+							<button type="button" id="edit-book-undo-remove-pdf-btn" class="px-2.5 py-1 rounded-lg text-xs font-bold text-amber-900 bg-amber-200/60 hover:bg-amber-300 transition-colors">
+								<i class="fa-solid fa-rotate-left mr-1"></i> Undo
+							</button>
+						</div>
+						<input type="hidden" name="remove_book_file" id="edit-book-remove-pdf-flag" value="0">
+
+						<!-- Upload / Replace Dropzone -->
+						<div class="relative flex flex-col items-center justify-center border-2 border-dashed border-outline-variant/30 rounded-2xl p-4 bg-surface-container-low/20 hover:border-primary/50 transition-colors group cursor-pointer h-24">
+							<input type="file" name="book_file" id="edit-book-file-input" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer dlm-file-input">
+							<div class="text-center space-y-1 pointer-events-none">
+								<i class="fa-solid fa-cloud-arrow-up text-xl text-secondary/40 group-hover:text-primary/70 transition-colors"></i>
+								<p class="text-xs font-semibold text-on-surface select-file-label">Click or Drop new PDF to update / replace</p>
+								<p class="text-[10px] text-secondary">Leave empty to keep current file (max 50MB)</p>
 							</div>
 						</div>
 					</div>
+
+					<!-- Book Cover Image: Preview, Select, Update, and Remove -->
 					<div class="space-y-1">
-						<label class="text-xs font-bold text-on-surface-variant uppercase">Book Cover Image</label>
+						<div class="flex justify-between items-center">
+							<label class="text-xs font-bold text-on-surface-variant uppercase">Book Cover Image</label>
+							<span id="edit-cover-status-badge" class="text-[10px] font-bold text-secondary"></span>
+						</div>
 						<div class="flex items-center gap-4">
-							<div class="w-14 h-20 bg-surface-container rounded-lg border border-outline-variant/20 flex items-center justify-center text-secondary/30 overflow-hidden shrink-0">
+							<div class="w-14 h-20 bg-surface-container rounded-lg border border-outline-variant/20 flex items-center justify-center text-secondary/30 overflow-hidden shrink-0 relative">
 								<img id="edit-cover-preview" class="w-full h-full object-cover hidden" alt="Cover Preview">
 								<i id="edit-cover-placeholder" class="fa-regular fa-image text-2xl"></i>
 							</div>
-							<div class="flex-grow flex gap-2">
-								<input type="text" name="cover_image_url" id="edit-book-cover-input" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="Cover Image URL">
-								<button type="button" id="edit-book-select-cover-btn" class="bg-surface-container-high px-4 py-2 rounded-xl text-xs font-bold hover:bg-surface-container-highest border border-outline-variant/30 shrink-0">Select</button>
+							<div class="flex-grow space-y-2">
+								<div class="flex gap-2">
+									<input type="text" name="cover_image_url" id="edit-book-cover-input" class="w-full px-4 py-2 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm" placeholder="Cover Image URL">
+									<button type="button" id="edit-book-select-cover-btn" class="bg-surface-container-high px-4 py-2 rounded-xl text-xs font-bold hover:bg-surface-container-highest border border-outline-variant/30 shrink-0">Select</button>
+								</div>
+								<div class="flex items-center gap-2">
+									<button type="button" id="edit-book-remove-cover-btn" class="px-3 py-1.5 rounded-xl text-xs font-bold text-error bg-error-container/20 hover:bg-error-container/40 border border-error/20 transition-colors hidden">
+										<i class="fa-solid fa-trash-can mr-1"></i> Remove Cover
+									</button>
+									<p class="text-[10px] text-secondary">Upload a new cover or remove existing one.</p>
+								</div>
 							</div>
 						</div>
+						<input type="hidden" name="remove_cover_image" id="edit-book-remove-cover-flag" value="0">
 					</div>
 					<!-- Featured Book Section -->
 					<div class="pt-4 border-t border-outline-variant/10 space-y-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-200/50">
@@ -2367,6 +2420,7 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 						<select name="status" id="edit-book-status" class="w-full px-4 py-2.5 rounded-xl border border-outline-variant/30 focus:border-primary focus:ring-0 text-sm">
 							<option value="publish">Published</option>
 							<option value="draft">Draft</option>
+							<option value="future">Scheduled</option>
 						</select>
 					</div>
 				</div>
@@ -3006,23 +3060,43 @@ $avatar_url = get_avatar_url( $current_wp_user->ID );
 		</div>
 	</div>
 
-	<!-- Global Alert Popup Modal -->
-	<div id="dlmAlertModal" class="fixed inset-0 z-50 items-center justify-center bg-black/40 backdrop-blur-sm hidden" style="align-items: center; justify-content: center;">
-		<div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl border border-outline-variant/10 text-center space-y-4 relative animate-scaleUp">
+	<!-- Global Dynamic Action Alert Popup Modal -->
+	<div id="dlmAlertModal" class="fixed inset-0 z-[99999] items-center justify-center bg-slate-950/60 backdrop-blur-md hidden p-4 transition-all duration-300" style="align-items: center; justify-content: center;">
+		<div class="absolute inset-0" onclick="closeAlertModal()"></div>
+		<div class="relative bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-outline-variant/20 text-center space-y-5 animate-in fade-in zoom-in-95 duration-200 z-10">
 			<!-- Close Button (X) -->
-			<button onclick="closeAlertModal()" class="absolute top-4 right-4 p-1.5 hover:bg-surface-container-high/50 rounded-full transition-colors text-secondary hover:text-on-surface">
-				<i class="fa-solid fa-xmark text-lg"></i>
+			<button onclick="closeAlertModal()" class="absolute top-5 right-5 p-2 text-secondary hover:text-on-surface hover:bg-surface-container-high/50 rounded-full transition-colors">
+				<i class="fa-solid fa-xmark text-base"></i>
 			</button>
-			
-			<div id="dlmAlertIcon" class="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-3xl">
-				<!-- Icon injected by JS -->
+
+			<!-- Dynamic Animated Icon Container -->
+			<div id="dlmAlertIconWrap" class="relative w-20 h-20 mx-auto flex items-center justify-center">
+				<div id="dlmAlertPulseRing" class="absolute inset-0 rounded-full animate-ping opacity-25"></div>
+				<div id="dlmAlertIcon" class="relative w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-sm">
+					<!-- Injected by JS -->
+				</div>
 			</div>
-			
-			<h4 id="dlmAlertTitle" class="text-xl font-bold text-on-surface"></h4>
-			<p id="dlmAlertMessage" class="text-sm text-secondary leading-relaxed"></p>
-			
+
+			<!-- Dynamic Eyebrow Badge -->
+			<div>
+				<span id="dlmAlertBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider mb-2"></span>
+				<h3 id="dlmAlertTitle" class="text-xl font-bold text-on-surface tracking-tight"></h3>
+			</div>
+
+			<!-- Message & Item Details -->
+			<div class="space-y-3">
+				<p id="dlmAlertMessage" class="text-sm text-secondary leading-relaxed"></p>
+				<div id="dlmAlertItemWrap" class="hidden p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 text-xs font-semibold text-on-surface break-words">
+					<span class="text-secondary text-[10px] uppercase font-bold tracking-wider block mb-0.5" id="dlmAlertItemLabel">Target Item</span>
+					<span id="dlmAlertItem" class="text-primary font-bold"></span>
+				</div>
+			</div>
+
+			<!-- Action CTA -->
 			<div class="pt-2">
-				<button onclick="closeAlertModal()" class="w-full bg-primary text-white py-3 rounded-xl font-semibold text-sm hover:shadow-lg active:scale-95 transition-all">OK</button>
+				<button id="dlmAlertBtn" onclick="closeAlertModal()" class="w-full py-3 px-6 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg active:scale-95 transition-all">
+					Acknowledge & Close
+				</button>
 			</div>
 		</div>
 	</div>
