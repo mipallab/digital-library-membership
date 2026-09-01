@@ -32,11 +32,11 @@ class DLM_Widget_About_Author extends \Elementor\Widget_Base {
 	}
 
 	public function get_categories() {
-		return array( 'digital-library', 'mipallab_category', 'general' );
+		return array( 'digital-library' );
 	}
 
 	public function get_keywords() {
-		return array( 'about', 'author', 'biography', 'profile', 'writer', 'dlm', 'mipallab' );
+		return array( 'about', 'author', 'biography', 'profile', 'writer', 'dlm' );
 	}
 
 	protected function register_controls() {
@@ -249,11 +249,14 @@ class DLM_Widget_About_Author extends \Elementor\Widget_Base {
 	}
 }
 
-// Backward Compatibility Class Alias
+// Backward Compatibility Class Alias (hidden from panel)
 if ( ! class_exists( 'Mipallab_About_Author_Widget' ) ) {
 	class Mipallab_About_Author_Widget extends DLM_Widget_About_Author {
 		public function get_name() {
 			return 'mipallab_about_author';
+		}
+		public function show_in_panel() {
+			return false;
 		}
 	}
 }

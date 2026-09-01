@@ -32,11 +32,11 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 	}
 
 	public function get_categories() {
-		return array( 'digital-library', 'mipallab_category', 'general' );
+		return array( 'digital-library' );
 	}
 
 	public function get_keywords() {
-		return array( 'library', 'books', 'carousel', 'dlm', 'slider', 'publications', 'grid', 'mipallab' );
+		return array( 'library', 'books', 'carousel', 'dlm', 'slider', 'publications', 'grid' );
 	}
 
 	protected function register_controls() {
@@ -470,11 +470,14 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 	}
 }
 
-// Backward Compatibility Class Alias
+// Backward Compatibility Class Alias (hidden from panel)
 if ( ! class_exists( 'Mipallab_DLM_Library_Carousel_Widget' ) ) {
 	class Mipallab_DLM_Library_Carousel_Widget extends DLM_Widget_Library_Carousel {
 		public function get_name() {
 			return 'mipallab_dlm_library_carousel';
+		}
+		public function show_in_panel() {
+			return false;
 		}
 	}
 }

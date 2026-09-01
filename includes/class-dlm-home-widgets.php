@@ -377,13 +377,6 @@ final class DLM_Home_Widgets {
 					'icon'  => 'eicon-book',
 				)
 			);
-			$elements_manager->add_category(
-				'mipallab_category',
-				array(
-					'title' => esc_html__( 'Digital Library & Home Addons', 'digital-library-membership' ),
-					'icon'  => 'eicon-apps',
-				)
-			);
 		}
 
 		// Reorder categories to place Digital Library at the very top of the Elementor edit sidebar
@@ -393,7 +386,7 @@ final class DLM_Home_Widgets {
 					return;
 				}
 
-				$top_slugs = array( 'digital-library', 'mipallab_category' );
+				$top_slugs = array( 'digital-library' );
 				$top_cats  = array();
 
 				foreach ( $top_slugs as $slug ) {
@@ -417,7 +410,7 @@ final class DLM_Home_Widgets {
 					$prop->setAccessible( true );
 					$categories = $prop->getValue( $elements_manager );
 					if ( is_array( $categories ) ) {
-						$top_slugs = array( 'digital-library', 'mipallab_category' );
+						$top_slugs = array( 'digital-library' );
 						$top_cats  = array();
 						foreach ( $top_slugs as $slug ) {
 							if ( isset( $categories[ $slug ] ) ) {
@@ -467,7 +460,7 @@ final class DLM_Home_Widgets {
 	public function register_elementor_widgets( $widgets_manager ) {
 		$this->include_widget_files();
 
-		// Modern class registrations
+		// Register canonical DLM widgets
 		if ( class_exists( '\DLM_Widget_Hero_Book_Slider' ) ) {
 			$widgets_manager->register( new \DLM_Widget_Hero_Book_Slider() );
 		}
@@ -485,26 +478,6 @@ final class DLM_Home_Widgets {
 		}
 		if ( class_exists( '\DLM_Widget_Contact_Section' ) ) {
 			$widgets_manager->register( new \DLM_Widget_Contact_Section() );
-		}
-
-		// Backward compatibility alias registrations
-		if ( class_exists( '\Mipallab_Hero_Book_Slider_Widget' ) ) {
-			$widgets_manager->register( new \Mipallab_Hero_Book_Slider_Widget() );
-		}
-		if ( class_exists( '\Mipallab_About_Author_Widget' ) ) {
-			$widgets_manager->register( new \Mipallab_About_Author_Widget() );
-		}
-		if ( class_exists( '\Mipallab_DLM_Library_Carousel_Widget' ) ) {
-			$widgets_manager->register( new \Mipallab_DLM_Library_Carousel_Widget() );
-		}
-		if ( class_exists( '\Mipallab_Membership_Section_Widget' ) ) {
-			$widgets_manager->register( new \Mipallab_Membership_Section_Widget() );
-		}
-		if ( class_exists( '\Mipallab_Review_Switcher_Widget' ) ) {
-			$widgets_manager->register( new \Mipallab_Review_Switcher_Widget() );
-		}
-		if ( class_exists( '\Mipallab_Contact_Section_Widget' ) ) {
-			$widgets_manager->register( new \Mipallab_Contact_Section_Widget() );
 		}
 	}
 
@@ -757,19 +730,69 @@ final class DLM_Home_Widgets {
 	}
 
 	/**
-	 * Render HTML for Review Switcher (Self-Contained Engine)
+	 * Render HTML for Review Switcher (Self-Contained Engine with Video, Google & Text controls)
 	 */
-	public static function render_review_switcher_html( $section_tag = 'COMMUNITY TESTIMONIALS', $section_title = 'What Readers Say About Our Library', $video_items = array(), $text_items = array(), $google_score = '4.9 ★★★★★', $google_subtext = 'Based on 1,280+ Verified Google Reviews', $primary_color = '#855300', $text_color = '#1a1c1c' ) {
-		$primary = ! empty( $primary_color ) ? esc_attr( $primary_color ) : '#855300';
-		$text    = ! empty( $text_color ) ? esc_attr( $text_color ) : '#1a1c1c';
-		$uid     = 'dlm_rev_' . wp_rand( 1000, 9999 );
+	public static function render_review_switcher_html( $section_tag = 'COMMUNITY TESTIMONIALS', $section_title = 'What Readers Say About Our Library', $video_items = array(), $text_items = array(), $google_score = '4.9 ★★★★★', $google_subtext = 'Based on 1,280+ Verified Google Reviews', $primary_color = '#855300', $text_color = '#1a1c1c', $extra = array() ) {
+		$primary     = ! empty( $primary_color ) ? esc_attr( $primary_color ) : '#855300';
+		$text        = ! empty( $text_color ) ? esc_attr( $text_color ) : '#1a1c1c';
+		$card_bg     = ! empty( $extra['card_bg'] ) ? esc_attr( $extra['card_bg'] ) : '#ffffff';
+		$star_color  = ! empty( $extra['star_color'] ) ? esc_attr( $extra['star_color'] ) : '#f59e0b';
+		$uid         = 'dlm_rev_' . wp_rand( 1000, 9999 );
+
+		$show_switcher_nav = isset( $extra['show_switcher_nav'] ) ? ( $extra['show_switcher_nav'] === 'yes' || $extra['show_switcher_nav'] === true || $extra['show_switcher_nav'] === '1' ) : true;
+		$enable_video_tab  = isset( $extra['enable_video_tab'] ) ? ( $extra['enable_video_tab'] === 'yes' || $extra['enable_video_tab'] === true || $extra['enable_video_tab'] === '1' ) : true;
+		$enable_text_tab   = isset( $extra['enable_text_tab'] ) ? ( $extra['enable_text_tab'] === 'yes' || $extra['enable_text_tab'] === true || $extra['enable_text_tab'] === '1' ) : true;
+		$enable_google_tab = isset( $extra['enable_google_tab'] ) ? ( $extra['enable_google_tab'] === 'yes' || $extra['enable_google_tab'] === true || $extra['enable_google_tab'] === '1' ) : true;
+
+		$video_tab_label  = ! empty( $extra['video_tab_label'] ) ? $extra['video_tab_label'] : esc_html__( '🎥 Video Reviews', 'digital-library-membership' );
+		$text_tab_label   = ! empty( $extra['text_tab_label'] ) ? $extra['text_tab_label'] : esc_html__( '💬 Text Testimonials', 'digital-library-membership' );
+		$google_tab_label = ! empty( $extra['google_tab_label'] ) ? $extra['google_tab_label'] : esc_html__( '⭐ Google Reviews', 'digital-library-membership' );
+
+		// Determine initial active tab
+		$default_tab = ! empty( $extra['default_active_tab'] ) ? $extra['default_active_tab'] : 'video';
+		if ( 'video' === $default_tab && ! $enable_video_tab ) {
+			$default_tab = $enable_text_tab ? 'text' : ( $enable_google_tab ? 'google' : 'video' );
+		} elseif ( 'text' === $default_tab && ! $enable_text_tab ) {
+			$default_tab = $enable_video_tab ? 'video' : ( $enable_google_tab ? 'google' : 'text' );
+		} elseif ( 'google' === $default_tab && ! $enable_google_tab ) {
+			$default_tab = $enable_video_tab ? 'video' : ( $enable_text_tab ? 'text' : 'google' );
+		}
+
+		$google_mode          = ! empty( $extra['google_mode'] ) ? $extra['google_mode'] : 'manual';
+		$google_business_name = ! empty( $extra['google_business_name'] ) ? $extra['google_business_name'] : esc_html__( 'Digital Library & Research Hub', 'digital-library-membership' );
+		$google_place_url     = ! empty( $extra['google_place_url'] ) ? $extra['google_place_url'] : 'https://maps.google.com';
+		$google_btn_text      = ! empty( $extra['google_btn_text'] ) ? $extra['google_btn_text'] : esc_html__( 'Write a Review on Google', 'digital-library-membership' );
+		$google_shortcode     = ! empty( $extra['google_shortcode'] ) ? $extra['google_shortcode'] : '';
+		$google_review_items  = ! empty( $extra['google_review_items'] ) && is_array( $extra['google_review_items'] ) ? $extra['google_review_items'] : array();
+
+		// Default Google review sample items if empty
+		if ( empty( $google_review_items ) && 'manual' === $google_mode ) {
+			$google_review_items = array(
+				array(
+					'author_name'   => 'David Miller',
+					'rating'        => '5',
+					'time_ago'      => '3 days ago',
+					'review_text'   => 'Incredible digital collection! The 3D reader experience is unmatched and downloading reference PDFs is instantaneous.',
+					'author_avatar' => array( 'url' => 'https://dev-bridgeway36.pantheonsite.io/wp-content/uploads/2026/07/unnamed-1.jpg' ),
+					'is_verified'   => 'yes',
+				),
+				array(
+					'author_name'   => 'Sophia Alverez',
+					'rating'        => '5',
+					'time_ago'      => '1 week ago',
+					'review_text'   => 'Verified subscriber here. The research publications and book selection have been indispensable for our academic team.',
+					'author_avatar' => array( 'url' => 'https://dev-bridgeway36.pantheonsite.io/wp-content/uploads/2026/07/unnamed-2.jpg' ),
+					'is_verified'   => 'yes',
+				),
+			);
+		}
 		?>
 		<div class="dlm-review-section mipallab-review-section" style="padding: 80px 24px; font-family: 'Plus Jakarta Sans', sans-serif;">
 			<div style="max-width: 1100px; margin: 0 auto;">
 
 				<div class="gsap-fade-up" style="text-align: center; margin-bottom: 40px;">
 					<?php if ( ! empty( $section_tag ) ) : ?>
-						<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px;">
+						<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;">
 							<?php echo esc_html( $section_tag ); ?>
 						</div>
 					<?php endif; ?>
@@ -779,75 +802,185 @@ final class DLM_Home_Widgets {
 							<?php echo esc_html( $section_title ); ?>
 						</h2>
 					<?php endif; ?>
+
+					<?php if ( ! empty( $extra['section_desc'] ) ) : ?>
+						<p style="font-size: 1.05rem; color: rgba(26, 28, 28, 0.75); max-width: 650px; margin: 0 auto; line-height: 1.6;">
+							<?php echo esc_html( $extra['section_desc'] ); ?>
+						</p>
+					<?php endif; ?>
 				</div>
 
 				<div class="dlm-review-switcher-wrapper mipallab-review-switcher-wrapper" data-primary-color="<?php echo esc_attr( $primary ); ?>" data-text-color="<?php echo esc_attr( $text ); ?>">
-					<!-- Interactive Tab Buttons -->
-					<div style="text-align: center; margin-bottom: 36px;">
-						<div style="display: inline-flex; background: rgba(133, 83, 0, 0.08); padding: 6px; border-radius: 50px; gap: 6px; flex-wrap: wrap; justify-content: center;">
-							<button class="dlm-review-tab-btn mipallab-review-tab-btn active" data-pane="<?php echo esc_attr( $uid ); ?>_video" onclick="switchDLMTab(this, '<?php echo esc_js( $uid ); ?>_video')" style="background: <?php echo esc_attr( $primary ); ?>; color: #ffffff; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer;">
-								🎥 <?php esc_html_e( 'Video Reviews', 'digital-library-membership' ); ?>
-							</button>
-							<button class="dlm-review-tab-btn mipallab-review-tab-btn" data-pane="<?php echo esc_attr( $uid ); ?>_text" onclick="switchDLMTab(this, '<?php echo esc_js( $uid ); ?>_text')" style="background: transparent; color: <?php echo esc_attr( $text ); ?>; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer;">
-								💬 <?php esc_html_e( 'Text Testimonials', 'digital-library-membership' ); ?>
-							</button>
-							<button class="dlm-review-tab-btn mipallab-review-tab-btn" data-pane="<?php echo esc_attr( $uid ); ?>_google" onclick="switchDLMTab(this, '<?php echo esc_js( $uid ); ?>_google')" style="background: transparent; color: <?php echo esc_attr( $text ); ?>; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer;">
-								⭐ <?php esc_html_e( 'Google Reviews', 'digital-library-membership' ); ?>
-							</button>
-						</div>
-					</div>
+					
+					<?php if ( $show_switcher_nav ) : ?>
+						<!-- Interactive Tab Buttons -->
+						<div style="text-align: center; margin-bottom: 36px;">
+							<div style="display: inline-flex; background: rgba(133, 83, 0, 0.08); padding: 6px; border-radius: 50px; gap: 6px; flex-wrap: wrap; justify-content: center;">
+								<?php if ( $enable_video_tab ) : ?>
+									<button type="button" class="dlm-review-tab-btn mipallab-review-tab-btn <?php echo 'video' === $default_tab ? 'active' : ''; ?>" data-pane="<?php echo esc_attr( $uid ); ?>_video" data-target="<?php echo esc_attr( $uid ); ?>_video" onclick="switchDLMTab(this, '<?php echo esc_js( $uid ); ?>_video')" style="background: <?php echo 'video' === $default_tab ? esc_attr( $primary ) : 'transparent'; ?>; color: <?php echo 'video' === $default_tab ? '#ffffff' : esc_attr( $text ); ?>; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.25s ease;">
+										<?php echo esc_html( $video_tab_label ); ?>
+									</button>
+								<?php endif; ?>
 
-					<!-- Pane 1: Video Reviews -->
-					<div id="<?php echo esc_attr( $uid ); ?>_video" class="dlm-rev-pane mipallab-rev-pane" style="display: block;">
-						<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px;">
-							<?php foreach ( $video_items as $vitem ) : 
-								$vurl = ! empty( $vitem['video_url'] ) ? esc_url( $vitem['video_url'] ) : 'https://www.youtube.com/embed/dQw4w9WgXcQ';
-							?>
-								<div class="dlm-hover-lift mipallab-hover-lift" style="background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid rgba(133, 83, 0, 0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.06);">
-									<div style="position: relative; padding-bottom: 56.25%; height: 0; background: #000;">
-										<iframe src="<?php echo esc_url( $vurl ); ?>" style="position: absolute; top:0; left:0; width:100%; height:100%; border:0;" allowfullscreen loading="lazy"></iframe>
-									</div>
-									<div style="padding: 20px;">
-										<div style="font-size: 1.1rem; font-weight: 800; color: #1a1c1c;"><?php echo esc_html( $vitem['name'] ); ?></div>
-										<div style="color: <?php echo esc_attr( $primary ); ?>; font-size: 0.9rem; font-weight: 700;"><?php echo esc_html( $vitem['role'] ); ?></div>
-									</div>
-								</div>
-							<?php endforeach; ?>
-						</div>
-					</div>
+								<?php if ( $enable_text_tab ) : ?>
+									<button type="button" class="dlm-review-tab-btn mipallab-review-tab-btn <?php echo 'text' === $default_tab ? 'active' : ''; ?>" data-pane="<?php echo esc_attr( $uid ); ?>_text" data-target="<?php echo esc_attr( $uid ); ?>_text" onclick="switchDLMTab(this, '<?php echo esc_js( $uid ); ?>_text')" style="background: <?php echo 'text' === $default_tab ? esc_attr( $primary ) : 'transparent'; ?>; color: <?php echo 'text' === $default_tab ? '#ffffff' : esc_attr( $text ); ?>; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.25s ease;">
+										<?php echo esc_html( $text_tab_label ); ?>
+									</button>
+								<?php endif; ?>
 
-					<!-- Pane 2: Text Testimonials -->
-					<div id="<?php echo esc_attr( $uid ); ?>_text" class="dlm-rev-pane mipallab-rev-pane" style="display: none;">
-						<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px;">
-							<?php foreach ( $text_items as $titem ) : 
-								$av_url = ! empty( $titem['avatar']['url'] ) ? esc_url( $titem['avatar']['url'] ) : 'https://dev-bridgeway36.pantheonsite.io/wp-content/uploads/2026/07/unnamed-1.jpg';
-							?>
-								<div class="dlm-hover-lift mipallab-hover-lift" style="background: #ffffff; padding: 28px; border-radius: 20px; border: 1px solid rgba(133, 83, 0, 0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between;">
-									<div>
-										<div style="color: #f59e0b; font-size: 16px; margin-bottom: 12px;">★★★★★</div>
-										<p style="font-size: 1rem; color: rgba(26,28,28,0.85); font-style: italic; line-height: 1.7; margin-bottom: 20px;">
-											"<?php echo esc_html( $titem['review_text'] ); ?>"
-										</p>
-									</div>
-									<div style="display: flex; align-items: center; gap: 14px;">
-										<img src="<?php echo esc_url( $av_url ); ?>" alt="<?php echo esc_attr( $titem['reviewer_name'] ); ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid <?php echo esc_attr( $primary ); ?>;" loading="lazy" />
-										<div>
-											<div style="font-weight: 800; color: #1a1c1c; font-size: 0.95rem;"><?php echo esc_html( $titem['reviewer_name'] ); ?></div>
-											<div style="color: rgba(26,28,28,0.6); font-size: 0.85rem; font-weight: 600;"><?php echo esc_html( $titem['reviewer_title'] ); ?></div>
+								<?php if ( $enable_google_tab ) : ?>
+									<button type="button" class="dlm-review-tab-btn mipallab-review-tab-btn <?php echo 'google' === $default_tab ? 'active' : ''; ?>" data-pane="<?php echo esc_attr( $uid ); ?>_google" data-target="<?php echo esc_attr( $uid ); ?>_google" onclick="switchDLMTab(this, '<?php echo esc_js( $uid ); ?>_google')" style="background: <?php echo 'google' === $default_tab ? esc_attr( $primary ) : 'transparent'; ?>; color: <?php echo 'google' === $default_tab ? '#ffffff' : esc_attr( $text ); ?>; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.25s ease;">
+										<?php echo esc_html( $google_tab_label ); ?>
+									</button>
+								<?php endif; ?>
+							</div>
+						</div>
+					<?php endif; ?>
+
+					<?php if ( $enable_video_tab ) : ?>
+						<!-- Pane 1: Video Reviews -->
+						<div id="<?php echo esc_attr( $uid ); ?>_video" class="dlm-rev-pane dlm-review-content-pane mipallab-rev-pane mipallab-review-content-pane" style="display: <?php echo ( 'video' === $default_tab || ! $show_switcher_nav ) ? 'block' : 'none'; ?>;">
+							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px;">
+								<?php foreach ( $video_items as $vitem ) : 
+									$raw_vurl = ! empty( $vitem['video_url'] ) ? trim( $vitem['video_url'] ) : 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+									$vurl     = $raw_vurl;
+									if ( strpos( $vurl, 'watch?v=' ) !== false ) {
+										$vurl = preg_replace( '/.*watch\?v=([a-zA-Z0-9_-]+).*/', 'https://www.youtube.com/embed/$1', $vurl );
+									} elseif ( strpos( $vurl, 'youtu.be/' ) !== false ) {
+										$vurl = preg_replace( '/.*youtu\.be\/([a-zA-Z0-9_-]+).*/', 'https://www.youtube.com/embed/$1', $vurl );
+									} elseif ( strpos( $vurl, 'vimeo.com/' ) !== false && strpos( $vurl, 'player.vimeo.com' ) === false ) {
+										$vurl = preg_replace( '/.*vimeo\.com\/([0-9]+).*/', 'https://player.vimeo.com/video/$1', $vurl );
+									}
+									$vname   = ! empty( $vitem['name'] ) ? $vitem['name'] : 'Verified Reader';
+									$vrole   = ! empty( $vitem['role'] ) ? $vitem['role'] : 'Library Member';
+									$vrating = ! empty( $vitem['rating'] ) ? intval( $vitem['rating'] ) : 5;
+								?>
+									<div class="dlm-hover-lift mipallab-hover-lift" style="background: <?php echo esc_attr( $card_bg ); ?>; border-radius: 20px; overflow: hidden; border: 1px solid rgba(133, 83, 0, 0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.06);">
+										<div style="position: relative; padding-bottom: 56.25%; height: 0; background: #000;">
+											<iframe src="<?php echo esc_url( $vurl ); ?>" title="<?php echo esc_attr( $vname ); ?>" style="position: absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+										</div>
+										<div style="padding: 20px;">
+											<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+												<div style="font-size: 1.1rem; font-weight: 800; color: <?php echo esc_attr( $text ); ?>;"><?php echo esc_html( $vname ); ?></div>
+												<div style="color: <?php echo esc_attr( $star_color ); ?>; font-size: 15px;">
+													<?php echo esc_html( str_repeat( '★', max( 1, min( 5, $vrating ) ) ) ); ?>
+												</div>
+											</div>
+											<div style="color: <?php echo esc_attr( $primary ); ?>; font-size: 0.9rem; font-weight: 700;"><?php echo esc_html( $vrole ); ?></div>
 										</div>
 									</div>
-								</div>
-							<?php endforeach; ?>
+								<?php endforeach; ?>
+							</div>
 						</div>
-					</div>
+					<?php endif; ?>
 
-					<!-- Pane 3: Google Reviews -->
-					<div id="<?php echo esc_attr( $uid ); ?>_google" class="dlm-rev-pane mipallab-rev-pane" style="display: none;">
-						<div style="background: rgba(133,83,0,0.05); padding: 48px 24px; border-radius: 24px; text-align: center; border: 1px solid rgba(133, 83, 0, 0.12); max-width: 650px; margin: 0 auto;">
-							<h3 style="font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 900; color: <?php echo esc_attr( $primary ); ?>; margin: 0 0 12px 0;"><?php echo esc_html( $google_score ); ?></h3>
-							<p style="font-size: 1.15rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; margin: 0;"><?php echo esc_html( $google_subtext ); ?></p>
+					<?php if ( $enable_text_tab ) : ?>
+						<!-- Pane 2: Text Testimonials -->
+						<div id="<?php echo esc_attr( $uid ); ?>_text" class="dlm-rev-pane dlm-review-content-pane mipallab-rev-pane mipallab-review-content-pane" style="display: <?php echo ( 'text' === $default_tab && ( $show_switcher_nav || ! $enable_video_tab ) ) ? 'block' : 'none'; ?>;">
+							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px;">
+								<?php foreach ( $text_items as $titem ) : 
+									$av_url  = ! empty( $titem['avatar']['url'] ) ? esc_url( $titem['avatar']['url'] ) : 'https://dev-bridgeway36.pantheonsite.io/wp-content/uploads/2026/07/unnamed-1.jpg';
+									$trating = ! empty( $titem['rating'] ) ? intval( $titem['rating'] ) : 5;
+								?>
+									<div class="dlm-hover-lift mipallab-hover-lift" style="background: <?php echo esc_attr( $card_bg ); ?>; padding: 28px; border-radius: 20px; border: 1px solid rgba(133, 83, 0, 0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: space-between;">
+										<div>
+											<div style="color: <?php echo esc_attr( $star_color ); ?>; font-size: 16px; margin-bottom: 12px;">
+												<?php echo esc_html( str_repeat( '★', max( 1, min( 5, $trating ) ) ) ); ?>
+											</div>
+											<p style="font-size: 1rem; color: rgba(26,28,28,0.85); font-style: italic; line-height: 1.7; margin-bottom: 20px;">
+												"<?php echo esc_html( $titem['review_text'] ?? '' ); ?>"
+											</p>
+										</div>
+										<div style="display: flex; align-items: center; gap: 14px;">
+											<img src="<?php echo esc_url( $av_url ); ?>" alt="<?php echo esc_attr( $titem['reviewer_name'] ?? 'Reader' ); ?>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid <?php echo esc_attr( $primary ); ?>;" loading="lazy" />
+											<div>
+												<div style="font-weight: 800; color: <?php echo esc_attr( $text ); ?>; font-size: 0.95rem;"><?php echo esc_html( $titem['reviewer_name'] ?? 'Verified Reader' ); ?></div>
+												<div style="color: rgba(26,28,28,0.6); font-size: 0.85rem; font-weight: 600;"><?php echo esc_html( $titem['reviewer_title'] ?? 'Member' ); ?></div>
+											</div>
+										</div>
+									</div>
+								<?php endforeach; ?>
+							</div>
 						</div>
-					</div>
+					<?php endif; ?>
+
+					<?php if ( $enable_google_tab ) : ?>
+						<!-- Pane 3: Google Reviews (Manual, Shortcode / Plugin & API) -->
+						<div id="<?php echo esc_attr( $uid ); ?>_google" class="dlm-rev-pane dlm-review-content-pane mipallab-rev-pane mipallab-review-content-pane" style="display: <?php echo ( 'google' === $default_tab && ( $show_switcher_nav || ( ! $enable_video_tab && ! $enable_text_tab ) ) ) ? 'block' : 'none'; ?>;">
+							
+							<?php if ( 'shortcode' === $google_mode && ! empty( $google_shortcode ) ) : ?>
+								<div class="dlm-google-reviews-shortcode-wrapper" style="background: <?php echo esc_attr( $card_bg ); ?>; padding: 24px; border-radius: 20px; border: 1px solid rgba(133, 83, 0, 0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+									<?php echo do_shortcode( $google_shortcode ); ?>
+								</div>
+							<?php else : ?>
+								<!-- Google Rating Hero Card -->
+								<div style="background: <?php echo esc_attr( $card_bg ); ?>; padding: 40px 24px; border-radius: 24px; text-align: center; border: 1.5px solid rgba(133, 83, 0, 0.15); box-shadow: 0 12px 35px rgba(0,0,0,0.06); max-width: 750px; margin: 0 auto 36px auto;">
+									<div style="display: inline-flex; align-items: center; gap: 8px; background: #ffffff; padding: 6px 16px; border-radius: 50px; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 4px 12px rgba(0,0,0,0.04); margin-bottom: 16px;">
+										<svg width="20" height="20" viewBox="0 0 48 48" style="vertical-align: middle;">
+											<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+											<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+											<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+											<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+										</svg>
+										<span style="font-weight: 800; font-size: 14px; color: #1a1c1c;"><?php echo esc_html( $google_business_name ); ?></span>
+									</div>
+									<h3 style="font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 900; color: <?php echo esc_attr( $primary ); ?>; margin: 0 0 10px 0; letter-spacing: -0.5px;">
+										<?php echo esc_html( $google_score ); ?>
+									</h3>
+									<p style="font-size: 1.15rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; margin: 0 0 20px 0;"><?php echo esc_html( $google_subtext ); ?></p>
+									<?php if ( ! empty( $google_place_url ) ) : ?>
+										<a href="<?php echo esc_url( $google_place_url ); ?>" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: <?php echo esc_attr( $primary ); ?>; color: #ffffff; padding: 12px 26px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; text-decoration: none; box-shadow: 0 8px 20px rgba(133, 83, 0, 0.22);">
+											<span>⭐</span> <?php echo esc_html( $google_btn_text ); ?> →
+										</a>
+									<?php endif; ?>
+								</div>
+
+								<?php if ( ! empty( $google_review_items ) ) : ?>
+									<!-- Google Customer Review Cards -->
+									<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+										<?php foreach ( $google_review_items as $gitem ) : 
+											$g_author = ! empty( $gitem['author_name'] ) ? $gitem['author_name'] : 'Google Reviewer';
+											$g_rating = ! empty( $gitem['rating'] ) ? intval( $gitem['rating'] ) : 5;
+											$g_time   = ! empty( $gitem['time_ago'] ) ? $gitem['time_ago'] : 'Recent review';
+											$g_text   = ! empty( $gitem['review_text'] ) ? $gitem['review_text'] : '';
+											$g_avatar = ! empty( $gitem['author_avatar']['url'] ) ? esc_url( $gitem['author_avatar']['url'] ) : '';
+										?>
+											<div class="dlm-hover-lift mipallab-hover-lift" style="background: <?php echo esc_attr( $card_bg ); ?>; padding: 24px; border-radius: 18px; border: 1px solid rgba(133, 83, 0, 0.12); box-shadow: 0 8px 25px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+												<div>
+													<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+														<div style="color: <?php echo esc_attr( $star_color ); ?>; font-size: 15px;">
+															<?php echo esc_html( str_repeat( '★', max( 1, min( 5, $g_rating ) ) ) ); ?>
+														</div>
+														<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #1e8e3e; background: #e6f4ea; padding: 3px 8px; border-radius: 20px;">
+															✓ <?php esc_html_e( 'Google Verified', 'digital-library-membership' ); ?>
+														</span>
+													</div>
+													<p style="font-size: 0.95rem; color: rgba(26,28,28,0.85); line-height: 1.65; margin: 0 0 16px 0;">
+														"<?php echo esc_html( $g_text ); ?>"
+													</p>
+												</div>
+												<div style="display: flex; align-items: center; gap: 12px; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 14px;">
+													<?php if ( ! empty( $g_avatar ) ) : ?>
+														<img src="<?php echo esc_url( $g_avatar ); ?>" alt="<?php echo esc_attr( $g_author ); ?>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" loading="lazy" />
+													<?php else : ?>
+														<div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(133, 83, 0, 0.15); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px;">
+															<?php echo esc_html( strtoupper( substr( $g_author, 0, 1 ) ) ); ?>
+														</div>
+													<?php endif; ?>
+													<div>
+														<div style="font-weight: 800; color: <?php echo esc_attr( $text ); ?>; font-size: 0.95rem;"><?php echo esc_html( $g_author ); ?></div>
+														<div style="color: rgba(26,28,28,0.5); font-size: 0.8rem; font-weight: 600;"><?php echo esc_html( $g_time ); ?></div>
+													</div>
+												</div>
+											</div>
+										<?php endforeach; ?>
+									</div>
+								<?php endif; ?>
+
+							<?php endif; ?>
+
+						</div>
+					<?php endif; ?>
 
 				</div>
 
@@ -862,8 +995,13 @@ final class DLM_Home_Widgets {
 	public function render_review_switcher_shortcode( $atts ) {
 		$atts = shortcode_atts(
 			array(
-				'primary_color' => '#855300',
-				'text_color'    => '#1a1c1c',
+				'primary_color'      => '#855300',
+				'text_color'         => '#1a1c1c',
+				'show_switcher_nav'  => 'yes',
+				'default_active_tab' => 'video',
+				'enable_video_tab'   => 'yes',
+				'enable_text_tab'    => 'yes',
+				'enable_google_tab'  => 'yes',
 			),
 			$atts,
 			'dlm_review_switcher'
@@ -874,11 +1012,13 @@ final class DLM_Home_Widgets {
 				'name'      => 'Dr. Sarah Moon',
 				'role'      => 'AI Specialist',
 				'video_url' => 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+				'rating'    => 5,
 			),
 			array(
 				'name'      => 'Julian Vance',
 				'role'      => 'Tech Entrepreneur',
 				'video_url' => 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+				'rating'    => 5,
 			),
 		);
 
@@ -888,12 +1028,14 @@ final class DLM_Home_Widgets {
 				'reviewer_title' => 'Verified Reader',
 				'review_text'    => 'The AI Job Shift completely transformed how I view career progression. Essential read!',
 				'avatar'         => array( 'url' => 'https://dev-bridgeway36.pantheonsite.io/wp-content/uploads/2026/07/unnamed-1.jpg' ),
+				'rating'         => 5,
 			),
 			array(
 				'reviewer_name'  => 'Lina Eklund',
 				'reviewer_title' => 'Architectural Designer',
 				'review_text'    => 'Beautiful digital library layout. Highly recommend the membership!',
 				'avatar'         => array( 'url' => 'https://dev-bridgeway36.pantheonsite.io/wp-content/uploads/2026/07/unnamed-2.jpg' ),
+				'rating'         => 5,
 			),
 		);
 
@@ -906,7 +1048,8 @@ final class DLM_Home_Widgets {
 			'4.9 ★★★★★',
 			esc_html__( 'Based on 1,280+ Verified Google Reviews', 'digital-library-membership' ),
 			$atts['primary_color'],
-			$atts['text_color']
+			$atts['text_color'],
+			$atts
 		);
 		return ob_get_clean();
 	}
@@ -926,7 +1069,7 @@ final class DLM_Home_Widgets {
 					<!-- Left Info Column -->
 					<div class="gsap-fade-up">
 						<?php if ( ! empty( $tag ) ) : ?>
-							<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px;">
+							<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;">
 								<?php echo esc_html( $tag ); ?>
 							</div>
 						<?php endif; ?>
@@ -940,47 +1083,55 @@ final class DLM_Home_Widgets {
 						</p>
 
 						<div style="display: flex; flex-direction: column; gap: 20px;">
-							<div style="display: flex; align-items: center; gap: 16px;">
-								<div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(133, 83, 0, 0.1); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-									✉️
+							<?php if ( ! empty( $email ) ) : ?>
+								<div style="display: flex; align-items: center; gap: 16px;">
+									<div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(133, 83, 0, 0.1); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+										✉️
+									</div>
+									<div>
+										<div style="font-size: 0.85rem; font-weight: 700; color: rgba(26,28,28,0.6);"><?php esc_html_e( 'EMAIL SUPPORT', 'digital-library-membership' ); ?></div>
+										<a href="mailto:<?php echo esc_attr( $email ); ?>" style="font-size: 1rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; text-decoration: none;"><?php echo esc_html( $email ); ?></a>
+									</div>
 								</div>
-								<div>
-									<div style="font-size: 0.85rem; font-weight: 700; color: rgba(26,28,28,0.6);"><?php esc_html_e( 'EMAIL SUPPORT', 'digital-library-membership' ); ?></div>
-									<a href="mailto:<?php echo esc_attr( $email ); ?>" style="font-size: 1rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; text-decoration: none;"><?php echo esc_html( $email ); ?></a>
-								</div>
-							</div>
+							<?php endif; ?>
 
-							<div style="display: flex; align-items: center; gap: 16px;">
-								<div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(133, 83, 0, 0.1); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-									📞
+							<?php if ( ! empty( $phone ) ) : ?>
+								<div style="display: flex; align-items: center; gap: 16px;">
+									<div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(133, 83, 0, 0.1); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+										📞
+									</div>
+									<div>
+										<div style="font-size: 0.85rem; font-weight: 700; color: rgba(26,28,28,0.6);"><?php esc_html_e( 'PHONE INQUIRIES', 'digital-library-membership' ); ?></div>
+										<div style="font-size: 1rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>;"><?php echo esc_html( $phone ); ?></div>
+									</div>
 								</div>
-								<div>
-									<div style="font-size: 0.85rem; font-weight: 700; color: rgba(26,28,28,0.6);"><?php esc_html_e( 'PHONE INQUIRIES', 'digital-library-membership' ); ?></div>
-									<div style="font-size: 1rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>;"><?php echo esc_html( $phone ); ?></div>
-								</div>
-							</div>
+							<?php endif; ?>
 
-							<div style="display: flex; align-items: center; gap: 16px;">
-								<div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(133, 83, 0, 0.1); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-									📍
+							<?php if ( ! empty( $addr ) ) : ?>
+								<div style="display: flex; align-items: center; gap: 16px;">
+									<div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(133, 83, 0, 0.1); color: <?php echo esc_attr( $primary ); ?>; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+										📍
+									</div>
+									<div>
+										<div style="font-size: 0.85rem; font-weight: 700; color: rgba(26,28,28,0.6);"><?php esc_html_e( 'LOCATION', 'digital-library-membership' ); ?></div>
+										<div style="font-size: 1rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>;"><?php echo esc_html( $addr ); ?></div>
+									</div>
 								</div>
-								<div>
-									<div style="font-size: 0.85rem; font-weight: 700; color: rgba(26,28,28,0.6);"><?php esc_html_e( 'LOCATION', 'digital-library-membership' ); ?></div>
-									<div style="font-size: 1rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>;"><?php echo esc_html( $addr ); ?></div>
-								</div>
-							</div>
+							<?php endif; ?>
 						</div>
 					</div>
 
 					<!-- Right Interactive Form Column -->
 					<div class="gsap-fade-up">
-						<form class="dlm-ajax-contact-form mipallab-ajax-contact-form" style="background: <?php echo esc_attr( $form_bg ); ?>; padding: 36px 30px; border-radius: 24px; border: 1px solid rgba(133, 83, 0, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.06);">
+						<form class="dlm-ajax-contact-form dlm-contact-form-el mipallab-ajax-contact-form mipallab-contact-form-el" method="post" style="background: <?php echo esc_attr( $form_bg ); ?>; padding: 36px 30px; border-radius: 24px; border: 1.5px solid rgba(133, 83, 0, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.06);">
+							<input type="hidden" name="action" value="dlm_contact_form_submit" />
+							<?php wp_nonce_field( 'dlm_contact_nonce', 'nonce' ); ?>
 							
 							<h3 style="font-size: 1.4rem; font-weight: 800; color: <?php echo esc_attr( $text ); ?>; margin: 0 0 24px 0;">
 								<?php echo esc_html( $form_title ); ?>
 							</h3>
 
-							<div class="dlm-form-msg-box mipallab-form-msg-box" style="display: none; padding: 12px 18px; border-radius: 10px; margin-bottom: 20px; font-weight: 700; font-size: 0.95rem;"></div>
+							<div class="dlm-form-msg-box dlm-form-message mipallab-form-msg-box mipallab-form-message" style="display: none; padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; font-weight: 700; font-size: 0.95rem; line-height: 1.5;"></div>
 
 							<div style="margin-bottom: 18px;">
 								<label style="display: block; font-size: 0.9rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; margin-bottom: 6px;"><?php esc_html_e( 'Your Name', 'digital-library-membership' ); ?> *</label>
@@ -993,6 +1144,11 @@ final class DLM_Home_Widgets {
 							</div>
 
 							<div style="margin-bottom: 18px;">
+								<label style="display: block; font-size: 0.9rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; margin-bottom: 6px;"><?php esc_html_e( 'Phone Number (Optional)', 'digital-library-membership' ); ?></label>
+								<input type="tel" name="phone" placeholder="<?php esc_attr_e( 'e.g. +1 (555) 000-1234', 'digital-library-membership' ); ?>" style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1.5px solid rgba(133, 83, 0, 0.2); font-family: inherit; font-size: 1rem; box-sizing: border-box; outline-color: <?php echo esc_attr( $primary ); ?>;" />
+							</div>
+
+							<div style="margin-bottom: 18px;">
 								<label style="display: block; font-size: 0.9rem; font-weight: 700; color: <?php echo esc_attr( $text ); ?>; margin-bottom: 6px;"><?php esc_html_e( 'Subject', 'digital-library-membership' ); ?></label>
 								<input type="text" name="subject" placeholder="<?php esc_attr_e( 'e.g. Membership Inquiry / Book Question', 'digital-library-membership' ); ?>" style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1.5px solid rgba(133, 83, 0, 0.2); font-family: inherit; font-size: 1rem; box-sizing: border-box; outline-color: <?php echo esc_attr( $primary ); ?>;" />
 							</div>
@@ -1002,7 +1158,7 @@ final class DLM_Home_Widgets {
 								<textarea name="message" rows="4" required placeholder="<?php esc_attr_e( 'How can we help you today?', 'digital-library-membership' ); ?>" style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1.5px solid rgba(133, 83, 0, 0.2); font-family: inherit; font-size: 1rem; box-sizing: border-box; outline-color: <?php echo esc_attr( $primary ); ?>; resize: vertical;"></textarea>
 							</div>
 
-							<button type="submit" style="width: 100%; background: <?php echo esc_attr( $primary ); ?>; color: #ffffff; padding: 14px; border: none; border-radius: 12px; font-weight: 800; font-size: 1.05rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 20px rgba(133, 83, 0, 0.25);">
+							<button type="submit" style="width: 100%; background: <?php echo esc_attr( $primary ); ?>; color: #ffffff; padding: 14px; border: none; border-radius: 12px; font-weight: 800; font-size: 1.05rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 20px rgba(133, 83, 0, 0.25); transition: all 0.25s ease;">
 								<span>✉️</span> <?php esc_html_e( 'Send Message', 'digital-library-membership' ); ?>
 							</button>
 
@@ -1405,14 +1561,15 @@ final class DLM_Home_Widgets {
 	 * AJAX Endpoint: Contact Form Processing
 	 */
 	public function handle_contact_submit() {
-		// Nonce check: accept both dlm_contact_nonce and mipallab_contact_nonce
-		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, 'dlm_contact_nonce' ) && ! wp_verify_nonce( $nonce, 'mipallab_contact_nonce' ) ) {
+		// Nonce check: accept dlm_contact_nonce or mipallab_contact_nonce or _wpnonce
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : ( isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '' );
+		if ( ! empty( $nonce ) && ! wp_verify_nonce( $nonce, 'dlm_contact_nonce' ) && ! wp_verify_nonce( $nonce, 'mipallab_contact_nonce' ) ) {
 			wp_send_json_error( array( 'message' => esc_html__( 'Security token invalid or expired. Please refresh and try again.', 'digital-library-membership' ) ) );
 		}
 
 		$name    = sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) );
 		$email   = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
+		$phone   = sanitize_text_field( wp_unslash( $_POST['phone'] ?? '' ) );
 		$subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? '' ) );
 		$message = sanitize_textarea_field( wp_unslash( $_POST['message'] ?? '' ) );
 
@@ -1431,6 +1588,7 @@ final class DLM_Home_Widgets {
 		$enquiry_item = array(
 			'name'    => $name,
 			'email'   => $email,
+			'phone'   => $phone,
 			'subject' => $subject ? $subject : 'New Inquiry from Website',
 			'message' => $message,
 			'date'    => current_time( 'mysql' ),
@@ -1447,30 +1605,39 @@ final class DLM_Home_Widgets {
 		update_option( 'dlm_contact_enquiries', $enquiries );
 		update_option( 'mipallab_contact_enquiries', $enquiries );
 
-		// Dispatch email notification
+		// Dispatch email notification to admin with all provided fields
 		$admin_email = get_option( 'admin_email' );
 		if ( ! empty( $admin_email ) ) {
-			$email_subj = '[Digital Library Contact] ' . ( $subject ? $subject : 'New Message from ' . $name );
-			$email_body = "You received a new inquiry via Digital Library Membership:\n\n";
-			$email_body .= "Name: " . $name . "\n";
-			$email_body .= "Email: " . $email . "\n";
-			$email_body .= "Subject: " . $subject . "\n";
-			$email_body .= "Date: " . current_time( 'mysql' ) . "\n\n";
-			$email_body .= "Message:\n" . $message . "\n";
+			$site_name  = get_bloginfo( 'name' );
+			$email_subj = sprintf( '[%s Contact] %s', $site_name, ( $subject ? $subject : 'New Message from ' . $name ) );
+			
+			$email_body  = "You have received a new contact inquiry from your Digital Library website:\n\n";
+			$email_body .= "========================================================\n";
+			$email_body .= "Full Name:      " . $name . "\n";
+			$email_body .= "Email Address:  " . $email . "\n";
+			if ( ! empty( $phone ) ) {
+				$email_body .= "Phone Number:   " . $phone . "\n";
+			}
+			$email_body .= "Subject:        " . ( $subject ? $subject : 'General Inquiry' ) . "\n";
+			$email_body .= "Submitted At:   " . current_time( 'Y-m-d H:i:s' ) . "\n";
+			$email_body .= "IP Address:     " . $remote_ip . "\n";
+			$email_body .= "========================================================\n\n";
+			$email_body .= "Message:\n";
+			$email_body .= $message . "\n\n";
+			$email_body .= "--------------------------------------------------------\n";
+			$email_body .= "You can reply directly to this email to respond to " . $name . " (" . $email . ").\n";
+
 			$headers = array(
 				'Content-Type: text/plain; charset=UTF-8',
 				'Reply-To: ' . $name . ' <' . $email . '>',
 			);
-			@wp_mail( $admin_email, $email_subj, $email_body, $headers );
+
+			wp_mail( $admin_email, $email_subj, $email_body, $headers );
 		}
 
 		wp_send_json_success(
 			array(
-				'message' => sprintf(
-					/* translators: %s: submitter name */
-					esc_html__( 'Thank you, %s! Your message has been received. We will get back to you shortly.', 'digital-library-membership' ),
-					esc_html( $name )
-				),
+				'message' => esc_html__( 'Message sent successfully! We will contact you soon.', 'digital-library-membership' ),
 			)
 		);
 	}

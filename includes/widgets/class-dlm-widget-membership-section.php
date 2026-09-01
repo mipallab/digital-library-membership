@@ -32,11 +32,11 @@ class DLM_Widget_Membership_Section extends \Elementor\Widget_Base {
 	}
 
 	public function get_categories() {
-		return array( 'digital-library', 'mipallab_category', 'general' );
+		return array( 'digital-library' );
 	}
 
 	public function get_keywords() {
-		return array( 'membership', 'pricing', 'plans', 'subscription', 'library', 'vip', 'dlm', 'mipallab' );
+		return array( 'membership', 'pricing', 'plans', 'subscription', 'library', 'vip', 'dlm' );
 	}
 
 	protected function register_controls() {
@@ -291,11 +291,14 @@ class DLM_Widget_Membership_Section extends \Elementor\Widget_Base {
 	}
 }
 
-// Backward Compatibility Class Alias
+// Backward Compatibility Class Alias (hidden from panel)
 if ( ! class_exists( 'Mipallab_Membership_Section_Widget' ) ) {
 	class Mipallab_Membership_Section_Widget extends DLM_Widget_Membership_Section {
 		public function get_name() {
 			return 'mipallab_membership_section';
+		}
+		public function show_in_panel() {
+			return false;
 		}
 	}
 }

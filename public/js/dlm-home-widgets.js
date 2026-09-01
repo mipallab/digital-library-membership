@@ -357,7 +357,7 @@
      */
     function initDLMContactForms(container) {
         var scope = container || document;
-        var forms = scope.querySelectorAll('.dlm-contact-form-el, .mipallab-contact-form-el');
+        var forms = scope.querySelectorAll('.dlm-contact-form-el, .dlm-ajax-contact-form, .mipallab-contact-form-el, .mipallab-ajax-contact-form');
 
         forms.forEach(function (form) {
             if (form.getAttribute('data-bound') === 'true') return;
@@ -366,17 +366,17 @@
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
                 var submitBtn = form.querySelector('button[type="submit"]');
-                var msgBox = form.querySelector('.dlm-form-message, .mipallab-form-message');
-                var origBtnText = submitBtn ? submitBtn.innerHTML : 'Send Message';
+                var msgBox = form.querySelector('.dlm-form-message, .dlm-form-msg-box, .mipallab-form-message, .mipallab-form-msg-box');
+                var origBtnHTML = submitBtn ? submitBtn.innerHTML : 'Send Message';
 
                 if (submitBtn) {
                     submitBtn.classList.add('dlm-btn-loading');
-                    submitBtn.innerHTML = 'Sending message...';
+                    submitBtn.innerHTML = '<span>⏳</span> Sending message...';
                     submitBtn.disabled = true;
                 }
 
                 if (msgBox) {
-                    msgBox.className = 'dlm-form-message';
+                    msgBox.className = 'dlm-form-message dlm-form-msg-box';
                     msgBox.style.display = 'none';
                     msgBox.innerHTML = '';
                 }
@@ -399,29 +399,41 @@
                 .then(function (data) {
                     if (submitBtn) {
                         submitBtn.classList.remove('dlm-btn-loading');
-                        submitBtn.innerHTML = origBtnText;
+                        submitBtn.innerHTML = origBtnHTML;
                         submitBtn.disabled = false;
                     }
                     if (msgBox) {
                         if (data && data.success) {
-                            msgBox.className = 'dlm-form-message success';
-                            msgBox.innerHTML = (data.data && data.data.message) ? data.data.message : 'Thank you! Your message has been sent successfully.';
+                            msgBox.className = 'dlm-form-message dlm-form-msg-box success';
+                            msgBox.style.display = 'block';
+                            msgBox.style.background = '#ecfdf5';
+                            msgBox.style.color = '#065f46';
+                            msgBox.style.border = '1.5px solid #10b981';
+                            msgBox.innerHTML = '✅ ' + ((data.data && data.data.message) ? data.data.message : 'Message sent successfully! We will contact you soon.');
                             form.reset();
                         } else {
-                            msgBox.className = 'dlm-form-message error';
-                            msgBox.innerHTML = (data && data.data && data.data.message) ? data.data.message : 'An error occurred. Please try again.';
+                            msgBox.className = 'dlm-form-message dlm-form-msg-box error';
+                            msgBox.style.display = 'block';
+                            msgBox.style.background = '#fef2f2';
+                            msgBox.style.color = '#991b1b';
+                            msgBox.style.border = '1.5px solid #ef4444';
+                            msgBox.innerHTML = '⚠️ ' + ((data && data.data && data.data.message) ? data.data.message : 'An error occurred. Please try again.');
                         }
                     }
                 })
                 .catch(function () {
                     if (submitBtn) {
                         submitBtn.classList.remove('dlm-btn-loading');
-                        submitBtn.innerHTML = origBtnText;
+                        submitBtn.innerHTML = origBtnHTML;
                         submitBtn.disabled = false;
                     }
                     if (msgBox) {
-                        msgBox.className = 'dlm-form-message error';
-                        msgBox.innerHTML = 'Unable to send message at this time. Please try again later.';
+                        msgBox.className = 'dlm-form-message dlm-form-msg-box error';
+                        msgBox.style.display = 'block';
+                        msgBox.style.background = '#fef2f2';
+                        msgBox.style.color = '#991b1b';
+                        msgBox.style.border = '1.5px solid #ef4444';
+                        msgBox.innerHTML = '⚠️ Unable to send message at this time. Please check your connection and try again.';
                     }
                 });
             });

@@ -32,11 +32,11 @@ class DLM_Widget_Hero_Book_Slider extends \Elementor\Widget_Base {
 	}
 
 	public function get_categories() {
-		return array( 'digital-library', 'mipallab_category', 'general' );
+		return array( 'digital-library' );
 	}
 
 	public function get_keywords() {
-		return array( 'hero', 'slider', 'book', 'bestseller', 'carousel', 'dlm', 'mipallab' );
+		return array( 'hero', 'slider', 'book', 'bestseller', 'carousel', 'dlm' );
 	}
 
 	protected function register_controls() {
@@ -440,11 +440,14 @@ class DLM_Widget_Hero_Book_Slider extends \Elementor\Widget_Base {
 	}
 }
 
-// Backward Compatibility Class Alias
+// Backward Compatibility Class Alias (hidden from panel)
 if ( ! class_exists( 'Mipallab_Hero_Book_Slider_Widget' ) ) {
 	class Mipallab_Hero_Book_Slider_Widget extends DLM_Widget_Hero_Book_Slider {
 		public function get_name() {
 			return 'mipallab_hero_book_slider';
+		}
+		public function show_in_panel() {
+			return false;
 		}
 	}
 }

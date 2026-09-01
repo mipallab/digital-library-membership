@@ -3,7 +3,7 @@ Contributors: mipallab123
 Tags: library, membership, reader, flipbook, stripe, gutenberg, elementor, carousel, widgets
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 3.2.6
+Stable tag: 3.3.0
 Requires PHP: 8.1
 Elementor tested up to: 3.25.0
 License: GPLv2 or later

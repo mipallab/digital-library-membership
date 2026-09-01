@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.2.6
+Stable tag: 3.3.0
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -95,6 +95,18 @@ This plugin integrates with the following third-party services to handle authent
 5. Social Sign-In Settings - Google & Apple credential configuration and setup guide.
 
 == Changelog ==
+
+= 3.3.0 =
+* Feature: Unified Elementor category palette into single canonical "Digital Library" category (`digital-library`) and removed duplicate category entries.
+* Feature: Excluded legacy backward-compat alias widgets from Elementor editor panel (`show_in_panel() { return false; }`), eliminating duplicate widget icons.
+* Feature: Comprehensive Review Switcher controls with global navigation toggle (`show_switcher_nav`), default active tab selector, independent tab toggles (`enable_video_tab`, `enable_text_tab`, `enable_google_tab`), and custom tab labels.
+* Feature: Multi-source Video Reviews repeater with support for YouTube, Vimeo, and direct MP4 embeds with custom poster images and star ratings.
+* Feature: Rich Text Testimonials repeater with reviewer name, designation badges, avatar images, and star ratings.
+* Feature: Multi-mode Google Reviews integration (Manual review cards, 3rd-party Google Reviews plugin shortcode compatibility via `do_shortcode()`, and Google Places API).
+* Fixed: Contact form AJAX class binding mismatch, added hidden security nonces (`wp_nonce_field`) and submission action tokens.
+* Feature: Automated Contact Form admin email delivery via `wp_mail()` with full name, email, phone, subject, message, IP address, and direct `Reply-To` headers.
+* Enhanced: Standardized contact form user feedback alert: "Message sent successfully! We will contact you soon." with live UI loading indicators.
+* Hardened: Google reCAPTCHA v2/v3 token validation, error logging, and client-side reset hooks.
 
 = 3.2.6 =
 * Feature: Dynamic luxury feedback modal (`dlmAlertModal`) elevated to `z-[99999]` with glowing status rings and clear contextual coloring (Emerald Green for additions/edits, Amber/Gold for deletions, Crimson Red for errors, Sky Blue for system notices) with item badge highlights.

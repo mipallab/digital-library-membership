@@ -501,3 +501,26 @@ body.elementor-editor-preview .gsap-fade-right {
         grid-template-columns: 1fr !important;
     }
 }
+
+/* Form Message Box Styles */
+.dlm-form-msg-box.success,
+.dlm-form-message.success {
+    background: #ecfdf5 !important;
+    color: #065f46 !important;
+    border: 1.5px solid #10b981 !important;
+    display: block !important;
+}
+
+.dlm-form-msg-box.error,
+.dlm-form-message.error {
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+    border: 1.5px solid #ef4444 !important;
+    display: block !important;
+}
+
+.dlm-btn-loading {
+    opacity: 0.85;
+    cursor: not-allowed !important;
+}
+
