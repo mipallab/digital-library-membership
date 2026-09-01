@@ -46,7 +46,7 @@ class DLM_DB {
 			// Self-healing runtime transition: flip any overdue future books to publish instantly
 			$wpdb->query(
 				$wpdb->prepare(
-					"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date != '' AND publish_date <= %s",
+					"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date <= %s",
 					$table,
 					$now
 				)
@@ -54,7 +54,7 @@ class DLM_DB {
 
 			return $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM %i WHERE status = %s AND (publish_date IS NULL OR publish_date = '' OR publish_date <= %s) ORDER BY created_at DESC",
+					"SELECT * FROM %i WHERE status = %s AND (publish_date IS NULL OR publish_date <= %s) ORDER BY created_at DESC",
 					$table,
 					'publish',
 					$now
@@ -861,9 +861,8 @@ class DLM_DB {
 
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date != '' AND (publish_date <= %s OR REPLACE(publish_date, 'T', ' ') <= %s)",
+				"UPDATE %i SET status = 'publish' WHERE status = 'future' AND publish_date IS NOT NULL AND publish_date <= %s",
 				$table,
-				$now,
 				$now
 			)
 		);
