@@ -1467,6 +1467,7 @@ class DLM_Elementor_Featured_Slider extends \Elementor\Widget_Base {
 						if ( empty( $f_publish_iso ) && ! empty( $fb->publish_date ) ) {
 							$f_publish_iso = str_replace( ' ', 'T', trim( $fb->publish_date ) );
 						}
+						$f_publish_fmt = ! empty( $fb->publish_date ) ? date_i18n( get_option( 'date_format' ) . ' H:i', strtotime( $fb->publish_date ) ) : '';
 						/* translators: %s: scheduled release date */
 						$release_date_str = sprintf( __( 'Releases %s', 'digital-library-membership' ), $f_publish_fmt );
 						$btn1_label = ! empty( $fb->featured_button_1_label ) ? $fb->featured_button_1_label : ( $f_is_future ? $release_date_str : __( 'Read Book', 'digital-library-membership' ) );

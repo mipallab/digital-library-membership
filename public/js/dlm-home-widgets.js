@@ -1,6 +1,6 @@
 /**
  * Digital Library Membership - Home Widgets & Addons Script
- * High-performance Swiper, GSAP, live filter search, and AJAX form handlers.
+ * High-performance Swiper, native motion animations, live filter search, and AJAX form handlers.
  *
  * @package    DLM
  * @subpackage DLM/public/js
@@ -69,8 +69,8 @@
                 var slidesDesktop = parseInt(el.getAttribute('data-slides'), 10) || 3;
                 var slidesTablet = parseInt(el.getAttribute('data-slides-tablet'), 10) || Math.min(2, slidesDesktop);
                 var slidesMobile = parseInt(el.getAttribute('data-slides-mobile'), 10) || 1;
-                var spaceDesktop = parseInt(el.getAttribute('data-space'), 10) || 24;
-                var spaceMobile = parseInt(el.getAttribute('data-space-mobile'), 10) || 16;
+                var spaceDesktop = el.hasAttribute('data-space') ? (parseInt(el.getAttribute('data-space'), 10) || 0) : (slidesDesktop === 1 ? 0 : 24);
+                var spaceMobile = el.hasAttribute('data-space-mobile') ? (parseInt(el.getAttribute('data-space-mobile'), 10) || 0) : (slidesMobile === 1 ? 0 : 16);
 
                 var isAutoplay = el.getAttribute('data-autoplay') === 'true' || el.getAttribute('data-autoplay') === 'yes';
                 var autoplayDelay = parseInt(el.getAttribute('data-delay'), 10) || 4500;
@@ -85,8 +85,9 @@
                 var paginationEl = el.querySelector('.swiper-pagination') || (parentSection ? parentSection.querySelector('.swiper-pagination') : null);
 
                 var swiperConfig = {
-                    slidesPerView: slidesMobile,
-                    spaceBetween: spaceMobile,
+                    slidesPerView: (slidesDesktop === 1) ? 1 : slidesMobile,
+                    spaceBetween: (slidesDesktop === 1) ? 0 : spaceMobile,
+                    centeredSlides: false,
                     speed: speed,
                     loop: shouldLoop,
                     rewind: !shouldLoop,
@@ -110,22 +111,40 @@
                     keyboard: {
                         enabled: true,
                         onlyInViewport: true
-                    },
-                    breakpoints: {
+                    }
+                };
+
+                if (slidesDesktop === 1) {
+                    swiperConfig.breakpoints = {
+                        320: {
+                            slidesPerView: 1,
+                            spaceBetween: 0
+                        },
+                        640: {
+                            slidesPerView: 1,
+                            spaceBetween: 0
+                        },
+                        1024: {
+                            slidesPerView: 1,
+                            spaceBetween: 0
+                        }
+                    };
+                } else {
+                    swiperConfig.breakpoints = {
                         320: {
                             slidesPerView: slidesMobile,
                             spaceBetween: spaceMobile
                         },
                         640: {
                             slidesPerView: slidesTablet,
-                            spaceBetween: Math.max(16, spaceDesktop - 6)
+                            spaceBetween: Math.max(12, spaceDesktop - 6)
                         },
                         1024: {
                             slidesPerView: slidesDesktop,
                             spaceBetween: spaceDesktop
                         }
-                    }
-                };
+                    };
+                }
 
                 if (paginationEl) {
                     swiperConfig.pagination = {
@@ -165,15 +184,18 @@
     }
 
     /**
-     * Initialize GSAP Motion & ScrollTrigger Animations
+     * Initialize Native Motion & Scroll Reveal Animations (100% GPLv2+ Compatible)
      */
-    function initDLMGSAP(container) {
+    function initDLMMotion(container) {
         var scope = container || document;
         var isEdit = isEditorMode();
 
-        // If in Elementor Editor, immediately reveal all elements so canvas is never blank
-        if (isEdit) {
-            scope.querySelectorAll('.gsap-fade-up, .gsap-fade-left, .gsap-fade-right').forEach(function (el) {
+        var revealElements = scope.querySelectorAll('.dlm-motion-fade-up, .dlm-motion-fade-left, .dlm-motion-fade-right');
+
+        // If in Elementor Editor or IntersectionObserver is unsupported, reveal immediately
+        if (isEdit || typeof IntersectionObserver === 'undefined') {
+            revealElements.forEach(function (el) {
+                el.classList.add('dlm-in-view');
                 el.style.opacity = '1';
                 el.style.transform = 'none';
                 el.style.visibility = 'visible';
@@ -181,87 +203,23 @@
             return;
         }
 
-        if (typeof gsap === 'undefined') {
-            scope.querySelectorAll('.gsap-fade-up, .gsap-fade-left, .gsap-fade-right').forEach(function (el) {
-                el.style.opacity = '1';
-                el.style.transform = 'none';
-                el.style.visibility = 'visible';
+        var observer = new IntersectionObserver(function (entries, obs) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('dlm-in-view');
+                    obs.unobserve(entry.target);
+                }
             });
-            return;
-        }
-
-        if (typeof ScrollTrigger !== 'undefined') {
-            gsap.registerPlugin(ScrollTrigger);
-        }
-
-        scope.querySelectorAll('.gsap-float').forEach(function (el) {
-            if (el.getAttribute('data-gsap-float-bound') === 'true') return;
-            el.setAttribute('data-gsap-float-bound', 'true');
-            gsap.to(el, {
-                y: -10,
-                rotation: 1.2,
-                duration: 3.2,
-                repeat: -1,
-                yoyo: true,
-                ease: 'sine.inOut'
-            });
+        }, {
+            root: null,
+            rootMargin: '0px 0px -8% 0px',
+            threshold: 0.05
         });
 
-        scope.querySelectorAll('.gsap-fade-up').forEach(function (el) {
-            if (el.getAttribute('data-gsap-bound') === 'true') return;
-            el.setAttribute('data-gsap-bound', 'true');
-            gsap.fromTo(el,
-                { opacity: 0, y: 30 },
-                {
-                    opacity: 1,
-                    y: 0,
-                    duration: 0.75,
-                    ease: 'power2.out',
-                    scrollTrigger: {
-                        trigger: el,
-                        start: 'top 92%',
-                        toggleActions: 'play none none none'
-                    }
-                }
-            );
-        });
-
-        scope.querySelectorAll('.gsap-fade-left').forEach(function (el) {
-            if (el.getAttribute('data-gsap-bound') === 'true') return;
-            el.setAttribute('data-gsap-bound', 'true');
-            gsap.fromTo(el,
-                { opacity: 0, x: -35 },
-                {
-                    opacity: 1,
-                    x: 0,
-                    duration: 0.75,
-                    ease: 'power2.out',
-                    scrollTrigger: {
-                        trigger: el,
-                        start: 'top 92%',
-                        toggleActions: 'play none none none'
-                    }
-                }
-            );
-        });
-
-        scope.querySelectorAll('.gsap-fade-right').forEach(function (el) {
-            if (el.getAttribute('data-gsap-bound') === 'true') return;
-            el.setAttribute('data-gsap-bound', 'true');
-            gsap.fromTo(el,
-                { opacity: 0, x: 35 },
-                {
-                    opacity: 1,
-                    x: 0,
-                    duration: 0.75,
-                    ease: 'power2.out',
-                    scrollTrigger: {
-                        trigger: el,
-                        start: 'top 92%',
-                        toggleActions: 'play none none none'
-                    }
-                }
-            );
+        revealElements.forEach(function (el) {
+            if (!el.classList.contains('dlm-in-view')) {
+                observer.observe(el);
+            }
         });
     }
 
@@ -445,7 +403,7 @@
      */
     function initAll(container) {
         initDLMSwipers(container);
-        initDLMGSAP(container);
+        initDLMMotion(container);
         initDLMReviewTabs(container);
         initDLMLibrarySearch(container);
         initDLMContactForms(container);

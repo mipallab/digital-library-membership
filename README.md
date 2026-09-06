@@ -3,7 +3,7 @@ Contributors: mipallab123
 Tags: library, membership, reader, flipbook, stripe, gutenberg, elementor, carousel, widgets
 Requires at least: 6.2
 Tested up to: 7.1
-Stable tag: 3.3.0
+Stable tag: 3.3.2
 Requires PHP: 8.1
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
@@ -11,12 +11,12 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 # Digital Library Membership
 
-A premium WordPress plugin for subscription-based digital book reading with realistic physical-style page flip animation, native Elementor GSAP widgets, touch carousels, and complete home addons.
+A premium WordPress plugin for subscription-based digital book reading with realistic physical-style page flip animation, native Elementor fluid motion widgets, touch carousels, and complete home addons.
 
 ## Key Features
 
 1. **Native Elementor Widgets & Home Addons**:
-   - **Hero Featured Book Slider** (`DLM_Widget_Hero_Book_Slider`): 3D perspective floating book covers, ambient radial glow, GSAP floating motion, and rating scores.
+   - **Hero Featured Book Slider** (`DLM_Widget_Hero_Book_Slider`): 3D perspective floating book covers, ambient radial glow, fluid floating motion, and rating scores.
    - **Library Book Carousel & Live Grid** (`DLM_Widget_Library_Carousel`): Ultra-smooth touch Swiper carousel & client-side real-time filterable grid.
    - **Membership Pricing Section** (`DLM_Widget_Membership_Section`): Modern pricing cards with highlight tags, checkmarked feature lists, and instant checkout links.
    - **Review Switcher** (`DLM_Widget_Review_Switcher`): Dynamic 3-tab review switcher supporting video embeds, reader testimonials with avatars, and Google review summaries.

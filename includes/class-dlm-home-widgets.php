@@ -1,7 +1,7 @@
 <?php
 /**
  * Home Widgets & Addons Extension for Digital Library Membership
- * Registers Elementor Widgets, GSAP Motion, Swiper Carousels, Standalone Shortcodes, and AJAX Endpoints.
+ * Registers Elementor Widgets, Motion Animations, Swiper Carousels, Standalone Shortcodes, and AJAX Endpoints.
  *
  * @since      3.0.0
  * @package    DLM
@@ -110,7 +110,7 @@ class DLM_Books_Helper {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					"SELECT * FROM `{$wpdb->prefix}dlm_books` WHERE (status IN ('publish', 'published', 'active', '1', '') OR status IS NULL) AND (publish_date IS NULL OR publish_date = '' OR publish_date <= %s) ORDER BY id DESC LIMIT %d",
+					"SELECT * FROM `{$wpdb->prefix}dlm_books` WHERE (status IN ('publish', 'published', 'active', '1', '') OR status IS NULL) AND (publish_date IS NULL OR publish_date <= %s) ORDER BY id DESC LIMIT %d",
 					$now,
 					$limit
 				),
@@ -508,7 +508,7 @@ final class DLM_Home_Widgets {
 	}
 
 	/**
-	 * Enqueue Google Fonts, GSAP, Swiper, and Custom Styles/Scripts
+	 * Enqueue Google Fonts, Swiper, and Custom Styles/Scripts
 	 */
 	public function enqueue_assets() {
 		// Enqueue Google Fonts
@@ -518,15 +518,11 @@ final class DLM_Home_Widgets {
 		wp_enqueue_style( 'dlm-swiper-bundle-css', DLM_URL . 'public/vendor/swiper-bundle.min.css', array(), '11.0.5' );
 		wp_enqueue_script( 'dlm-swiper-bundle-js', DLM_URL . 'public/vendor/swiper-bundle.min.js', array( 'jquery' ), '11.0.5', true );
 
-		// Enqueue Local GSAP & ScrollTrigger
-		wp_enqueue_script( 'dlm-gsap-core', DLM_URL . 'public/vendor/gsap.min.js', array(), '3.12.5', true );
-		wp_enqueue_script( 'dlm-gsap-scrolltrigger', DLM_URL . 'public/vendor/ScrollTrigger.min.js', array( 'dlm-gsap-core' ), '3.12.5', true );
-
 		// Enqueue Scoped Responsive CSS
 		wp_enqueue_style( 'dlm-home-widgets-css', DLM_URL . 'public/css/dlm-home-widgets.css', array( 'dlm-swiper-bundle-css' ), DLM_VERSION );
 
 		// Enqueue Initializer Script
-		wp_enqueue_script( 'dlm-home-widgets-js', DLM_URL . 'public/js/dlm-home-widgets.js', array( 'jquery', 'dlm-swiper-bundle-js', 'dlm-gsap-core' ), DLM_VERSION, true );
+		wp_enqueue_script( 'dlm-home-widgets-js', DLM_URL . 'public/js/dlm-home-widgets.js', array( 'jquery', 'dlm-swiper-bundle-js' ), DLM_VERSION, true );
 
 		// Pass Ajax Config & Nonces
 		$nonce = wp_create_nonce( 'dlm_contact_nonce' );
@@ -790,7 +786,7 @@ final class DLM_Home_Widgets {
 		<div class="dlm-review-section mipallab-review-section" style="padding: 80px 24px; font-family: 'Plus Jakarta Sans', sans-serif;">
 			<div style="max-width: 1100px; margin: 0 auto;">
 
-				<div class="gsap-fade-up" style="text-align: center; margin-bottom: 40px;">
+				<div class="dlm-motion-fade-up" style="text-align: center; margin-bottom: 40px;">
 					<?php if ( ! empty( $section_tag ) ) : ?>
 						<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;">
 							<?php echo esc_html( $section_tag ); ?>
@@ -1067,7 +1063,7 @@ final class DLM_Home_Widgets {
 				<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 48px; align-items: start;">
 					
 					<!-- Left Info Column -->
-					<div class="gsap-fade-up">
+					<div class="dlm-motion-fade-up">
 						<?php if ( ! empty( $tag ) ) : ?>
 							<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;">
 								<?php echo esc_html( $tag ); ?>
@@ -1122,7 +1118,7 @@ final class DLM_Home_Widgets {
 					</div>
 
 					<!-- Right Interactive Form Column -->
-					<div class="gsap-fade-up">
+					<div class="dlm-motion-fade-up">
 						<form class="dlm-ajax-contact-form dlm-contact-form-el mipallab-ajax-contact-form mipallab-contact-form-el" method="post" style="background: <?php echo esc_attr( $form_bg ); ?>; padding: 36px 30px; border-radius: 24px; border: 1.5px solid rgba(133, 83, 0, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.06);">
 							<input type="hidden" name="action" value="dlm_contact_form_submit" />
 							<?php wp_nonce_field( 'dlm_contact_nonce', 'nonce' ); ?>
@@ -1212,6 +1208,9 @@ final class DLM_Home_Widgets {
 				'autoplay'      => 'true',
 				'delay'         => 5000,
 				'loop'          => 'true',
+				'show_arrows'   => 'true',
+				'show_dots'     => 'true',
+				'container'     => 'boxed',
 				'bg_color'      => 'rgba(133, 83, 0, 0.08)',
 				'primary_color' => '#855300',
 				'title_color'   => '#1a1c1c',
@@ -1241,16 +1240,21 @@ final class DLM_Home_Widgets {
 			);
 		}
 
+		$show_arrows     = ( $atts['show_arrows'] === 'true' || $atts['show_arrows'] === 'yes' || $atts['show_arrows'] === '1' );
+		$show_dots       = ( $atts['show_dots'] === 'true' || $atts['show_dots'] === 'yes' || $atts['show_dots'] === '1' );
+		$nav_class       = $show_arrows ? 'has-arrows' : 'no-arrows';
+		$container_class = ( $atts['container'] === 'boxed' ) ? 'dlm-hero-box-container dlm-hero-is-boxed' : 'dlm-hero-box-container dlm-hero-is-full';
+
 		ob_start();
 		?>
 		<div class="dlm-hero-section mipallab-hero-section" style="background-color: <?php echo esc_attr( $atts['bg_color'] ); ?>; padding: 90px 24px; position: relative; overflow: hidden; font-family: 'Plus Jakarta Sans', sans-serif;">
-			<div style="max-width: 1200px; margin: 0 auto; position: relative;">
-				<div class="swiper dlm-swiper-container mipallab-swiper-container" data-speed="<?php echo esc_attr( $atts['speed'] ); ?>" data-autoplay="<?php echo esc_attr( $atts['autoplay'] ); ?>" data-delay="<?php echo esc_attr( $atts['delay'] ); ?>" data-loop="<?php echo esc_attr( $atts['loop'] ); ?>" data-slides="1" data-slides-tablet="1" data-slides-mobile="1">
+			<div class="<?php echo esc_attr( $container_class ); ?>" style="margin: 0 auto; position: relative;">
+				<div class="swiper dlm-swiper-container mipallab-swiper-container <?php echo esc_attr( $nav_class ); ?>" data-speed="<?php echo esc_attr( $atts['speed'] ); ?>" data-autoplay="<?php echo esc_attr( $atts['autoplay'] ); ?>" data-delay="<?php echo esc_attr( $atts['delay'] ); ?>" data-loop="<?php echo esc_attr( $atts['loop'] ); ?>" data-slides="1" data-slides-tablet="1" data-slides-mobile="1" data-space="0" data-space-mobile="0">
 					<div class="swiper-wrapper">
 						<?php foreach ( $slides as $slide ) : ?>
-							<div class="swiper-slide">
-								<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 48px; align-items: center;">
-									<div class="gsap-fade-up">
+							<div class="swiper-slide" style="box-sizing: border-box;">
+								<div class="dlm-hero-slide-grid">
+									<div class="dlm-motion-fade-up dlm-hero-slide-text">
 										<div class="dlm-hero-badge mipallab-hero-badge" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(133, 83, 0, 0.12); color: <?php echo esc_attr( $atts['primary_color'] ); ?>; padding: 6px 16px; border-radius: 50px; font-size: 13px; font-weight: 800; letter-spacing: 1px; margin-bottom: 20px;">
 											<span>⭐</span> <?php echo esc_html( $slide['badge_text'] ); ?>
 										</div>
@@ -1276,8 +1280,8 @@ final class DLM_Home_Widgets {
 											</a>
 										</div>
 									</div>
-									<div style="position: relative; text-align: center;">
-										<div class="gsap-float" style="position: relative; display: inline-block;">
+									<div class="dlm-hero-slide-cover" style="position: relative; text-align: center;">
+										<div class="dlm-motion-float" style="position: relative; display: inline-block;">
 											<div style="position: absolute; inset: -15px; background: radial-gradient(circle, rgba(133, 83, 0, 0.22), transparent 70%); border-radius: 30px; filter: blur(20px); z-index: 1;"></div>
 											<img src="<?php echo esc_url( $slide['book_cover']['url'] ); ?>" alt="<?php echo esc_attr( $slide['title'] ); ?>" style="position: relative; z-index: 2; max-width: 100%; max-height: 480px; width: auto; object-fit: contain; border-radius: 18px; box-shadow: 0 20px 45px rgba(0,0,0,0.2); transform: perspective(1000px) rotateY(-4deg) rotateX(2deg);" loading="lazy" />
 										</div>
@@ -1286,13 +1290,17 @@ final class DLM_Home_Widgets {
 							</div>
 						<?php endforeach; ?>
 					</div>
-					<button type="button" class="dlm-swiper-nav-btn dlm-swiper-nav-prev mipallab-swiper-nav-btn mipallab-swiper-nav-prev" aria-label="<?php esc_attr_e( 'Previous Slide', 'digital-library-membership' ); ?>">
-						<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-					</button>
-					<button type="button" class="dlm-swiper-nav-btn dlm-swiper-nav-next mipallab-swiper-nav-btn mipallab-swiper-nav-next" aria-label="<?php esc_attr_e( 'Next Slide', 'digital-library-membership' ); ?>">
-						<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-					</button>
-					<div class="swiper-pagination"></div>
+					<?php if ( $show_arrows ) : ?>
+						<button type="button" class="dlm-swiper-nav-btn dlm-swiper-nav-prev mipallab-swiper-nav-btn mipallab-swiper-nav-prev" aria-label="<?php esc_attr_e( 'Previous Slide', 'digital-library-membership' ); ?>">
+							<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+						</button>
+						<button type="button" class="dlm-swiper-nav-btn dlm-swiper-nav-next mipallab-swiper-nav-btn mipallab-swiper-nav-next" aria-label="<?php esc_attr_e( 'Next Slide', 'digital-library-membership' ); ?>">
+							<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+						</button>
+					<?php endif; ?>
+					<?php if ( $show_dots ) : ?>
+						<div class="swiper-pagination"></div>
+					<?php endif; ?>
 				</div>
 			</div>
 		</div>
@@ -1315,7 +1323,7 @@ final class DLM_Home_Widgets {
 				<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 48px; align-items: center;">
 					
 					<!-- Author Image & Experience Badge -->
-					<div class="gsap-fade-up" style="position: relative; text-align: center;">
+					<div class="dlm-motion-fade-up" style="position: relative; text-align: center;">
 						<div style="position: relative; display: inline-block;">
 							<div style="position: absolute; inset: -15px; background: radial-gradient(circle, rgba(133, 83, 0, 0.15), transparent 70%); border-radius: 30px; filter: blur(20px); z-index: 1;"></div>
 							<img src="<?php echo esc_url( $photo ); ?>" alt="<?php echo esc_attr( $title ); ?>" style="position: relative; z-index: 2; width: 100%; max-width: 380px; height: 440px; object-fit: cover; border-radius: 24px; box-shadow: 0 20px 45px rgba(0,0,0,0.12);" loading="lazy" />
@@ -1328,7 +1336,7 @@ final class DLM_Home_Widgets {
 					</div>
 
 					<!-- Author Bio & Achievements -->
-					<div class="gsap-fade-up">
+					<div class="dlm-motion-fade-up">
 						<?php if ( ! empty( $tag ) ) : ?>
 							<div style="display: inline-block; color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 12px;">
 								<?php echo esc_html( $tag ); ?>
@@ -1415,7 +1423,7 @@ final class DLM_Home_Widgets {
 		<div class="dlm-membership-section mipallab-membership-section" style="background-color: <?php echo esc_attr( $bg_color ); ?>; padding: 90px 24px; font-family: 'Plus Jakarta Sans', sans-serif;">
 			<div style="max-width: 1200px; margin: 0 auto;">
 				
-				<div class="gsap-fade-up" style="text-align: center; max-width: 680px; margin: 0 auto 50px auto;">
+				<div class="dlm-motion-fade-up" style="text-align: center; max-width: 680px; margin: 0 auto 50px auto;">
 					<?php if ( ! empty( $section_tag ) ) : ?>
 						<div style="display: inline-block; background: rgba(133, 83, 0, 0.12); color: <?php echo esc_attr( $primary ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; padding: 6px 18px; border-radius: 50px; margin-bottom: 12px;">
 							<?php echo esc_html( $section_tag ); ?>

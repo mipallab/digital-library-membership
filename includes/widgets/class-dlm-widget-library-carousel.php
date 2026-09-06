@@ -192,20 +192,26 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 		$this->add_control(
 			'show_arrows',
 			array(
-				'label'     => esc_html__( 'Navigation Arrows', 'digital-library-membership' ),
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'default'   => 'yes',
-				'condition' => array( 'display_mode' => 'carousel' ),
+				'label'        => esc_html__( 'Show Navigation Arrows', 'digital-library-membership' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'     => esc_html__( 'Show', 'digital-library-membership' ),
+				'label_off'    => esc_html__( 'Hide', 'digital-library-membership' ),
+				'return_value' => 'yes',
+				'default'      => 'yes',
+				'condition'    => array( 'display_mode' => 'carousel' ),
 			)
 		);
 
 		$this->add_control(
 			'show_dots',
 			array(
-				'label'     => esc_html__( 'Pagination Dots', 'digital-library-membership' ),
-				'type'      => \Elementor\Controls_Manager::SWITCHER,
-				'default'   => 'yes',
-				'condition' => array( 'display_mode' => 'carousel' ),
+				'label'        => esc_html__( 'Show Pagination Dots', 'digital-library-membership' ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'label_on'     => esc_html__( 'Show', 'digital-library-membership' ),
+				'label_off'    => esc_html__( 'Hide', 'digital-library-membership' ),
+				'return_value' => 'yes',
+				'default'      => 'yes',
+				'condition'    => array( 'display_mode' => 'carousel' ),
 			)
 		);
 
@@ -229,7 +235,7 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 
 		$this->end_controls_section();
 
-		// STYLE TAB
+		// STYLE TAB: General Styling
 		$this->start_controls_section(
 			'section_style',
 			array(
@@ -262,6 +268,214 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 				'label'   => esc_html__( 'Text Color', 'digital-library-membership' ),
 				'type'    => \Elementor\Controls_Manager::COLOR,
 				'default' => '#1a1c1c',
+			)
+		);
+
+		$this->end_controls_section();
+
+		// STYLE TAB: Navigation Arrows Style
+		$this->start_controls_section(
+			'section_arrows_style',
+			array(
+				'label'     => esc_html__( 'Navigation Arrows Style', 'digital-library-membership' ),
+				'tab'       => \Elementor\Controls_Manager::TAB_STYLE,
+				'condition' => array(
+					'display_mode' => 'carousel',
+					'show_arrows'  => 'yes',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'arrows_size',
+			array(
+				'label'      => esc_html__( 'Button Size (px)', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'range'      => array(
+					'px' => array(
+						'min' => 30,
+						'max' => 70,
+					),
+				),
+				'default'    => array(
+					'size' => 46,
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn' => 'width: {{SIZE}}px; height: {{SIZE}}px;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'arrows_icon_size',
+			array(
+				'label'      => esc_html__( 'Icon Size (px)', 'digital-library-membership' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'range'      => array(
+					'px' => array(
+						'min' => 12,
+						'max' => 36,
+					),
+				),
+				'default'    => array(
+					'size' => 20,
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn svg' => 'width: {{SIZE}}px; height: {{SIZE}}px;',
+				),
+			)
+		);
+
+		$this->start_controls_tabs( 'tabs_library_arrows_style' );
+
+		$this->start_controls_tab(
+			'tab_library_arrows_normal',
+			array(
+				'label' => esc_html__( 'Normal', 'digital-library-membership' ),
+			)
+		);
+
+		$this->add_control(
+			'arrows_color',
+			array(
+				'label'     => esc_html__( 'Arrow Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#855300',
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn' => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'arrows_bg_color',
+			array(
+				'label'     => esc_html__( 'Background Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#ffffff',
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'arrows_border_color',
+			array(
+				'label'     => esc_html__( 'Border Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => 'rgba(133, 83, 0, 0.18)',
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn' => 'border-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->end_controls_tab();
+
+		$this->start_controls_tab(
+			'tab_library_arrows_hover',
+			array(
+				'label' => esc_html__( 'Hover', 'digital-library-membership' ),
+			)
+		);
+
+		$this->add_control(
+			'arrows_color_hover',
+			array(
+				'label'     => esc_html__( 'Arrow Color (Hover)', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#ffffff',
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn:hover' => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'arrows_bg_color_hover',
+			array(
+				'label'     => esc_html__( 'Background Color (Hover)', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#855300',
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn:hover' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'arrows_border_color_hover',
+			array(
+				'label'     => esc_html__( 'Border Color (Hover)', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#855300',
+				'selectors' => array(
+					'{{WRAPPER}} .dlm-swiper-nav-btn:hover' => 'border-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->end_controls_tab();
+
+		$this->end_controls_tabs();
+
+		$this->end_controls_section();
+
+		// STYLE TAB: Pagination Dots Style
+		$this->start_controls_section(
+			'section_dots_style',
+			array(
+				'label'     => esc_html__( 'Pagination Dots Style', 'digital-library-membership' ),
+				'tab'       => \Elementor\Controls_Manager::TAB_STYLE,
+				'condition' => array(
+					'display_mode' => 'carousel',
+					'show_dots'    => 'yes',
+				),
+			)
+		);
+
+		$this->add_control(
+			'dots_color',
+			array(
+				'label'     => esc_html__( 'Dots Inactive Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#855300',
+				'selectors' => array(
+					'{{WRAPPER}} .swiper-pagination-bullet' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'dots_active_color',
+			array(
+				'label'     => esc_html__( 'Dots Active Color', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'default'   => '#855300',
+				'selectors' => array(
+					'{{WRAPPER}} .swiper-pagination-bullet-active' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'dots_size',
+			array(
+				'label'     => esc_html__( 'Dots Size (px)', 'digital-library-membership' ),
+				'type'      => \Elementor\Controls_Manager::SLIDER,
+				'range'     => array(
+					'px' => array(
+						'min' => 6,
+						'max' => 20,
+					),
+				),
+				'default'   => array(
+					'size' => 10,
+				),
+				'selectors' => array(
+					'{{WRAPPER}} .swiper-pagination-bullet' => 'width: {{SIZE}}px; height: {{SIZE}}px;',
+				),
 			)
 		);
 
@@ -301,7 +515,7 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 			<div style="max-width: 1200px; margin: 0 auto;">
 
 				<!-- Header Area -->
-				<div class="gsap-fade-up" style="text-align: center; margin-bottom: <?php echo ( 'grid' === $display_mode ) ? '36px' : '48px'; ?>;">
+				<div class="dlm-motion-fade-up" style="text-align: center; margin-bottom: <?php echo ( 'grid' === $display_mode ) ? '36px' : '48px'; ?>;">
 					<?php if ( ! empty( $section_tag ) ) : ?>
 						<div style="display: inline-block; background: rgba(133, 83, 0, 0.12); color: <?php echo esc_attr( $primary_color ); ?>; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; padding: 6px 18px; border-radius: 50px; margin-bottom: 14px;">
 							<?php echo esc_html( $section_tag ); ?>
@@ -380,7 +594,7 @@ class DLM_Widget_Library_Carousel extends \Elementor\Widget_Base {
 				<?php else : ?>
 					<!-- Swiper Carousel Layout -->
 					<div style="position: relative; width: 100%;">
-						<div class="swiper dlm-swiper-container mipallab-swiper-container" 
+						<div class="swiper dlm-swiper-container mipallab-swiper-container <?php echo $has_arrows ? 'has-arrows' : 'no-arrows'; ?>" 
 							 data-speed="<?php echo esc_attr( $speed ); ?>" 
 							 data-autoplay="<?php echo esc_attr( $is_autoplay ); ?>" 
 							 data-delay="<?php echo esc_attr( $autoplay_delay ); ?>" 

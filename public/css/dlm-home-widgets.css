@@ -191,6 +191,200 @@
     right: -16px;
 }
 
+/* Hero Slider Boxed Container & Navigation Adjustments */
+.dlm-hero-section {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.dlm-hero-box-container {
+    width: 100%;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.dlm-hero-section .dlm-swiper-container {
+    position: relative;
+    box-sizing: border-box;
+    width: 100% !important;
+    overflow: hidden !important;
+    padding: 0 !important; /* Strictly 0 padding so no adjacent slides peek */
+    margin: 0 !important;
+}
+
+.dlm-hero-section .dlm-swiper-container.has-arrows,
+.dlm-hero-section .dlm-swiper-container.no-arrows {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.dlm-hero-section .swiper-slide {
+    box-sizing: border-box;
+}
+
+.dlm-hero-slide-grid {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 30px 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 48px;
+    align-items: center;
+}
+
+.dlm-hero-section .dlm-swiper-nav-prev {
+    left: 14px;
+}
+
+.dlm-hero-section .dlm-swiper-nav-next {
+    right: 14px;
+}
+
+@media (max-width: 767px) {
+    /* Hero Featured Book Slider: Mobile Stack (Book on TOP) */
+    .dlm-hero-section .dlm-hero-slide-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 20px !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    .dlm-hero-section .dlm-hero-slide-cover {
+        order: 1 !important; /* Book Cover moves to the TOP */
+        margin-bottom: 8px !important;
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    .dlm-hero-section .dlm-hero-slide-cover img {
+        max-height: 220px !important;
+        transform: none !important;
+    }
+    .dlm-hero-section .dlm-hero-slide-text {
+        order: 2 !important; /* Text and buttons go BELOW */
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+    }
+    .dlm-hero-section .dlm-hero-badge {
+        margin-bottom: 12px !important;
+    }
+    .dlm-hero-section .dlm-hero-title {
+        font-size: 1.8rem !important;
+        margin-bottom: 10px !important;
+        text-align: center !important;
+    }
+    .dlm-hero-section .dlm-hero-subtitle {
+        font-size: 1rem !important;
+        margin-bottom: 14px !important;
+        text-align: center !important;
+    }
+    .dlm-hero-section .dlm-hero-desc {
+        font-size: 0.95rem !important;
+        margin-bottom: 18px !important;
+        text-align: center !important;
+    }
+    .dlm-hero-section .dlm-hero-rating {
+        justify-content: center !important;
+        margin-bottom: 20px !important;
+    }
+    .dlm-hero-section .dlm-hero-cta {
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    .dlm-hero-section .dlm-hero-cta a {
+        width: 100% !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+    .dlm-hero-section .dlm-swiper-container.has-arrows .dlm-swiper-nav-btn {
+        display: none !important;
+    }
+
+    /* DLM Featured Book Slider: Mobile Stack (Book on TOP) */
+    .dlm-featured-slider-wrapper .dlm-featured-slide {
+        min-height: auto !important;
+        height: auto !important;
+        padding: 32px 16px 40px 16px !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-content {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        height: auto !important;
+        padding: 10px 0 !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-right {
+        order: 1 !important; /* Floating Cover moves to the TOP */
+        padding-left: 0 !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-floating-cover {
+        max-width: 170px !important;
+        max-height: 240px !important;
+        width: auto !important;
+        height: auto !important;
+        transform: none !important;
+        margin: 0 auto !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-floating-cover img {
+        max-height: 240px !important;
+        width: auto !important;
+        object-fit: contain !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-left {
+        order: 2 !important; /* Text and buttons go BELOW */
+        max-width: 100% !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-badges {
+        justify-content: center !important;
+        margin-bottom: 10px !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-title {
+        font-size: 1.65rem !important;
+        line-height: 1.2 !important;
+        text-align: center !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-author {
+        text-align: center !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-slide-desc {
+        font-size: 0.95rem !important;
+        line-height: 1.55 !important;
+        text-align: center !important;
+        -webkit-line-clamp: 3 !important;
+        margin-bottom: 18px !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-featured-cta-wrap {
+        justify-content: center !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+    .dlm-featured-slider-wrapper .dlm-btn-primary,
+    .dlm-featured-slider-wrapper .dlm-btn-secondary {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
+
 /* Swiper Pagination Bullets */
 .dlm-swiper-container .swiper-pagination,
 .mipallab-swiper-container .swiper-pagination {
@@ -319,17 +513,73 @@
 }
 
 /* ==========================================================================
-   6. Elementor Editor Safe Overrides
+   6. Native Motion & Animation Helpers (GPLv2+ Compatible)
    ========================================================================== */
-body.elementor-editor-active .gsap-fade-up,
-body.elementor-editor-active .gsap-fade-left,
-body.elementor-editor-active .gsap-fade-right,
-body.elementor-editor-preview .gsap-fade-up,
-body.elementor-editor-preview .gsap-fade-left,
-body.elementor-editor-preview .gsap-fade-right {
+@keyframes dlmMotionFloat {
+    0% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-10px) rotate(1.2deg);
+    }
+}
+
+.dlm-motion-float {
+    animation: dlmMotionFloat 3.2s ease-in-out infinite alternate !important;
+    will-change: transform;
+}
+
+.dlm-motion-fade-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.dlm-motion-fade-left {
+    opacity: 0;
+    transform: translateX(-35px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.dlm-motion-fade-right {
+    opacity: 0;
+    transform: translateX(35px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.dlm-motion-fade-up.dlm-in-view,
+.dlm-motion-fade-left.dlm-in-view,
+.dlm-motion-fade-right.dlm-in-view {
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+/* Elementor Editor Safe Overrides */
+body.elementor-editor-active .dlm-motion-fade-up,
+body.elementor-editor-active .dlm-motion-fade-left,
+body.elementor-editor-active .dlm-motion-fade-right,
+body.elementor-editor-preview .dlm-motion-fade-up,
+body.elementor-editor-preview .dlm-motion-fade-left,
+body.elementor-editor-preview .dlm-motion-fade-right {
     opacity: 1 !important;
     transform: none !important;
     visibility: visible !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dlm-motion-float {
+        animation: none !important;
+    }
+    .dlm-motion-fade-up,
+    .dlm-motion-fade-left,
+    .dlm-motion-fade-right {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
 }
 
 /* ==========================================================================

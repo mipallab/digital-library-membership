@@ -5,7 +5,7 @@ Tags: library, membership, flipbook, pdf-reader, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 3.3.0
+Stable tag: 3.3.2
 Elementor tested up to: 3.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -14,7 +14,7 @@ Secure digital library membership with realistic 3D flipbook reader, DRM protect
 
 == Description ==
 
-**Digital Library Membership** turns your WordPress site into a secure, high-performance digital library platform. Manage book catalogs, subscription plans, and individual book sales with an Apple Books-inspired reading experience. Fully compatible with Gutenberg Block Editor and Elementor Page Builder. Includes a native suite of 6 high-converting Elementor widgets with GSAP motion and Swiper touch carousels.
+**Digital Library Membership** turns your WordPress site into a secure, high-performance digital library platform. Manage book catalogs, subscription plans, and individual book sales with an Apple Books-inspired reading experience. Fully compatible with Gutenberg Block Editor and Elementor Page Builder. Includes a native suite of 6 high-converting Elementor widgets with fluid motion animations and Swiper touch carousels.
 
 ### Key Features
 
@@ -139,6 +139,11 @@ This plugin integrates with the following third-party services to handle authent
 * Security & Standards: 100% clean WordPress Plugin Check validation, complete translator comment coverage, text domain synchronization, and zero syntax errors.
 * Enhanced: Celebration modal popup upon successful transaction with direct reading access activation.
 
+= 3.3.2 =
+* Licensing: Completely removed GSAP vendor dependency and replaced with 100% GPLv2+ compatible native CSS and IntersectionObserver motion animations.
+* Compliance: Achieved 100% GPL-compatible licensing across all bundled vendor code and scripts.
+* Performance: Hardware-accelerated CSS float animations and zero-dependency viewport reveal handlers.
+
 = 3.2.1 =
 * Fixed: Auto-restoration engine for WooCommerce Checkout and Cart pages if missing or deleted from database.
 * Enhanced: Native WooCommerce cart priming and order routing ensuring all installed payment gateways (bKash, Nagad, Stripe, PayPal, Rocket, Cards) render natively and complete transactions flawlessly.
@@ -154,7 +159,7 @@ This plugin integrates with the following third-party services to handle authent
 
 = 3.1.0 =
 * Security & Standards: 100% WordPress Plugin Check and PHPCS compliance passed.
-* Performance: Locally bundled all Swiper and GSAP vendor libraries inside plugin distribution.
+* Performance: Locally bundled Swiper vendor library inside plugin distribution.
 * Security: Full sanitization, unslashing, and comprehensive escaping applied across all shortcodes and Elementor widget engines.
 * Internationalization: Complete translators comments coverage across all i18n placeholders.
 
@@ -163,7 +168,7 @@ This plugin integrates with the following third-party services to handle authent
 * Added: 6 New Elementor Widgets (`DLM_Widget_Hero_Book_Slider`, `DLM_Widget_Library_Carousel`, `DLM_Widget_Membership_Section`, `DLM_Widget_Review_Switcher`, `DLM_Widget_Contact_Section`, `DLM_Widget_About_Author`).
 * Added: Standalone Dynamic Shortcodes suite (`[dlm_library_carousel]`, `[dlm_library_grid]`, `[dlm_membership]`, `[dlm_review_switcher]`, `[dlm_contact_form]`, `[dlm_hero_slider]`, `[dlm_about_author]`).
 * Added: Full backward compatibility layer with class aliases and legacy shortcode/widget tags (`[mipallab_...]`, `Mipallab_Home_Widgets_Extension`, `Mipallab_Books_Helper`).
-* Added: Native GSAP Motion Helpers, ScrollTrigger animations, and ultra-smooth Swiper touch carousel engine.
+* Added: Native motion animation helpers, scroll-reveal animations, and ultra-smooth Swiper touch carousel engine.
 * Added: Interactive AJAX Contact Form endpoint with strict nonce verification, input sanitization, option logging, and admin email notifications.
 * Added: Real-time client-side library search filtering for instant book discovery.
 
